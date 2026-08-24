@@ -12,10 +12,11 @@
     <a href="https://github.com/Swatantra-66/aegis"><img src="https://img.shields.io/badge/Security-Argon2id%20%2B%20AES--256-7952CC.svg?style=for-the-badge" alt="Security" /></a>
     <a href="https://redis.io/"><img src="https://img.shields.io/badge/Cache-Redis%206%2B-DC382D.svg?style=for-the-badge&logo=redis&logoColor=white" alt="Redis" /></a>
     <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/Database-PostgreSQL%2014%2B-4169E1.svg?style=for-the-badge&logo=postgresql&logoColor=white" alt="Postgres" /></a>
+    <a href="https://www.docker.com/"><img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" /></a>
   </p>
 
   <p>
-    <a href="#%EF%B8%8F-high-level-system-architecture"><b>System Architecture</b></a> •
+    <a href="#high-level-design"><b>High-Level Design</b></a> •
     <a href="#-features"><b>Features</b></a> •
     <a href="./ARCHITECTURE.md"><b>Detailed Design</b></a> •
     <a href="./SECURITY.md"><b>Security Policy</b></a> •
@@ -28,7 +29,7 @@
 
 ---
 
-## High-Level System Architecture
+## High-Level Design
 
 <div align="center">
   <img src="./docs/assets/system-architecture.png" alt="Aegis IAM High-Level System Architecture" width="100%" />
@@ -101,31 +102,32 @@ src/
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- PostgreSQL 14+ 
-- Redis 6+
+- **Node.js** 18+
+- **Docker & Docker Compose** (Recommended for instant PostgreSQL & Redis) *or* local PostgreSQL 14+ & Redis 6+
 
-### Installation
+### Installation & Setup
 
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/Swatantra-66/aegis.git
 cd aegis
 
-# Install dependencies
+# 2. Install dependencies
 npm install
 
-# Configure environment
+# 3. Configure environment variables
 cp .env.example .env
-# Edit .env with your database and Redis credentials
+# Update credentials in .env if needed
 
-# Run database migrations
+# 4. Start PostgreSQL & Redis via Docker (Recommended)
+docker compose up -d
+# or using Makefile: make docker-up
+
+# 5. Run database migrations & seed default RBAC roles
 npm run migrate
-
-# Seed default roles & permissions
 npm run seed
 
-# Start development server
+# 6. Start development server (with nodemon live reload)
 npm start
 ```
 

@@ -1,10 +1,12 @@
-.PHONY: help install dev frontend start test test-cov migrate seed lint format clean
+.PHONY: help install dev frontend start test test-cov migrate seed lint format clean docker-up docker-down docker-logs
 
 # Default target
 help:
 	@echo "======================================================="
 	@echo "               AEGIS IAM — Make Commands               "
 	@echo "======================================================="
+	@echo "  make docker-up   Start PostgreSQL & Redis in Docker"
+	@echo "  make docker-down Stop Docker containers"
 	@echo "  make install     Install all backend & frontend dependencies"
 	@echo "  make start       Start backend server in development mode"
 	@echo "  make dev         Start backend with nodemon live reload"
@@ -17,6 +19,16 @@ help:
 	@echo "  make format      Format code with Prettier"
 	@echo "  make clean       Remove temporary files and logs"
 	@echo "======================================================="
+
+# Docker Infrastructure
+docker-up:
+	docker compose up -d
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs -f
 
 # Installation
 install:
