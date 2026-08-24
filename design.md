@@ -14,7 +14,7 @@ The visual design language synthesizes high-contrast Neo-Brutalism, dark obsidia
 
 ```
 +-----------------------------------------------------------------------------------+
-|  [OKAYDEV-STYLE TOP NAV]   SOCIAL   GALLERY   DIRECTORY   [LOGIN]  [SIGN UP ->]   |
+|  [AEGIS]  SOCIAL   GALLERY   DIRECTORY   [LOGIN]  [SIGN UP ->]   |
 +-----------------------------------------------------------------------------------+
 |                                                                                   |
 |    ❖ (SDLC PHASE 1: REQUIREMENT ANALYSIS & SPECIFICATION) ❖                       |
@@ -26,7 +26,7 @@ The visual design language synthesizes high-contrast Neo-Brutalism, dark obsidia
 |    ████████████████████████████████████████████████████████████████             |
 |                                                                                   |
 +-----------------------------------------------------------------------------------+
-|  ❖ STUDIOS  •  AGENCIES  •  DESIGNERS  •  DEVELOPERS  •  SECURITY AUDIT PASSED ❖  |
+|  ❖ AUTHENTICATION •  AUTHORIZATION  •  RBAC  •  OAUTH / JWT  • Rate Limiting • TOTP MFA • SECURITY AUDIT PASSED ❖  |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -123,7 +123,7 @@ This interactive staging dashboard serves as the central showcase for the Softwa
 
 ```
 +-----------------------------------------------------------------------+
-|  OKAYDEV BRANDING                                [LOGIN]  [SIGN UP]   |
+|  AEGIS                                [LOGIN]  [SIGN UP]   |
 +-----------------------------------------------------------------------+
 |                                                                       |
 |                          S I G N   I N                                |
@@ -216,7 +216,7 @@ This interactive staging dashboard serves as the central showcase for the Softwa
   * Triggers API GET request to `/api/v1/audit/verify`.
   * Computes client-side SHA-256 validation or renders server-verified cryptographic checksum status badge:
     * `[✓ INTEGRITY VERIFIED - CHAIN INTACT (SHA-256)]` (Neon Green)
-    * `[⚠️ WARNING - CHECKSUM MISMATCH DETECTED]` (Amber/Red)
+    * `[WARNING - CHECKSUM MISMATCH DETECTED]` (Amber/Red)
 
 ---
 
