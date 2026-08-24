@@ -4,8 +4,8 @@
   "description": "Production-grade Identity & Access Management Portal with OAuth 2.0, JWT, RBAC, MFA, and audit logging",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
+    "start": "nodemon src/server.js",
+    "dev": "nodemon src/server.js",
     "test": "jest --forceExit --detectOpenHandles",
     "test:coverage": "jest --coverage --forceExit --detectOpenHandles",
     "lint": "eslint src/",
@@ -66,6 +66,7 @@
     "husky": "^9.1.7",
     "jest": "^30.4.2",
     "lint-staged": "^17.3.0",
+    "nodemon": "^3.1.14",
     "prettier": "^3.9.6",
     "supertest": "^7.2.2"
   }
