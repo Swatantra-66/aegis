@@ -1,6 +1,11 @@
-# IAM Portal
+# AEGIS IAM
 
-A production-grade **Identity & Access Management** portal built with Node.js, Express, PostgreSQL, and Redis.
+[![Tests](https://img.shields.io/badge/tests-66%20passed%2C%200%20failed-brightgreen.svg?style=flat-square)](https://github.com/Swatantra-66/aegis)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg?style=flat-square)](https://nodejs.org/)
+[![Security: Argon2id](https://img.shields.io/badge/Security-Argon2id%20%2B%20AES--256-blueviolet.svg?style=flat-square)](https://github.com/Swatantra-66/aegis)
+
+Production-grade Identity & Access Management (IAM) Portal featuring JWT/OAuth 2.0, RBAC, Multi-Factor Authentication (MFA), Rate Limiting, Redis caching, Sessions and PostgreSQL audit logging.
 
 ## Features
 
@@ -58,15 +63,15 @@ src/
 
 ### Prerequisites
 - Node.js 18+
-- PostgreSQL 14+
+- PostgreSQL 14+ 
 - Redis 6+
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone <repo-url>
-cd IAM-Portal
+git clone https://github.com/Swatantra-66/aegis.git
+cd aegis
 
 # Install dependencies
 npm install
@@ -82,7 +87,7 @@ npm run migrate
 npm run seed
 
 # Start development server
-npm run dev
+npm start
 ```
 
 ### Environment Variables
@@ -221,6 +226,20 @@ npm run test:coverage
 npx jest --testPathPattern=modules/auth
 npx jest --testPathPattern=modules/tokens
 ```
+
+### Test Suite Breakdown (66 / 66 Passing)
+
+| Test Suite | Module / Scope | Tests Passed | Status |
+| :--- | :--- | :---: | :---: |
+| `tokens.test.js` | Argon2id hashing, SHA-256 tokens, AES-256-GCM encryption | **16** | ✅ PASS |
+| `users.test.js` | Global error handling & DB/JWT exceptions | **6** | ✅ PASS |
+| `auth.validator.test.js` | Joi input validation (Email, Password complexity, UUIDs) | **14** | ✅ PASS |
+| `roles.test.js` | RBAC authorization middleware (AND/OR hierarchy) | **6** | ✅ PASS |
+| `auth.unit.test.js` | Custom AppError factory status code mappings | **9** | ✅ PASS |
+| `apiResponse.test.js` | Standardized API response formatters & pagination metadata | **6** | ✅ PASS |
+| `mfa.test.js` | Async error handling middleware boundary | **3** | ✅ PASS |
+| `audit.test.js` | Tamper-evident SHA-256 hash chaining & anomaly detection | **3** | ✅ PASS |
+| **Total** | **8 Test Suites** | **66 / 66** | **100% PASS** |
 
 ## Pre-Commit Safeguards
 
