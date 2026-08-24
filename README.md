@@ -1,13 +1,57 @@
-# AEGIS IAM
+<div align="center">
 
-[![Tests](https://img.shields.io/badge/tests-66%20passed%2C%200%20failed-brightgreen.svg?style=flat-square)](https://github.com/Swatantra-66/aegis)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
-[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg?style=flat-square)](https://nodejs.org/)
-[![Security: Argon2id](https://img.shields.io/badge/Security-Argon2id%20%2B%20AES--256-blueviolet.svg?style=flat-square)](https://github.com/Swatantra-66/aegis)
+  <h1>🛡️ AEGIS IAM</h1>
 
-Production-grade Identity & Access Management (IAM) Portal featuring JWT/OAuth 2.0, RBAC, Multi-Factor Authentication (MFA), Rate Limiting, Redis caching, Sessions and PostgreSQL audit logging.
+  <p><strong>Enterprise Identity & Access Management Infrastructure</strong></p>
+  <p><em>Production-grade, zero-trust IAM portal featuring JWT/OAuth 2.0, granular RBAC, RFC 6238 TOTP MFA, distributed Redis rate limiting, and tamper-evident PostgreSQL audit logging.</em></p>
 
-## Features
+  <p>
+    <a href="https://github.com/Swatantra-66/aegis"><img src="https://img.shields.io/badge/tests-66%20passed%2C%200%20failed-brightgreen.svg?style=for-the-badge&logo=jest&logoColor=white" alt="Tests" /></a>
+    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License" /></a>
+    <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-18%2B-339933.svg?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js" /></a>
+    <a href="https://github.com/Swatantra-66/aegis"><img src="https://img.shields.io/badge/Security-Argon2id%20%2B%20AES--256-7952CC.svg?style=for-the-badge" alt="Security" /></a>
+    <a href="https://redis.io/"><img src="https://img.shields.io/badge/Cache-Redis%206%2B-DC382D.svg?style=for-the-badge&logo=redis&logoColor=white" alt="Redis" /></a>
+    <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/Database-PostgreSQL%2014%2B-4169E1.svg?style=for-the-badge&logo=postgresql&logoColor=white" alt="Postgres" /></a>
+  </p>
+
+  <p>
+    <a href="#%EF%B8%8F-high-level-system-architecture"><b>System Architecture</b></a> •
+    <a href="#-features"><b>Features</b></a> •
+    <a href="./ARCHITECTURE.md"><b>Detailed Design</b></a> •
+    <a href="./SECURITY.md"><b>Security Policy</b></a> •
+    <a href="./ROADMAP.md"><b>Roadmap</b></a> •
+    <a href="#-installation"><b>Quick Start</b></a> •
+    <a href="./CONTRIBUTING.md"><b>Contributing</b></a>
+  </p>
+
+</div>
+
+---
+
+## 🏛️ High-Level System Architecture
+
+<div align="center">
+  <img src="./docs/assets/system-architecture.png" alt="Aegis IAM High-Level System Architecture" width="100%" />
+</div>
+
+<details>
+<summary><b>🔍 System Design Layer Breakdown</b> (Click to expand)</summary>
+
+<br />
+
+| Layer | Component | Technical Implementation & Responsibility |
+| :--- | :--- | :--- |
+| **1. Client Tier** | Vite React SPA & External APIs | Reactive user interface, multi-step MFA modal, live audit log viewer, and JWT token storage. |
+| **2. API Gateway & Security** | Helmet, CORS, Tiered Redis Rate Limiter | Distributed brute-force mitigation (auth: 5 req/15min, api: 100 req/15min), security headers. |
+| **3. Middleware Pipeline** | JWT Authenticator, RBAC Guard, Winston Logger | Bearer access token verification, permission bitmask evaluation, and structured JSON telemetry. |
+| **4. Domain Micro-Modules** | Auth, Token RTR, MFA (TOTP), Roles, Audit | Argon2id hashing, family-based refresh token rotation, AES-256 encrypted TOTP seeds, SHA-256 audit chaining. |
+| **5. Storage Tier** | Redis Cluster + PostgreSQL 14+ | In-memory token blacklist (`SETEX` + TTL sync) + ACID persistent relational schemas. |
+
+</details>
+
+---
+
+## 🌟 Features
 
 ### Core (Phase 1)
 - **OAuth 2.0 / JWT Authentication** — Register, login, token refresh with rotation, logout
