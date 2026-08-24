@@ -1,6 +1,6 @@
 <div align="center">
 
-  <h1>🛡️ AEGIS IAM</h1>
+  <h1>AEGIS IAM</h1>
 
   <p><strong>Enterprise Identity & Access Management Infrastructure</strong></p>
   <p><em>Production-grade, zero-trust IAM portal featuring JWT/OAuth 2.0, granular RBAC, RFC 6238 TOTP MFA, distributed Redis rate limiting, and tamper-evident PostgreSQL audit logging.</em></p>
@@ -28,16 +28,13 @@
 
 ---
 
-## 🏛️ High-Level System Architecture
+## High-Level System Architecture
 
 <div align="center">
   <img src="./docs/assets/system-architecture.png" alt="Aegis IAM High-Level System Architecture" width="100%" />
 </div>
 
-<details>
-<summary><b>🔍 System Design Layer Breakdown</b> (Click to expand)</summary>
-
-<br />
+### System Design Layer Breakdown
 
 | Layer | Component | Technical Implementation & Responsibility |
 | :--- | :--- | :--- |
@@ -47,11 +44,9 @@
 | **4. Domain Micro-Modules** | Auth, Token RTR, MFA (TOTP), Roles, Audit | Argon2id hashing, family-based refresh token rotation, AES-256 encrypted TOTP seeds, SHA-256 audit chaining. |
 | **5. Storage Tier** | Redis Cluster + PostgreSQL 14+ | In-memory token blacklist (`SETEX` + TTL sync) + ACID persistent relational schemas. |
 
-</details>
-
 ---
 
-## 🌟 Features
+## Features
 
 ### Core (Phase 1)
 - **OAuth 2.0 / JWT Authentication** — Register, login, token refresh with rotation, logout
