@@ -19,6 +19,7 @@
 
   <p>
     <a href="#high-level-design"><b>High-Level Design</b></a> •
+    <a href="./SRS.md"><b>SRS Document</b></a> •
     <a href="#-features"><b>Features</b></a> •
     <a href="./ARCHITECTURE.md"><b>Detailed Design</b></a> •
     <a href="./SECURITY.md"><b>Security Policy</b></a> •
