@@ -6,7 +6,7 @@
 **Project Name:** Aegis IAM (Identity & Access Management Portal)  
 **Status:** Approved / Release Ready (`v1.4.0`)  
 **Date of Submission:** 2026-08-25  
-**Author / Team:** Swatantra & Engineering Team  
+**Author / Team:** Swatantra & Vishek
 
 ---
 
