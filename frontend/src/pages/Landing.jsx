@@ -15,9 +15,9 @@ const Landing = () => {
           backgroundColor="transparent"
           lineColor="rgb(255, 140, 70)"
           lineWidth={1.5}
-          lineCount={72}
+          lineCount={76}
           speed={5}
-          glow={9}
+          glow={11}
           interactive={true}
         />
       </div>

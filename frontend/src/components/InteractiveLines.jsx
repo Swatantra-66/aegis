@@ -186,7 +186,7 @@ export default function InteractiveHeroCanvas({
 
       e.save();
       e.lineWidth = lineWidth;
-      e.translate(r / 2, i + (isMobile ? 60 : 40));
+      e.translate(r / 2, i);
 
       const f = interactive ? map(mouse.y, 0, i, 1.2, -1.2) : 0;
       const m = Math.max(320, Math.min(1440, r));
