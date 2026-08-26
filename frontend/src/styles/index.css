@@ -3530,3 +3530,151 @@ p {
     gap: 1rem;
   }
 }
+
+/* Glowing Radiant Core Nucleus */
+.footer-hatom-orbit-sphere .orbit-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  margin-left: -3.5px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #ffffff, 0 0 16px #a855f7, 0 0 24px #2398ca;
+  animation: footerCorePulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes footerOrbitPurple {
+  0% {
+    transform: rotateX(55deg) rotateY(20deg) rotateZ(0deg);
+  }
+
+  100% {
+    transform: rotateX(55deg) rotateY(20deg) rotateZ(360deg);
+  }
+}
+
+@keyframes footerOrbitCyan {
+  0% {
+    transform: rotateX(65deg) rotateY(-35deg) rotateZ(0deg);
+  }
+
+  100% {
+    transform: rotateX(65deg) rotateY(-35deg) rotateZ(360deg);
+  }
+}
+
+@keyframes footerOrbitOuter {
+  0% {
+    transform: rotateX(20deg) rotateY(45deg) rotateZ(0deg);
+  }
+
+  100% {
+    transform: rotateX(20deg) rotateY(45deg) rotateZ(360deg);
+  }
+}
+
+@keyframes footerCorePulse {
+  0% {
+    transform: scale(0.9);
+    box-shadow: 0 0 6px #ffffff, 0 0 12px #a855f7;
+  }
+
+  100% {
+    transform: scale(1.25);
+    box-shadow: 0 0 12px #ffffff, 0 0 20px #a855f7, 0 0 30px #38bdf8;
+  }
+}
+
+/* ── Exact GitHub Link (Matches User Screenshots 1 & 2) ── */
+.trionn-github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.trionn-github-link svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: currentColor;
+  transition: color 0.2s ease;
+}
+
+.trionn-github-link .github-text {
+  color: currentColor;
+  position: relative;
+  display: inline-block;
+}
+
+/* Hover State: Subtle Gray Shade */
+.trionn-github-link:hover {
+  color: #9ca3af;
+}
+
+/* ── Responsive Adaptations ── */
+@media (max-width: 1024px) {
+  .trionn-footer-cta-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .trionn-cta-right {
+    align-items: flex-start;
+  }
+
+  .trionn-footer-nav-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .trionn-cookie-pill {
+    position: static;
+    transform: none;
+    margin-top: 1.5rem;
+    white-space: normal;
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .trionn-footer-container {
+    padding: 2.5rem 1.5rem 1rem;
+  }
+
+  .cut-scene-transition-bar {
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: center;
+  }
+
+  .cut-scene-badge {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .trionn-footer-nav-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .trionn-footer-bottom-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+}
