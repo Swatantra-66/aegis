@@ -1,128 +1,25 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import Footer from '../components/Footer';
+import Section26Hero from '../components/Section26/Section26Hero';
+import InteractiveHeroCanvas from '../components/InteractiveLines';
 
 const Landing = () => {
-  const navigate = useNavigate();
-
-  const marqueeKeywords = [
-    'AEGIS',
-    'AUTHENTICATION',
-    'AUTHORIZATION',
-    'RBAC',
-    'OAUTH / JWT',
-    'SESSION MANAGEMENT',
-    'TOTP MFA',
-    'TOKEN MANAGEMENT',
-    'AUDIT LOGS',
-    'RATE LIMITING',
-    'SHA-256 CHECKSUM',
-    'SDLC STAGING',
-    'ZERO TRUST',
-    'ACCESS GOVERNANCE',
-  ];
-
   return (
     <div className="okaydev-landing">
-      {/* Navbar with 3D Letter Pop AEGIS Logo */}
-      <header className="okaydev-navbar">
-        <div className="okaydev-nav-inner">
-          <Link to="/" className="okaydev-brand">
-            <span className="brand-char">A</span>
-            <span className="brand-char">E</span>
-            <span className="brand-char">G</span>
-            <span className="brand-char">I</span>
-            <span className="brand-char">S</span>
-          </Link>
+      {/* ── Section 26 Hero (Visionary Wellness / Exact diip3sh Component) ── */}
+      <Section26Hero />
 
-          <nav className="okaydev-nav-links">
-            <Link to="/dashboard">OVERVIEW</Link>
-            <Link to="/users">IDENTITY</Link>
-            <Link to="/profile">SECURITY</Link>
-            <Link to="/sdlc">SDLC STAGING</Link>
-            <a href="#team">TEAM</a>
-          </nav>
-
-          <div className="okaydev-nav-auth">
-            <Link to="/login" className="okaydev-link-login">
-              LOGIN
-            </Link>
-            <Link to="/register" className="okaydev-btn-pill">
-              SIGN UP →
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section — Clean Organic Emerald Green Canvas */}
-      <section className="okaydev-hero">
-        <div className="okaydev-hero-grid">
-          {/* Hero Content */}
-          <div className="okaydev-hero-content">
-            {/* 3D Kinetic Logo Emblem (Ref: sirnik.co) */}
-            <div className="hero-emblem-container">
-              <div className="hero-3d-emblem-disc">
-                <video
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  poster="https://cdn.prod.website-files.com/66387c0fa39192a87e403b2a/696127daab7a27ca1af08ea8_logo-comp-2_poster.0000000.jpg"
-                >
-                  <source src="https://cdn.prod.website-files.com/66387c0fa39192a87e403b2a/696127daab7a27ca1af08ea8_logo-comp-2_mp4.mp4" type="video/mp4" />
-                  <source src="https://cdn.prod.website-files.com/66387c0fa39192a87e403b2a/696127daab7a27ca1af08ea8_logo-comp-2_webm.webm" type="video/webm" />
-                </video>
-              </div>
-            </div>
-
-            <div className="hero-subtitle-tag">
-              ZERO-TRUST IDENTITY & ACCESS MANAGEMENT ENGINE
-            </div>
-
-            <h1 className="hero-giant-title">
-              <div>Identity</div>
-              <div>Access</div>
-              <div className="hero-builders-badge">Governance</div>
-            </h1>
-
-            <p className="hero-desc">
-              Enterprise IAM architecture powered by Argon2id password hashing, Granular RBAC, TOTP Multi-Factor Authentication, Redis Token Revocation, and Tamper-Evident SHA-256 Audit Chains.
-            </p>
-
-            <div className="hero-cta-wrap">
-              <button
-                onClick={() => navigate('/register')}
-                className="hero-cta-btn"
-              >
-                CREATE AN ACCOUNT →
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Marquee Banner Ticker Strip (Slim Compact Height) */}
-      <div className="okaydev-bottom-ticker">
-        <div className="ticker-track">
-          {[0, 1].map((key) => (
-            <div className="ticker-segment" key={key}>
-              {marqueeKeywords.map((keyword, idx) => (
-                <React.Fragment key={idx}>
-                  <span>{keyword}</span>
-                  <span className="ticker-clover-icon">
-                    <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="16" cy="7" r="4.5" fill="#6B7280" />
-                      <circle cx="16" cy="25" r="4.5" fill="#6B7280" />
-                      <circle cx="7" cy="16" r="4.5" fill="#6B7280" />
-                      <circle cx="25" cy="16" r="4.5" fill="#6B7280" />
-                      <circle cx="16" cy="16" r="2.5" fill="#6B7280" />
-                    </svg>
-                  </span>
-                </React.Fragment>
-              ))}
-            </div>
-          ))}
-        </div>
+      {/* ── Interactive Lines Transition Bridge (Framer InteractiveLinesV2) ── */}
+      <div className="interactive-lines-transition-wrapper">
+        <InteractiveHeroCanvas
+          backgroundColor="transparent"
+          lineColor="rgb(255, 140, 70)"
+          lineWidth={1.5}
+          lineCount={72}
+          speed={5}
+          glow={9}
+          interactive={true}
+        />
       </div>
 
       {/* Team Made Visible Section (Ref: Exact sirnik.co Editorial Layout) */}

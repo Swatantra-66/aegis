@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
+import ShinyText from '../components/ShinyText';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -20,8 +21,8 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    clearError();
     setFormError('');
+    clearError();
 
     if (password !== confirmPassword) {
       setFormError('Passwords do not match');
@@ -53,12 +54,18 @@ const Register = () => {
       {/* Top Navbar with AEGIS Branding */}
       <header className="okaydev-navbar">
         <div className="okaydev-nav-inner">
-          <Link to="/" className="okaydev-brand">
-            <span className="brand-char">A</span>
-            <span className="brand-char">E</span>
-            <span className="brand-char">G</span>
-            <span className="brand-char">I</span>
-            <span className="brand-char">S</span>
+          <Link to="/" className="okaydev-brand" aria-label="AEGIS Home">
+            <ShinyText
+              text="AEGIS"
+              fontSize={28}
+              fontWeight={900}
+              letterSpacing="0.06em"
+              textColor="#000000"
+              shadowColor="rgba(0, 0, 0, 0.28)"
+              glareColor="rgba(255, 255, 255, 0.95)"
+              glareSpeed={1.2}
+              glareDirection="left-to-right"
+            />
           </Link>
 
           <nav className="okaydev-nav-links">

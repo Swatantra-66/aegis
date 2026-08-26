@@ -315,7 +315,11 @@ const Footer = () => {
           <div className="trionn-bottom-center">
             <div className="footer-hatom-orbit-sphere" aria-hidden="true">
               <div className="orbit-ring ring-1"></div>
+              <div className="orbit-ring ring-1"></div>
               <div className="orbit-ring ring-2"></div>
+              <div className="orbit-ring ring-2"></div>
+              <div className="orbit-ring ring-2"></div>
+              <div className="orbit-ring ring-3"></div>
               <div className="orbit-ring ring-3"></div>
               <div className="orbit-core"></div>
             </div>
@@ -323,7 +327,7 @@ const Footer = () => {
 
           <div className="trionn-bottom-right">
             <a
-              href="https://github.com/Swatntra-66/aegis"
+              href="https://github.com/Swatantra-66/aegis"
               target="_blank"
               rel="noopener noreferrer"
               className="trionn-github-link"
