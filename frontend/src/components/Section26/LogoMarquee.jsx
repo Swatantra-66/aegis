@@ -7,7 +7,7 @@ const TECH_LOGOS = [
     isCustomColor: true,
   },
   {
-    name: "antigravity",
+    name: "Antigravity",
     iconSrc: "/logos/antigravity.svg",
     isCustomColor: true,
   },

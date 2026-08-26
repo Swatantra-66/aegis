@@ -46,7 +46,7 @@ export const Section26Hero = () => {
               LOGIN
             </Link>
             <Link to="/register" className="okaydev-btn-pill">
-              SIGN UP →
+              SIGN UP
             </Link>
           </div>
         </div>
