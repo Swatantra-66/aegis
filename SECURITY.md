@@ -17,7 +17,7 @@ We take the security of **Aegis IAM** seriously. If you discover a security vuln
 
 ### How to Report
 
-1. **Email:** Send details to [swatantramishra66@gmail.com](mailto:swatantramishra66@gmail.com) with the subject `[SECURITY VULNERABILITY] Aegis IAM`.
+1. **Email:** Send details to [aegis.swatantracodes.in](mailto:maverickswatantra@gmail.com) with the subject `[SECURITY VULNERABILITY] Aegis IAM`.
 2. **Details to Include:**
    - A clear description of the vulnerability.
    - Steps to reproduce or a Proof of Concept (PoC).
