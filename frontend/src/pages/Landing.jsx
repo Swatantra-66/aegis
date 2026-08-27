@@ -3,13 +3,44 @@ import Footer from '../components/Footer';
 import Section26Hero from '../components/Section26/Section26Hero';
 import InteractiveHeroCanvas from '../components/InteractiveLines';
 
+const IndianFlag = () => (
+  <span className="sirnik-flag-badge" title="India" aria-label="India" style={{ display: 'inline-flex', alignItems: 'center' }}>
+    <svg
+      width="22"
+      height="15"
+      viewBox="0 0 30 20"
+      style={{
+        borderRadius: '2px',
+        boxShadow: '0 0 0 1px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)',
+        display: 'block',
+        overflow: 'hidden'
+      }}
+    >
+      <rect width="30" height="6.67" y="0" fill="#FF9933" />
+      <rect width="30" height="6.67" y="6.67" fill="#FFFFFF" />
+      <rect width="30" height="6.67" y="13.33" fill="#128807" />
+      <circle cx="15" cy="10" r="2.2" fill="none" stroke="#000080" strokeWidth="0.5" />
+      <circle cx="15" cy="10" r="0.5" fill="#000080" />
+      {[...Array(12)].map((_, i) => (
+        <line
+          key={i}
+          x1={15 + 2.2 * Math.cos((i * Math.PI) / 6)}
+          y1={10 + 2.2 * Math.sin((i * Math.PI) / 6)}
+          x2={15 - 2.2 * Math.cos((i * Math.PI) / 6)}
+          y2={10 - 2.2 * Math.sin((i * Math.PI) / 6)}
+          stroke="#000080"
+          strokeWidth="0.25"
+        />
+      ))}
+    </svg>
+  </span>
+);
+
 const Landing = () => {
   return (
     <div className="okaydev-landing">
-      {/* ── Section 26 Hero (Visionary Wellness / Exact diip3sh Component) ── */}
       <Section26Hero />
 
-      {/* ── Interactive Lines Transition Bridge (Framer InteractiveLinesV2) ── */}
       <div className="interactive-lines-transition-wrapper">
         <InteractiveHeroCanvas
           backgroundColor="transparent"
@@ -22,20 +53,15 @@ const Landing = () => {
         />
       </div>
 
-      {/* Team Made Visible Section (Ref: Exact sirnik.co Editorial Layout) */}
       <section className="aegis-team-section" id="team">
-        {/* Background Watermark Characters */}
         <div className="team-watermark">AEGIS</div>
 
         <div className="aegis-team-inner">
-          {/* Top Editorial Giant Heading */}
           <h2 className="team-giant-top">
             Team made<br />visible
           </h2>
 
-          {/* Staggered Cards Stage with Staggered Overlap */}
           <div className="team-editorial-stage">
-            {/* Philosophy Notes */}
             <div className="team-philosophy-center">
               Small team. Clear ideas. Expressed with cryptographic clarity and control.
             </div>
@@ -63,7 +89,7 @@ const Landing = () => {
               <div className="sirnik-card-label">
                 <div className="sirnik-label-name">Swatantra Yadav</div>
                 <div className="sirnik-label-meta">
-                  <span>India</span>
+                  <IndianFlag />
                   <span className="sirnik-label-role">Project Lead, Backend Engineer</span>
                 </div>
               </div>
@@ -86,8 +112,8 @@ const Landing = () => {
               <div className="sirnik-card-label">
                 <div className="sirnik-label-name">Vishek Tyagi</div>
                 <div className="sirnik-label-meta">
-                  <span>India</span>
-                  <span className="sirnik-label-role">Co-Lead, IAM & UI Systems</span>
+                  <IndianFlag />
+                  <span className="sirnik-label-role">Project Member, Auth Backend</span>
                 </div>
               </div>
             </div>
@@ -127,7 +153,6 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* ── Cut Scene Transition to AEGIS Trionn-Style Striped Footer ── */}
       <Footer />
     </div>
   );
