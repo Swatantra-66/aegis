@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="./docs/assets/aegis-logo.png" alt="Aegis IAM Logo" width="100" height="100" />
+  <img src="./docs/assets/aegis-logo-new.png" alt="Aegis IAM Logo" width="100" height="100" />
 
   <h1>AEGIS IAM</h1>
 
