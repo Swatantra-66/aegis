@@ -129,7 +129,7 @@ const Landing = () => {
 
               <div className="team-editorial-meta-block">
                 <div className="editorial-meta-lead">
-                  Every transaction authenticated. Every permission verified. Every audit log cryptographically chained.
+                  Every transaction authenticated<br /> Every permission verified
                 </div>
                 <div className="editorial-meta-pillars">
                   <div className="editorial-pillar-item">
@@ -151,10 +151,10 @@ const Landing = () => {
             </div>
           </div>
         </div>
-      </section>
+      </section >
 
       <Footer />
-    </div>
+    </div >
   );
 };
 
