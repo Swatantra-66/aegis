@@ -5,6 +5,7 @@ const Footer = () => {
   const [cookieConsent, setCookieConsent] = useState(() => {
     return localStorage.getItem('aegis_cookie_consent') || null;
   });
+  const [activePolicyModal, setActivePolicyModal] = useState(null);
   const [liveTime, setLiveTime] = useState('');
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
   const [isInCutScene, setIsInCutScene] = useState(false);
@@ -206,7 +207,7 @@ const Footer = () => {
           {/* Sliced Scanline Horizontal SVG Logo */}
           <svg
             className="trionn-striped-svg"
-            viewBox="0 0 1440 280"
+            viewBox="0 0 1440 330"
             preserveAspectRatio="xMidYMid meet"
           >
             <defs>
@@ -214,7 +215,7 @@ const Footer = () => {
               <pattern
                 id="aegisScanlines"
                 width="1440"
-                height="8"
+                height="8.5"
                 patternUnits="userSpaceOnUse"
               >
                 <line
@@ -222,14 +223,14 @@ const Footer = () => {
                   y1="2"
                   x2="1440"
                   y2="2"
-                  stroke="rgba(255, 255, 255, 0.7)"
-                  strokeWidth="1.5"
+                  stroke="rgba(255, 255, 255, 0.72)"
+                  strokeWidth="1.6"
                 />
               </pattern>
 
               {/* Text Mask for AEGIS */}
               <mask id="aegisMask">
-                <rect width="1440" height="280" fill="black" />
+                <rect width="1440" height="330" fill="black" />
                 <text
                   x="50%"
                   y="50%"
@@ -237,8 +238,9 @@ const Footer = () => {
                   dominantBaseline="central"
                   fontFamily="'Plus Jakarta Sans', -apple-system, sans-serif"
                   fontWeight="900"
-                  fontSize="240"
-                  letterSpacing="0.06em"
+                  fontSize="310"
+                  letterSpacing="0.05em"
+                  dx="28"
                   fill="white"
                 >
                   AEGIS
@@ -261,7 +263,7 @@ const Footer = () => {
             {/* Base Horizontal Striped Letters */}
             <rect
               width="1440"
-              height="280"
+              height="330"
               fill="url(#aegisScanlines)"
               mask="url(#aegisMask)"
               className="aegis-striped-base"
@@ -270,7 +272,7 @@ const Footer = () => {
             {/* Spotlight Glow over lines following cursor */}
             <rect
               width="1440"
-              height="280"
+              height="330"
               fill="url(#mouseGlowGradient)"
               mask="url(#aegisMask)"
               className="aegis-striped-glow"
@@ -306,26 +308,6 @@ const Footer = () => {
         {/* ── Bottom Strip: Legal, Cryptographic Stamp & Back-to-Top ── */}
         <div className="trionn-footer-bottom-bar">
           <div className="trionn-bottom-left">
-            <span className="trionn-legal-text">
-              © {new Date().getFullYear()} AEGIS. ALL RIGHTS RESERVED.
-            </span>
-          </div>
-
-          {/* 3D Gyroscopic Atom Orbital Sphere */}
-          <div className="trionn-bottom-center">
-            <div className="footer-hatom-orbit-sphere" aria-hidden="true">
-              <div className="orbit-ring ring-1"></div>
-              <div className="orbit-ring ring-1"></div>
-              <div className="orbit-ring ring-2"></div>
-              <div className="orbit-ring ring-2"></div>
-              <div className="orbit-ring ring-2"></div>
-              <div className="orbit-ring ring-3"></div>
-              <div className="orbit-ring ring-3"></div>
-              <div className="orbit-core"></div>
-            </div>
-          </div>
-
-          <div className="trionn-bottom-right">
             <a
               href="https://github.com/Swatantra-66/aegis"
               target="_blank"
@@ -339,8 +321,106 @@ const Footer = () => {
               <span className="github-text">Github</span>
             </a>
           </div>
+
+          {/* Direct LinkedIn "Let's Connect" Badge */}
+          <div className="trionn-bottom-center">
+            <a
+              href="https://www.linkedin.com/in/swatantraar1see/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="trionn-connect-badge"
+              aria-label="Connect on LinkedIn"
+            >
+              <div className="connect-badge-avatar">
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  poster="https://cdn.prod.website-files.com/66387c0fa39192a87e403b2a/6960e8951d5da3df551ad0a2_avatar-4_poster.0000000.jpg"
+                >
+                  <source src="https://cdn.prod.website-files.com/66387c0fa39192a87e403b2a/6960e8951d5da3df551ad0a2_avatar-4_mp4.mp4" type="video/mp4" />
+                  <source src="https://cdn.prod.website-files.com/66387c0fa39192a87e403b2a/6960e8951d5da3df551ad0a2_avatar-4_webm.webm" type="video/webm" />
+                </video>
+              </div>
+              <span className="connect-action-text">Let's Connect</span>
+            </a>
+          </div>
+
+          <div className="trionn-bottom-right">
+            <span className="trionn-legal-text">
+              © {new Date().getFullYear()} AEGIS. ALL RIGHTS RESERVED
+            </span>
+            <div className="trionn-legal-policies">
+              <button
+                type="button"
+                className="trionn-policy-link"
+                onClick={() => setActivePolicyModal('privacy')}
+              >
+                Privacy Policy
+              </button>
+              <button
+                type="button"
+                className="trionn-policy-link"
+                onClick={() => setActivePolicyModal('cookie')}
+              >
+                Cookie Policy
+              </button>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* ── Interactive Policy Modal ── */}
+      {activePolicyModal && (
+        <div className="aegis-policy-overlay" onClick={() => setActivePolicyModal(null)}>
+          <div className="aegis-policy-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="aegis-policy-header">
+              <h3 className="aegis-policy-title">
+                {activePolicyModal === 'privacy' ? 'Privacy Policy' : 'Cookie Policy'}
+              </h3>
+              <button
+                type="button"
+                className="aegis-policy-close"
+                onClick={() => setActivePolicyModal(null)}
+                aria-label="Close modal"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="aegis-policy-body">
+              {activePolicyModal === 'privacy' ? (
+                <>
+                  <p>
+                    <strong>Zero-Trust Identity Governance:</strong> AEGIS processes identity data solely for cryptographically verified authentication, authorization, and role management.
+                  </p>
+                  <p>
+                    <strong>Password Protection:</strong> Passwords are never stored in plaintext and are protected using memory-hard Argon2id key derivation.
+                  </p>
+                  <p>
+                    <strong>Audit Integrity:</strong> Administrative mutations produce tamper-evident SHA-256 chained audit logs.
+                  </p>
+                  <p>
+                    <strong>Data Ownership:</strong> We do not monetize, sell, or transfer your identity credentials or personal telemetry to third parties.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>
+                    <strong>Authentication Cookies:</strong> Secure HTTP-only cookies and JWT tokens maintain authenticated sessions and manage Redis-backed token revocation.
+                  </p>
+                  <p>
+                    <strong>Session State:</strong> Local storage is used strictly to remember your active interface state and consent choices.
+                  </p>
+                  <p>
+                    <strong>Zero Third-Party Trackers:</strong> AEGIS operates with zero advertising cookies or third-party behavioral tracking scripts.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </footer>
   );
 };
