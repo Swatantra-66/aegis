@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import useAuthStore from './stores/authStore';
+import Preloader from './components/Preloader';
 
 // Layouts
 import AppLayout from './components/Layout/AppLayout';
@@ -33,10 +34,12 @@ function App() {
   }, [isAuthenticated, fetchUser]);
 
   return (
-    <Routes>
-      {/* Public Landing Home Page */}
-      <Route path="/" element={<Landing />} />
-      <Route path="/landing" element={<Landing />} />
+    <>
+      <Preloader />
+      <Routes>
+        {/* Public Landing Home Page */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/landing" element={<Landing />} />
 
       {/* Public Authentication Routes */}
       <Route path="/login" element={<Login />} />
@@ -85,7 +88,8 @@ function App() {
       {/* Catch-all redirect */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-  );
+  </>
+);
 }
 
 export default App;
