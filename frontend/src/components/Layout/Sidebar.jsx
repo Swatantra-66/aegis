@@ -30,7 +30,7 @@ const Sidebar = () => {
   };
 
   const navItems = [
-    { path: '/landing', label: 'Home Page', index: '00' },
+    { path: '/home', label: 'Home Page', index: '00' },
     { path: '/dashboard', label: 'Overview', index: '01' },
     { path: '/users', label: 'Identities', index: '02', permission: 'user:read' },
     { path: '/roles', label: 'Governance', index: '03', permission: 'role:read' },
@@ -43,7 +43,7 @@ const Sidebar = () => {
     <aside className="sirnik-sidebar">
       {/* Logo */}
       <div>
-        <NavLink to="/landing" className="sirnik-logo">
+        <NavLink to="/home" className="sirnik-logo">
           <div className="sirnik-logo-dot" />
           <span className="sirnik-logo-text">AEGIS / IAM</span>
         </NavLink>

@@ -37,9 +37,10 @@ function App() {
     <>
       <Preloader />
       <Routes>
-        {/* Public Landing Home Page */}
+        {/* Public Home Page */}
         <Route path="/" element={<Landing />} />
-        <Route path="/landing" element={<Landing />} />
+        <Route path="/home" element={<Landing />} />
+        <Route path="/landing" element={<Navigate to="/home" replace />} />
 
       {/* Public Authentication Routes */}
       <Route path="/login" element={<Login />} />

@@ -5,9 +5,16 @@ import LogoMarquee from "./LogoMarquee";
 import Orb from "./Orb";
 import ShinyText from "../ShinyText";
 import LiquidCarveButton from "../LiquidCarveButton";
+import useAuthStore from "../../stores/authStore";
 
 export const Section26Hero = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, logout } = useAuthStore();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/home");
+  };
 
   return (
     <main className="section26-main-root">
@@ -43,24 +50,44 @@ export const Section26Hero = () => {
           </nav>
 
           <div className="okaydev-nav-auth">
-            <Link to="/login" className="okaydev-link-login">
-              LOGIN
-            </Link>
-            <LiquidCarveButton
-              to="/register"
-              label="SIGN UP"
-              padding="9px 24px"
-              rounded={100}
-              colors={{ fill: "#000000", textColor: "#FFFFFF" }}
-              blob={{ color: "#FF5A1F", size: 60, smoothness: 55 }}
-              font={{
-                fontFamily: "var(--font-sans, Inter, sans-serif)",
-                fontWeight: 800,
-                fontSize: 12.5,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-              }}
-            />
+            {isAuthenticated ? (
+              <LiquidCarveButton
+                onClick={handleLogout}
+                label="SIGN OUT"
+                padding="9px 24px"
+                rounded={100}
+                colors={{ fill: "#000000", textColor: "#FFFFFF" }}
+                blob={{ color: "#FF5A1F", size: 60, smoothness: 55 }}
+                font={{
+                  fontFamily: "var(--font-sans, Inter, sans-serif)",
+                  fontWeight: 800,
+                  fontSize: 12.5,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                }}
+              />
+            ) : (
+              <>
+                <Link to="/login" className="okaydev-link-login">
+                  LOGIN
+                </Link>
+                <LiquidCarveButton
+                  to="/register"
+                  label="SIGN UP"
+                  padding="9px 24px"
+                  rounded={100}
+                  colors={{ fill: "#000000", textColor: "#FFFFFF" }}
+                  blob={{ color: "#FF5A1F", size: 60, smoothness: 55 }}
+                  font={{
+                    fontFamily: "var(--font-sans, Inter, sans-serif)",
+                    fontWeight: 800,
+                    fontSize: 12.5,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                  }}
+                />
+              </>
+            )}
           </div>
         </div>
       </header>
