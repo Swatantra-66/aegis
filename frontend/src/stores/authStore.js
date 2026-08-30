@@ -74,10 +74,25 @@ const useAuthStore = create((set, get) => ({
 
       return { mfaRequired: false };
     } catch (error) {
-      set({
-        isLoading: false,
-        error: getErrorMessage(error),
-      });
+      const status = error.response?.status;
+      const serverMsg = error.response?.data?.message || '';
+
+      let friendlyError;
+      if (status === 404 || serverMsg.toLowerCase().includes('not found') || serverMsg.toLowerCase().includes('no user')) {
+        friendlyError = 'No account found with this email address. Please sign up first.';
+      } else if (status === 401 || serverMsg.toLowerCase().includes('invalid') || serverMsg.toLowerCase().includes('incorrect') || serverMsg.toLowerCase().includes('password')) {
+        friendlyError = 'Incorrect password. Please try again.';
+      } else if (status === 429) {
+        friendlyError = 'Too many login attempts. Please wait a moment and try again.';
+      } else if (status === 400) {
+        friendlyError = 'Invalid email or password format. Please check your input.';
+      } else if (!status || status >= 500) {
+        friendlyError = 'Unable to reach the server. Please check your connection and try again.';
+      } else {
+        friendlyError = getErrorMessage(error);
+      }
+
+      set({ isLoading: false, error: friendlyError });
       throw error;
     }
   },

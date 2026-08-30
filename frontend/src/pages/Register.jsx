@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
-import ShinyText from '../components/ShinyText';
+import AegisAuthBanner from '../components/AegisAuthBanner';
 
 const Register = () => {
   const navigate = useNavigate();
   const { register, isAuthenticated, isLoading, error, clearError } = useAuthStore();
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -24,15 +22,15 @@ const Register = () => {
     setFormError('');
     clearError();
 
-    if (password !== confirmPassword) {
-      setFormError('Passwords do not match');
-      return;
-    }
-
     if (password.length < 8) {
       setFormError('Password must be at least 8 characters');
       return;
     }
+
+    // Split name into first and last name cleanly
+    const parts = name.trim().split(/\s+/);
+    const firstName = parts[0] || '';
+    const lastName = parts.slice(1).join(' ') || '';
 
     try {
       await register({
@@ -50,174 +48,136 @@ const Register = () => {
   const displayError = formError || error;
 
   return (
-    <div className="okaydev-auth-container">
-      {/* Top Navbar with AEGIS Branding */}
-      <header className="okaydev-navbar">
-        <div className="okaydev-nav-inner">
-          <Link to="/" className="okaydev-brand" aria-label="AEGIS Home">
-            <ShinyText
-              text="AEGIS"
-              fontSize={28}
-              fontWeight={900}
-              letterSpacing="0.06em"
-              textColor="#000000"
-              shadowColor="rgba(0, 0, 0, 0.28)"
-              glareColor="rgba(255, 255, 255, 0.95)"
-              glareSpeed={1.2}
-              glareDirection="left-to-right"
-            />
-          </Link>
-
-          <nav className="okaydev-nav-links">
-            <Link to="/dashboard">OVERVIEW</Link>
-            <Link to="/users">IDENTITY</Link>
-            <Link to="/profile">SECURITY</Link>
-            <Link to="/sdlc">SDLC STAGING</Link>
-          </nav>
-
-          <div className="okaydev-nav-auth">
-            <Link to="/login" className="okaydev-link-login">
-              LOGIN
-            </Link>
-            <Link to="/register" className="okaydev-btn-pill" style={{ background: '#e2e8f0' }}>
-              SIGN UP →
-            </Link>
+    <div className="aegis-split-auth-wrapper">
+      {/* Left Form Container (White Modern Form) */}
+      <div className="aegis-auth-form-side">
+        <div className="aegis-auth-form-card">
+          <div className="aegis-form-header">
+            <h1 className="aegis-auth-heading">Get Started Now</h1>
+            <p className="aegis-auth-subheading">
+              Create your account to access enterprise identity governance
+            </p>
           </div>
-        </div>
-      </header>
 
-      {/* Main Card */}
-      <div className="okaydev-auth-card">
-        <h1 className="okaydev-auth-title">SIGN UP</h1>
-        <div className="okaydev-auth-subtitle">
-          CREATING AN AEGIS ACCOUNT? <Link to="/login">SIGN IN HERE!</Link>
-        </div>
+          {displayError && (
+            <div className="aegis-auth-alert-error" role="alert">
+              <span className="aegis-alert-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </span>
+              <span>{displayError}</span>
+            </div>
+          )}
 
-        {displayError && (
-          <div
-            style={{
-              padding: '1rem',
-              borderRadius: '8px',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#ef4444',
-              fontSize: '0.85rem',
-              fontFamily: 'var(--font-mono)',
-              marginBottom: '1.5rem',
-              textAlign: 'left',
-            }}
-          >
-            🚨 {displayError}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="okaydev-form">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div className="okaydev-input-group">
-              <div className="okaydev-label-row">
-                <label className="okaydev-label">
-                  FIRST NAME <span className="asterisk">*</span>
-                </label>
-              </div>
-              <div className="okaydev-input-wrapper">
+          <form onSubmit={handleSubmit} className="aegis-modern-form">
+            {/* Full Name */}
+            <div className="aegis-form-field">
+              <label htmlFor="reg-name" className="aegis-field-label">
+                Name
+              </label>
+              <div className="aegis-field-input-wrap">
                 <input
+                  id="reg-name"
                   type="text"
-                  className="okaydev-input"
-                  placeholder="Jane"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
+                  className="aegis-field-input"
+                  placeholder="Enter your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
                   autoFocus
                 />
               </div>
             </div>
 
-            <div className="okaydev-input-group">
-              <div className="okaydev-label-row">
-                <label className="okaydev-label">
-                  LAST NAME <span className="asterisk">*</span>
-                </label>
-              </div>
-              <div className="okaydev-input-wrapper">
+            {/* Email Address */}
+            <div className="aegis-form-field">
+              <label htmlFor="reg-email" className="aegis-field-label">
+                Email address
+              </label>
+              <div className="aegis-field-input-wrap">
                 <input
-                  type="text"
-                  className="okaydev-input"
-                  placeholder="Doe"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  id="reg-email"
+                  type="email"
+                  className="aegis-field-input"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                 />
               </div>
             </div>
-          </div>
 
-          <div className="okaydev-input-group">
-            <div className="okaydev-label-row">
-              <label className="okaydev-label">
-                EMAIL <span className="asterisk">*</span>
+            {/* Password */}
+            <div className="aegis-form-field">
+              <label htmlFor="reg-password" className="aegis-field-label">
+                Password
               </label>
+              <div className="aegis-field-input-wrap">
+                <input
+                  id="reg-password"
+                  type={showPassword ? 'text' : 'password'}
+                  className="aegis-field-input"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                />
+                <button
+                  type="button"
+                  className="aegis-input-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
-            <div className="okaydev-input-wrapper">
-              <input
-                type="email"
-                className="okaydev-input"
-                placeholder="name@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-          </div>
 
-          <div className="okaydev-input-group">
-            <div className="okaydev-label-row">
-              <label className="okaydev-label">
-                PASSWORD <span className="asterisk">*</span>
-              </label>
-              <span className="okaydev-help-icon" title="Min 8 characters">?</span>
-            </div>
-            <div className="okaydev-input-wrapper">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                className="okaydev-input"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-              />
-              <button
-                type="button"
-                className="okaydev-input-icon"
-                onClick={() => setShowPassword(!showPassword)}
-                tabIndex={-1}
-              >
-                {showPassword ? '🙈' : '👁'}
-              </button>
-            </div>
-          </div>
+            {/* Primary Action Button */}
+            <button
+              type="submit"
+              className="aegis-primary-btn"
+              disabled={isLoading}
+              style={{ marginTop: '0.6rem' }}
+            >
+              {isLoading ? (
+                <span className="aegis-btn-loading-content">
+                  <span className="aegis-inline-spinner" />
+                  Creating Account...
+                </span>
+              ) : (
+                'Signup'
+              )}
+            </button>
+          </form>
 
-          <div className="okaydev-input-group">
-            <div className="okaydev-label-row">
-              <label className="okaydev-label">
-                CONFIRM PASSWORD <span className="asterisk">*</span>
-              </label>
-            </div>
-            <div className="okaydev-input-wrapper">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                className="okaydev-input"
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-            </div>
+          {/* Footer Switch Link */}
+          <div className="aegis-auth-bottom-row" style={{ marginTop: '2rem' }}>
+            Have an account?{' '}
+            <Link to="/login" className="aegis-auth-switch-link">
+              Sign In
+            </Link>
           </div>
-
-          <button type="submit" className="okaydev-submit-btn" disabled={isLoading}>
-            {isLoading ? 'CREATING ACCOUNT...' : 'REGISTER ACCOUNT →'}
-          </button>
-        </form>
+        </div>
       </div>
+
+      {/* Right Visual Banner Side (Aegis Signature Graphic) */}
+      <AegisAuthBanner variant="register" />
     </div>
   );
 };

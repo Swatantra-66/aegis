@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
-import ShinyText from '../components/ShinyText';
+import AegisAuthBanner from '../components/AegisAuthBanner';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -10,6 +10,22 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // Load remembered credentials if stored within 30 days
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('aegis_remember_email');
+    const expiry = localStorage.getItem('aegis_remember_expiry');
+    if (savedEmail && expiry) {
+      if (Date.now() < parseInt(expiry, 10)) {
+        setEmail(savedEmail);
+        setRememberMe(true);
+      } else {
+        localStorage.removeItem('aegis_remember_email');
+        localStorage.removeItem('aegis_remember_expiry');
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) navigate('/dashboard', { replace: true });
@@ -22,133 +38,152 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
+
+    // Persist or clear 30-day remember email
+    if (rememberMe) {
+      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+      localStorage.setItem('aegis_remember_email', email);
+      localStorage.setItem('aegis_remember_expiry', String(Date.now() + thirtyDaysMs));
+    } else {
+      localStorage.removeItem('aegis_remember_email');
+      localStorage.removeItem('aegis_remember_expiry');
+    }
+
     try {
       await login(email, password);
     } catch {
-      // Error handled by authStore
+      // Error handled by store
     }
   };
 
   return (
-    <div className="okaydev-auth-container">
-      {/* Top Navbar with AEGIS Branding */}
-      <header className="okaydev-navbar">
-        <div className="okaydev-nav-inner">
-          <Link to="/" className="okaydev-brand" aria-label="AEGIS Home">
-            <ShinyText
-              text="AEGIS"
-              fontSize={28}
-              fontWeight={900}
-              letterSpacing="0.06em"
-              textColor="#000000"
-              shadowColor="rgba(0, 0, 0, 0.28)"
-              glareColor="rgba(255, 255, 255, 0.95)"
-              glareSpeed={1.2}
-              glareDirection="left-to-right"
-            />
-          </Link>
+    <div className="aegis-split-auth-wrapper">
+      {/* Left Form Container (White Modern Form) */}
+      <div className="aegis-auth-form-side">
+        <div className="aegis-auth-form-card">
+          <div className="aegis-form-header">
+            <h1 className="aegis-auth-heading">Welcome Back</h1>
+            <p className="aegis-auth-subheading">
+              Enter your credentials to access your Aegis governed portal
+            </p>
+          </div>
 
-          <nav className="okaydev-nav-links">
-            <Link to="/dashboard">OVERVIEW</Link>
-            <Link to="/users">IDENTITY</Link>
-            <Link to="/profile">SECURITY</Link>
-            <Link to="/sdlc">SDLC STAGING</Link>
-          </nav>
+          {error && (
+            <div className="aegis-auth-alert-error" role="alert">
+              <span className="aegis-alert-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </span>
+              <span>{error}</span>
+            </div>
+          )}
 
-          <div className="okaydev-nav-auth">
-            <Link to="/login" className="okaydev-link-login" style={{ opacity: 1, textDecoration: 'underline' }}>
-              LOGIN
-            </Link>
-            <Link to="/register" className="okaydev-btn-pill">
-              SIGN UP →
+          <form onSubmit={handleSubmit} className="aegis-modern-form">
+            {/* Email Address */}
+            <div className="aegis-form-field">
+              <label htmlFor="login-email" className="aegis-field-label">
+                Email address
+              </label>
+              <div className="aegis-field-input-wrap">
+                <input
+                  id="login-email"
+                  type="email"
+                  className="aegis-field-input"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div className="aegis-form-field">
+              <label htmlFor="login-password" className="aegis-field-label">
+                Password
+              </label>
+              <div className="aegis-field-input-wrap">
+                <input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  className="aegis-field-input"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="aegis-input-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Remember Me & Forgot Password Row */}
+            <div className="aegis-auth-options-row">
+              <label className="aegis-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="aegis-checkbox-custom"
+                />
+                <span>Remember for 30 days</span>
+              </label>
+
+              <Link to="/forgot-password" className="aegis-forgot-link">
+                Forgot password?
+              </Link>
+            </div>
+
+            {/* Primary Action Button */}
+            <button
+              type="submit"
+              className="aegis-primary-btn"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <span className="aegis-btn-loading-content">
+                  <span className="aegis-inline-spinner" />
+                  Signing In...
+                </span>
+              ) : (
+                'Sign In'
+              )}
+            </button>
+          </form>
+
+          {/* Footer Switch Link */}
+          <div className="aegis-auth-bottom-row" style={{ marginTop: '2rem' }}>
+            Don't have an account?{' '}
+            <Link to="/register" className="aegis-auth-switch-link">
+              Sign Up
             </Link>
           </div>
         </div>
-      </header>
-
-      {/* Main Card */}
-      <div className="okaydev-auth-card">
-        <h1 className="okaydev-auth-title">SIGN IN</h1>
-        <div className="okaydev-auth-subtitle">
-          ACCESS YOUR AEGIS GOVERNED IDENTITY PORTAL · <Link to="/register">NEED AN ACCOUNT?</Link>
-        </div>
-
-        {error && (
-          <div
-            style={{
-              padding: '1rem',
-              borderRadius: '8px',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
-              color: '#ef4444',
-              fontSize: '0.85rem',
-              fontFamily: 'var(--font-mono)',
-              marginBottom: '1.5rem',
-              textAlign: 'left',
-            }}
-          >
-            🚨 {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="okaydev-form">
-          <div className="okaydev-input-group">
-            <div className="okaydev-label-row">
-              <label className="okaydev-label">
-                EMAIL <span className="asterisk">*</span>
-              </label>
-            </div>
-            <div className="okaydev-input-wrapper">
-              <input
-                type="email"
-                className="okaydev-input"
-                placeholder="name@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoFocus
-              />
-            </div>
-          </div>
-
-          <div className="okaydev-input-group">
-            <div className="okaydev-label-row">
-              <label className="okaydev-label">
-                PASSWORD <span className="asterisk">*</span>
-              </label>
-              <span className="okaydev-help-icon" title="Min 8 characters">?</span>
-            </div>
-            <div className="okaydev-input-wrapper">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                className="okaydev-input"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                className="okaydev-input-icon"
-                onClick={() => setShowPassword(!showPassword)}
-                tabIndex={-1}
-              >
-                {showPassword ? '🙈' : '👁'}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center mb-md" style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
-            <Link to="/forgot-password" style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'underline' }}>
-              FORGOT PASSWORD?
-            </Link>
-          </div>
-
-          <button type="submit" className="okaydev-submit-btn" disabled={isLoading}>
-            {isLoading ? 'AUTHENTICATING...' : 'AUTHENTICATE →'}
-          </button>
-        </form>
       </div>
+
+      {/* Right Visual Banner Side (Aegis Signature Graphic) */}
+      <AegisAuthBanner variant="login" />
     </div>
   );
 };

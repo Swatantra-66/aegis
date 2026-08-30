@@ -1,35 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { gsap } from 'gsap';
 import useAuthStore from '../stores/authStore';
+import AegisAuthBanner from '../components/AegisAuthBanner';
 
 const MfaVerify = () => {
   const navigate = useNavigate();
   const { loginWithMfa, mfaRequired, isLoading, error, clearError, cancelMfa } = useAuthStore();
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
-  const containerRef = useRef(null);
 
   // Redirect if not in MFA flow
   useEffect(() => {
     if (!mfaRequired) navigate('/login', { replace: true });
   }, [mfaRequired, navigate]);
-
-  // GSAP entrance with context cleanup
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      gsap.from('.mfa-anim-item', {
-        y: 20,
-        opacity: 0,
-        duration: 0.5,
-        stagger: 0.08,
-        ease: 'power3.out',
-        clearProps: 'all',
-      });
-    }, containerRef);
-
-    return () => ctx.revert();
-  }, []);
 
   const handleChange = (index, value) => {
     if (!/^\d*$/.test(value)) return;
@@ -68,7 +51,7 @@ const MfaVerify = () => {
     clearError();
     try {
       await loginWithMfa(code || digits.join(''));
-      navigate('/', { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch {
       setDigits(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
@@ -81,63 +64,78 @@ const MfaVerify = () => {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-container" ref={containerRef}>
-        <div className="mfa-anim-item mb-md flex items-center gap-sm">
-          <div className="status-dot status-dot-active status-dot-pulse" />
-          <span className="text-xs font-mono font-semibold uppercase tracking-wider text-accent">
-            Hardware / TOTP Security
-          </span>
-        </div>
+    <div className="aegis-split-auth-wrapper">
+      {/* Left Form Side */}
+      <div className="aegis-auth-form-side">
+        <div className="aegis-auth-form-card">
+          <div className="aegis-form-header">
+            <h1 className="aegis-auth-heading">Two-Factor Authentication</h1>
+            <p className="aegis-auth-subheading">
+              Enter the 6-digit TOTP verification code from your authenticator app
+            </p>
+          </div>
 
-        <div className="auth-header mfa-anim-item">
-          <h1 className="auth-title">Two-Factor Authentication</h1>
-          <p className="auth-subtitle">
-            Enter the 6-digit TOTP verification code from your authenticator app
-          </p>
-        </div>
-
-        {error && <div className="auth-error mfa-anim-item">{error}</div>}
-
-        <div className="mfa-inputs mfa-anim-item" onPaste={handlePaste}>
-          {digits.map((digit, index) => (
-            <input
-              key={index}
-              ref={(el) => (inputRefs.current[index] = el)}
-              type="text"
-              inputMode="numeric"
-              maxLength={1}
-              className="mfa-digit"
-              value={digit}
-              onChange={(e) => handleChange(index, e.target.value)}
-              onKeyDown={(e) => handleKeyDown(index, e)}
-              autoFocus={index === 0}
-              disabled={isLoading}
-            />
-          ))}
-        </div>
-
-        <button
-          className="btn btn-primary btn-full btn-lg mfa-anim-item mt-md"
-          onClick={() => handleSubmit()}
-          disabled={isLoading || digits.some((d) => !d)}
-        >
-          {isLoading ? (
-            <span className="flex items-center gap-sm">
-              <span className="spinner spinner-sm" />
-              Verifying Code...
-            </span>
-          ) : (
-            'Verify & Sign In →'
+          {error && (
+            <div className="aegis-auth-alert-error" role="alert">
+              <span className="aegis-alert-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </span>
+              <span>{error}</span>
+            </div>
           )}
-        </button>
 
-        <div className="auth-footer mfa-anim-item mt-xl">
-          <button onClick={handleBack} className="btn-underline" style={{ color: 'var(--text-secondary)' }}>
-            ← Back to sign in
+          <div className="aegis-mfa-digits-wrap" onPaste={handlePaste}>
+            {digits.map((digit, index) => (
+              <input
+                key={index}
+                ref={(el) => (inputRefs.current[index] = el)}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                className="aegis-mfa-digit"
+                value={digit}
+                onChange={(e) => handleChange(index, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(index, e)}
+                autoFocus={index === 0}
+                disabled={isLoading}
+              />
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className="aegis-primary-btn"
+            onClick={() => handleSubmit()}
+            disabled={isLoading || digits.some((d) => !d)}
+          >
+            {isLoading ? (
+              <span className="aegis-btn-loading-content">
+                <span className="aegis-inline-spinner" />
+                Verifying Code...
+              </span>
+            ) : (
+              'Verify & Sign In'
+            )}
           </button>
+
+          <div className="aegis-auth-bottom-row" style={{ marginTop: '2.5rem' }}>
+            <button
+              type="button"
+              onClick={handleBack}
+              className="aegis-auth-switch-link"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563', fontWeight: 500 }}
+            >
+              ← Back to Sign In
+            </button>
+          </div>
         </div>
       </div>
+
+      <AegisAuthBanner variant="mfa" />
     </div>
   );
 };

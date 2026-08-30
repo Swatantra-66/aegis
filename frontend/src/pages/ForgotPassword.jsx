@@ -1,29 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { gsap } from 'gsap';
 import api, { getErrorMessage } from '../lib/api';
+import AegisAuthBanner from '../components/AegisAuthBanner';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      gsap.from('.forgot-anim-item', {
-        y: 20,
-        opacity: 0,
-        duration: 0.5,
-        stagger: 0.08,
-        ease: 'power3.out',
-        clearProps: 'all',
-      });
-    }, containerRef);
-
-    return () => ctx.revert();
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,76 +23,114 @@ const ForgotPassword = () => {
     }
   };
 
-  if (success) {
-    return (
-      <div className="auth-page">
-        <div className="auth-container">
-          <div className="auth-header">
-            <h1 className="auth-title">Check Your Inbox</h1>
-            <p className="auth-subtitle mt-md">
-              If an account with <span className="text-white font-semibold">{email}</span> exists in our directory, a password recovery link has been dispatched.
-            </p>
-          </div>
-          <Link to="/login" className="btn btn-primary btn-full btn-lg mt-xl">
-            ← Return to Sign In
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="auth-page">
-      <div className="auth-container" ref={containerRef}>
-        <div className="forgot-anim-item mb-md flex items-center gap-sm">
-          <div className="status-dot status-dot-active status-dot-pulse" />
-          <span className="text-xs font-mono font-semibold uppercase tracking-wider text-accent">
-            Credential Recovery
-          </span>
-        </div>
+    <div className="aegis-split-auth-wrapper">
+      {/* Left Form Side */}
+      <div className="aegis-auth-form-side">
+        <div className="aegis-auth-form-card">
+          {success ? (
+            <div className="aegis-form-header" style={{ textAlign: 'left' }}>
+              <div
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '12px',
+                  background: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  color: '#16a34a',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '1.25rem',
+                }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </div>
 
-        <div className="auth-header forgot-anim-item">
-          <h1 className="auth-title">Reset Password</h1>
-          <p className="auth-subtitle">
-            Enter your account email to receive a secure recovery token
-          </p>
-        </div>
+              <h1 className="aegis-auth-heading">Check Your Inbox</h1>
+              <p className="aegis-auth-subheading" style={{ marginTop: '0.75rem', lineHeight: '1.6' }}>
+                If an account with <strong style={{ color: '#111827' }}>{email}</strong> exists in our directory, a cryptographically signed password recovery link has been dispatched to your inbox.
+              </p>
 
-        {error && <div className="auth-error forgot-anim-item">{error}</div>}
+              <div style={{ marginTop: '2.5rem' }}>
+                <Link to="/login" className="aegis-primary-btn" style={{ textDecoration: 'none' }}>
+                  Return to Sign In
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="aegis-form-header">
+                <h1 className="aegis-auth-heading">Reset Password</h1>
+                <p className="aegis-auth-subheading">
+                  Enter your email address to receive a secure password recovery token
+                </p>
+              </div>
 
-        <form className="auth-form forgot-anim-item" onSubmit={handleSubmit}>
-          <div className="input-group">
-            <label className="input-label" htmlFor="email">Work Email</label>
-            <input
-              id="email"
-              type="email"
-              className="input"
-              placeholder="name@company.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-            />
-          </div>
+              {error && (
+                <div className="aegis-auth-alert-error" role="alert">
+                  <span className="aegis-alert-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                  </span>
+                  <span>{error}</span>
+                </div>
+              )}
 
-          <button type="submit" className="btn btn-primary btn-full btn-lg mt-md" disabled={isLoading}>
-            {isLoading ? (
-              <span className="flex items-center gap-sm">
-                <span className="spinner spinner-sm" />
-                Dispatching Link...
-              </span>
-            ) : (
-              'Send Recovery Link →'
-            )}
-          </button>
-        </form>
+              <form onSubmit={handleSubmit} className="aegis-modern-form">
+                <div className="aegis-form-field">
+                  <label htmlFor="recovery-email" className="aegis-field-label">
+                    Email address
+                  </label>
+                  <div className="aegis-field-input-wrap">
+                    <input
+                      id="recovery-email"
+                      type="email"
+                      className="aegis-field-input"
+                      placeholder="name@company.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                  </div>
+                </div>
 
-        <div className="auth-footer forgot-anim-item">
-          <Link to="/login" className="btn-underline">
-            ← Back to sign in
-          </Link>
+                <button
+                  type="submit"
+                  className="aegis-primary-btn"
+                  disabled={isLoading}
+                  style={{ marginTop: '0.75rem' }}
+                >
+                  {isLoading ? (
+                    <span className="aegis-btn-loading-content">
+                      <span className="aegis-inline-spinner" />
+                      Dispatching Link...
+                    </span>
+                  ) : (
+                    'Send Recovery Link'
+                  )}
+                </button>
+              </form>
+
+              <div className="aegis-auth-bottom-row" style={{ marginTop: '2.5rem' }}>
+                <Link to="/login" className="aegis-auth-switch-link" style={{ color: '#4b5563', fontWeight: 500 }}>
+                  ← Back to Sign In
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Right Visual Banner Side */}
+      <AegisAuthBanner variant="recovery" />
     </div>
   );
 };
