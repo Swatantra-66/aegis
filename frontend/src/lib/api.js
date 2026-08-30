@@ -115,6 +115,10 @@ api.interceptors.response.use(
  * Backend format: { success: false, statusCode, message, code, errors? }
  */
 export const getErrorMessage = (error) => {
+  // If backend returned specific validation error array, join them
+  if (Array.isArray(error.response?.data?.errors) && error.response.data.errors.length > 0) {
+    return error.response.data.errors.join('. ');
+  }
   if (error.response?.data?.message) {
     return error.response.data.message;
   }

@@ -13,9 +13,36 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
 
+  // Clear errors when entering or leaving page
+  useEffect(() => {
+    clearError();
+    return () => clearError();
+  }, [clearError]);
+
   useEffect(() => {
     if (isAuthenticated) navigate('/dashboard', { replace: true });
   }, [isAuthenticated, navigate]);
+
+  const displayError = formError || error;
+
+  // Auto-dismiss error after 6 seconds
+  useEffect(() => {
+    if (displayError) {
+      const timer = setTimeout(() => {
+        setFormError('');
+        clearError();
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [displayError, clearError]);
+
+  const handleInputChange = (setter) => (e) => {
+    if (displayError) {
+      setFormError('');
+      clearError();
+    }
+    setter(e.target.value);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,11 +68,9 @@ const Register = () => {
       });
       navigate('/dashboard', { replace: true });
     } catch {
-      // Error handled by store
+      // Error is set in store and displayed
     }
   };
-
-  const displayError = formError || error;
 
   return (
     <div className="aegis-split-auth-wrapper">
@@ -85,7 +110,7 @@ const Register = () => {
                   className="aegis-field-input"
                   placeholder="Enter your name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={handleInputChange(setName)}
                   required
                   autoFocus
                 />
@@ -104,7 +129,7 @@ const Register = () => {
                   className="aegis-field-input"
                   placeholder="Enter your email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleInputChange(setEmail)}
                   required
                 />
               </div>
@@ -122,7 +147,7 @@ const Register = () => {
                   className="aegis-field-input"
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handleInputChange(setPassword)}
                   required
                   minLength={8}
                 />
@@ -145,6 +170,9 @@ const Register = () => {
                     </svg>
                   )}
                 </button>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.35rem', lineHeight: '1.4' }}>
+                Must be at least 8 characters with 1 uppercase, 1 lowercase, 1 number, and 1 special symbol (!@#$%^&*).
               </div>
             </div>
 

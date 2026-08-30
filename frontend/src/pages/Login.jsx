@@ -12,6 +12,12 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
+  // Clear errors when navigating to or from login page
+  useEffect(() => {
+    clearError();
+    return () => clearError();
+  }, [clearError]);
+
   useEffect(() => {
     if (isAuthenticated) navigate('/dashboard', { replace: true });
   }, [isAuthenticated, navigate]);
@@ -19,6 +25,23 @@ const Login = () => {
   useEffect(() => {
     if (mfaRequired) navigate('/mfa', { replace: true });
   }, [mfaRequired, navigate]);
+
+  // Auto-dismiss error badge after 6 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        clearError();
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, clearError]);
+
+  const handleInputChange = (setter) => (e) => {
+    if (error) {
+      clearError();
+    }
+    setter(e.target.value);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -58,17 +81,17 @@ const Login = () => {
           <form onSubmit={handleSubmit} className="aegis-modern-form">
             {/* Email Address */}
             <div className="aegis-form-field">
-              <label htmlFor="login-email" className="aegis-field-label">
+              <label htmlFor="auth-email" className="aegis-field-label">
                 Email address
               </label>
               <div className="aegis-field-input-wrap">
                 <input
-                  id="login-email"
+                  id="auth-email"
                   type="email"
                   className="aegis-field-input"
                   placeholder="Enter your email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleInputChange(setEmail)}
                   required
                   autoFocus
                 />
@@ -77,17 +100,17 @@ const Login = () => {
 
             {/* Password */}
             <div className="aegis-form-field">
-              <label htmlFor="login-password" className="aegis-field-label">
+              <label htmlFor="auth-password" className="aegis-field-label">
                 Password
               </label>
               <div className="aegis-field-input-wrap">
                 <input
-                  id="login-password"
+                  id="auth-password"
                   type={showPassword ? 'text' : 'password'}
                   className="aegis-field-input"
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handleInputChange(setPassword)}
                   required
                 />
                 <button
@@ -138,7 +161,7 @@ const Login = () => {
               {isLoading ? (
                 <span className="aegis-btn-loading-content">
                   <span className="aegis-inline-spinner" />
-                  Signing In...
+                  Authenticating...
                 </span>
               ) : (
                 'Sign In'
@@ -147,7 +170,7 @@ const Login = () => {
           </form>
 
           {/* Footer Switch Link */}
-          <div className="aegis-auth-bottom-row" style={{ marginTop: '2rem' }}>
+          <div className="aegis-auth-bottom-row" style={{ marginTop: '2.5rem' }}>
             Don't have an account?{' '}
             <Link to="/register" className="aegis-auth-switch-link">
               Sign Up
