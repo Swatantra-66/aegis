@@ -18,35 +18,15 @@ const marqueeItems = [
 ];
 
 /**
- * AppLayout — authenticated layout with sidebar, main content, and bottom marquee.
+ * AppLayout — authenticated layout with sidebar and main content.
  */
 const AppLayout = () => {
   return (
     <div className="app-layout">
       <Sidebar />
-      <main className="main-content" style={{ paddingBottom: '36px' }}>
+      <main className="main-content">
         <Outlet />
       </main>
-
-      {/* Animated Marquee Ticker */}
-      <div className="sirnik-marquee">
-        <div className="sirnik-marquee-inner">
-          {/* Duplicate content for seamless loop */}
-          {[0, 1].map((copy) => (
-            <div className="sirnik-marquee-content" key={copy}>
-              {marqueeItems.map((item, idx) => (
-                <span key={idx}>
-                  {item.includes('SIRNIK') ? (
-                    <span className="marquee-highlight">{item}</span>
-                  ) : (
-                    item
-                  )}
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 };

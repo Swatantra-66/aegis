@@ -1727,6 +1727,44 @@ p {
   transform: translateY(-2px);
 }
 
+/* Minimalist Outlined Action Button */
+.sirnik-action-box-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.65rem 1.25rem;
+  text-decoration: none;
+  cursor: pointer;
+  outline: none;
+  border-radius: 2px;
+  transition: border-color 0.25s ease, background 0.25s ease, color 0.25s ease;
+}
+
+.sirnik-action-box-btn::after {
+  display: none !important;
+}
+
+.sirnik-action-box-btn:hover,
+.sirnik-action-box-btn:focus,
+.sirnik-action-box-btn:focus-visible {
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  outline: none !important;
+  text-decoration: none !important;
+}
+
+.sirnik-action-box-btn:active {
+  border-color: #ffffff !important;
+}
+
 /* ── Minimalist Sirnik Inputs ──────────────────────────────────── */
 .sirnik-input-group {
   position: relative;
@@ -1855,10 +1893,10 @@ p {
 }
 
 .sirnik-page-title {
-  font-size: var(--h-hero);
+  font-size: clamp(2rem, 3.4vw, 3rem);
   font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
 }
 
 /* ── Sirnik Editorial Section Division ───────────────────────────── */
@@ -1880,11 +1918,18 @@ p {
   gap: 3rem;
 }
 
+.sirnik-stat-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  width: 100%;
+}
+
 .sirnik-stat-num {
-  font-size: clamp(3.5rem, 6vw, 6rem);
+  font-size: clamp(1.75rem, 2.4vw, 2.25rem);
   font-weight: 800;
-  letter-spacing: -0.05em;
-  line-height: 1;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
   color: var(--text-white);
 }
 
@@ -1895,6 +1940,16 @@ p {
   letter-spacing: 0.12em;
   color: var(--text-muted);
   margin-top: 0.75rem;
+}
+
+.hover-card-lift {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-card-lift:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65), 0 0 20px rgba(255, 255, 255, 0.03);
 }
 
 /* ── Sirnik Borderless Table ────────────────────────────────────── */

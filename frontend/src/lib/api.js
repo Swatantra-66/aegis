@@ -138,6 +138,9 @@ export const getErrorCode = (error) => {
 /**
  * Health check endpoint (outside /api/v1 prefix).
  */
-export const healthCheck = () => axios.get(`${API_BASE_URL}/health`);
+export const healthCheck = () =>
+  axios.get(`${API_BASE_URL}/health`, {
+    validateStatus: (status) => status < 600,
+  });
 
 export default api;
