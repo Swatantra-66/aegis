@@ -34,9 +34,24 @@
 
 ## High-Level Design
 
-<div align="center">
-  <img src="./docs/assets/system-architecture.png" alt="Aegis IAM High-Level System Architecture" width="100%" />
-</div>
+```mermaid
+graph TD
+    Client["Client / React Frontend\n(Vite SPA)"] -->|HTTPS / REST API| Gateway["API Gateway / Express Server\n(Helmet, Rate-Limiter, CORS)"]
+    
+    subgraph "Aegis Core Backend"
+        Gateway --> AuthMW["Auth & RBAC Middleware"]
+        AuthMW --> AuthMod["Auth Module\n(Argon2, JWT, Tokens)"]
+        AuthMW --> MfaMod["MFA Module\n(TOTP, AES-256)"]
+        AuthMW --> RolesMod["Roles & RBAC Module"]
+        AuthMW --> AuditMod["Audit Logging Module\n(SHA-256 Hash Chain)"]
+    end
+
+    subgraph "Data & Cache Layer"
+        AuthMod -->|Session / Blacklist / Rate-Limit| Redis[("Redis 6+ (In-Memory)")]
+        AuthMod -->|Users, Roles, Permissions| Postgres[("PostgreSQL 14+ (Persistent Store)")]
+        AuditMod -->|Tamper-Evident Logs| Postgres
+    end
+```
 
 ### System Design Layer Breakdown
 
