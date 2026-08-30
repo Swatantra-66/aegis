@@ -4018,7 +4018,9 @@ p {
 }
 
 @keyframes aegis-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Divider */
@@ -4283,13 +4285,25 @@ p {
 }
 
 @keyframes aegis-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes aegis-scale-up {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* ==========================================================================
@@ -4368,8 +4382,7 @@ p {
   height: auto;
   object-fit: contain;
   filter:
-    drop-shadow(0 28px 56px rgba(0, 0, 0, 0.95))
-    drop-shadow(0 0 45px rgba(255, 255, 255, 0.22));
+    drop-shadow(0 28px 56px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 45px rgba(255, 255, 255, 0.22));
   animation: aegis-logo-float 6s ease-in-out infinite alternate;
   opacity: 0.98;
 }
@@ -4391,6 +4404,7 @@ p {
   0% {
     transform: translateY(0px) rotate(0deg) scale(1);
   }
+
   100% {
     transform: translateY(-14px) rotate(1.8deg) scale(1.025);
   }
@@ -4501,6 +4515,3 @@ p {
     max-width: 100%;
   }
 }
-
-
-

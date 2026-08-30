@@ -42,15 +42,15 @@ const useAuthStore = create((set, get) => ({
    * Login — authenticate with email/password.
    * May return mfa_required: true if user has MFA enabled.
    */
-  login: async (email, password) => {
+  login: async (email, password, remember_me = false) => {
     set({ isLoading: true, error: null, mfaRequired: false });
     try {
-      const { data } = await api.post('/auth/login', { email, password });
+      const { data } = await api.post('/auth/login', { email, password, remember_me });
 
       if (data.data.mfa_required) {
         set({
           mfaRequired: true,
-          mfaPendingCredentials: { email, password },
+          mfaPendingCredentials: { email, password, remember_me },
           isLoading: false,
         });
         return { mfaRequired: true };

@@ -47,7 +47,7 @@ const Login = () => {
     e.preventDefault();
     clearError();
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
     } catch {
       // Error handled by store
     }
@@ -144,7 +144,7 @@ const Login = () => {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="aegis-checkbox-custom"
                 />
-                <span>Remember for 30 days</span>
+                <span>Keep me signed in for 7 days</span>
               </label>
 
               <Link to="/forgot-password" className="aegis-forgot-link">
