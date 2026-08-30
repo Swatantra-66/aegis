@@ -40,14 +40,14 @@ const generateAccessToken = (user, roles = [], permissions = []) => {
  * @param {string|null} familyId - Existing family ID (for rotation) or null (new family)
  * @returns {Promise<{ token: string, familyId: string }>}
  */
-const generateRefreshToken = async (userId, familyId = null) => {
+const generateRefreshToken = async (userId, familyId = null, expiryDays = 7) => {
   const token = uuidv4();
   const tokenHash = hashToken(token);
   const newFamilyId = familyId || uuidv4();
 
   // Calculate expiry
   const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+  expiresAt.setDate(expiresAt.getDate() + (expiryDays || 7));
 
   await db.query(
     `INSERT INTO refresh_tokens (user_id, token_hash, family_id, expires_at)
@@ -103,10 +103,9 @@ const rotateRefreshToken = async (token) => {
     });
 
     // Revoke ALL tokens in this family
-    await db.query(
-      'UPDATE refresh_tokens SET revoked = true WHERE family_id = $1',
-      [storedToken.family_id]
-    );
+    await db.query('UPDATE refresh_tokens SET revoked = true WHERE family_id = $1', [
+      storedToken.family_id,
+    ]);
 
     return null;
   }
@@ -117,10 +116,7 @@ const rotateRefreshToken = async (token) => {
   }
 
   // Revoke the current token (it's been used)
-  await db.query(
-    'UPDATE refresh_tokens SET revoked = true WHERE id = $1',
-    [storedToken.id]
-  );
+  await db.query('UPDATE refresh_tokens SET revoked = true WHERE id = $1', [storedToken.id]);
 
   return {
     userId: storedToken.user_id,
@@ -145,10 +141,7 @@ const revokeAllUserTokens = async (userId) => {
  */
 const revokeRefreshToken = async (token) => {
   const tokenHash = hashToken(token);
-  await db.query(
-    'UPDATE refresh_tokens SET revoked = true WHERE token_hash = $1',
-    [tokenHash]
-  );
+  await db.query('UPDATE refresh_tokens SET revoked = true WHERE token_hash = $1', [tokenHash]);
 };
 
 /**

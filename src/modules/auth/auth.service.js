@@ -81,7 +81,7 @@ const register = async (userData, reqMeta = {}) => {
  * @returns {Promise<Object>} { user, accessToken, refreshToken, mfaRequired }
  */
 const login = async (credentials, reqMeta = {}) => {
-  const { email, password, mfa_code } = credentials;
+  const { email, password, mfa_code, remember_me } = credentials;
 
   // Find user
   const result = await db.query(
@@ -166,8 +166,12 @@ const login = async (credentials, reqMeta = {}) => {
   }
 
   // Check MFA requirement
-  if (user.mfa_enabled && !mfa_code) {
-    return { user: null, accessToken: null, refreshToken: null, mfaRequired: true };
+  if (user.mfa_enabled) {
+    if (!mfa_code) {
+      return { user: null, accessToken: null, refreshToken: null, mfaRequired: true };
+    }
+    const mfaService = require('../mfa/mfa.service');
+    await mfaService.validate(user.id, mfa_code);
   }
 
   // Reset failed attempts on successful login
@@ -180,9 +184,11 @@ const login = async (credentials, reqMeta = {}) => {
   // Get user roles and permissions
   const { roles, permissions } = await getUserRolesAndPermissions(user.id);
 
+  const expiryDays = remember_me ? 7 : 1;
+
   // Generate tokens
   const accessTokenData = tokenService.generateAccessToken(user, roles, permissions);
-  const refreshTokenData = await tokenService.generateRefreshToken(user.id);
+  const refreshTokenData = await tokenService.generateRefreshToken(user.id, null, expiryDays);
 
   // Audit log
   await auditService.log({

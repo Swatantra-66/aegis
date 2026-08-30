@@ -39,6 +39,7 @@ const login = Joi.object({
     'string.length': 'MFA code must be exactly 6 digits',
     'string.pattern.base': 'MFA code must contain only digits',
   }),
+  remember_me: Joi.boolean().optional(),
 });
 
 const refreshToken = Joi.object({
