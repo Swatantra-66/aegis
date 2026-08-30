@@ -110,11 +110,7 @@ router.post(
  *       200: { description: Logged out successfully }
  *       401: { description: Not authenticated }
  */
-router.post(
-  '/logout',
-  authenticate,
-  catchAsync(authController.logout)
-);
+router.post('/logout', authenticate, catchAsync(authController.logout));
 
 /**
  * @openapi
@@ -168,5 +164,44 @@ router.post(
   authValidator.validate(authValidator.resetPassword),
   catchAsync(authController.resetPassword)
 );
+
+/**
+ * @openapi
+ * /api/v1/auth/send-verification-email:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Request email verification link
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Verification email dispatched }
+ *       400: { description: Email already verified }
+ */
+router.post(
+  '/send-verification-email',
+  authenticate,
+  passwordResetLimiter,
+  catchAsync(authController.sendVerificationEmail)
+);
+
+/**
+ * @openapi
+ * /api/v1/auth/verify-email:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Verify email address with token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token]
+ *             properties:
+ *               token: { type: string }
+ *     responses:
+ *       200: { description: Email verified successfully }
+ *       400: { description: Invalid or expired token }
+ */
+router.post('/verify-email', catchAsync(authController.verifyEmail));
 
 module.exports = router;

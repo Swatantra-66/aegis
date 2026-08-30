@@ -1,10 +1,20 @@
 const db = require('../../config/database');
-const { hashPassword, verifyPassword, generateRandomToken, hashToken } = require('../../utils/crypto');
+const {
+  hashPassword,
+  verifyPassword,
+  generateRandomToken,
+  hashToken,
+} = require('../../utils/crypto');
 const tokenService = require('../tokens/tokens.service');
 const auditService = require('../audit/audit.service');
 const AppError = require('../../utils/AppError');
 const logger = require('../../utils/logger');
-const { AUDIT_ACTIONS, MAX_FAILED_LOGIN_ATTEMPTS, ACCOUNT_LOCK_DURATION_MINUTES, ROLES } = require('../../config/constants');
+const {
+  AUDIT_ACTIONS,
+  MAX_FAILED_LOGIN_ATTEMPTS,
+  ACCOUNT_LOCK_DURATION_MINUTES,
+  ROLES,
+} = require('../../config/constants');
 
 /**
  * Authentication Service — core business logic for auth operations.
@@ -96,9 +106,7 @@ const login = async (credentials, reqMeta = {}) => {
 
   // Check if account is locked
   if (user.locked_until && new Date(user.locked_until) > new Date()) {
-    const remainingMinutes = Math.ceil(
-      (new Date(user.locked_until) - new Date()) / 60000
-    );
+    const remainingMinutes = Math.ceil((new Date(user.locked_until) - new Date()) / 60000);
     throw AppError.unauthorized(
       `Account is locked. Try again in ${remainingMinutes} minute(s)`,
       'AUTH_ACCOUNT_LOCKED'
@@ -138,10 +146,10 @@ const login = async (credentials, reqMeta = {}) => {
       );
     }
 
-    await db.query(
-      'UPDATE users SET failed_login_attempts = $1 WHERE id = $2',
-      [newAttempts, user.id]
-    );
+    await db.query('UPDATE users SET failed_login_attempts = $1 WHERE id = $2', [
+      newAttempts,
+      user.id,
+    ]);
 
     await auditService.log({
       actorId: user.id,
@@ -219,10 +227,9 @@ const refresh = async (refreshToken) => {
   const { userId, familyId } = rotationResult;
 
   // Get user data
-  const userResult = await db.query(
-    'SELECT id, email, is_active FROM users WHERE id = $1',
-    [userId]
-  );
+  const userResult = await db.query('SELECT id, email, is_active FROM users WHERE id = $1', [
+    userId,
+  ]);
 
   if (userResult.rows.length === 0 || !userResult.rows[0].is_active) {
     throw AppError.unauthorized('User not found or deactivated', 'AUTH_USER_NOT_FOUND');
@@ -363,6 +370,107 @@ const resetPassword = async (token, newPassword, reqMeta = {}) => {
   });
 };
 
+/**
+ * Generate and dispatch an email verification token.
+ * @param {string} userId
+ * @param {Object} reqMeta
+ * @returns {Promise<string>} Verification token
+ */
+const sendVerificationEmail = async (userId, reqMeta = {}) => {
+  const result = await db.query('SELECT id, email, is_email_verified FROM users WHERE id = $1', [
+    userId,
+  ]);
+  if (result.rows.length === 0) {
+    throw AppError.notFound('User not found', 'USER_NOT_FOUND');
+  }
+
+  const user = result.rows[0];
+  if (user.is_email_verified) {
+    throw AppError.badRequest('Email is already verified', 'EMAIL_ALREADY_VERIFIED');
+  }
+
+  const verificationToken = generateRandomToken();
+  const tokenHash = hashToken(verificationToken);
+  const expiresAt = new Date();
+  expiresAt.setHours(expiresAt.getHours() + 24); // 24-hour lifetime
+
+  // Store verification token in refresh_tokens table under dedicated family UUID
+  await db.query(
+    `INSERT INTO refresh_tokens (user_id, token_hash, family_id, expires_at)
+     VALUES ($1, $2, $3, $4)`,
+    [user.id, tokenHash, '11111111-1111-1111-1111-111111111111', expiresAt]
+  );
+
+  await auditService.log({
+    actorId: user.id,
+    actorEmail: user.email,
+    action: AUDIT_ACTIONS.EMAIL_VERIFICATION_REQUESTED,
+    resourceType: 'user',
+    resourceId: user.id,
+    ip: reqMeta.ip,
+    userAgent: reqMeta.userAgent,
+  });
+
+  return verificationToken;
+};
+
+/**
+ * Verify email token and activate verified status.
+ * @param {string} token
+ * @param {Object} reqMeta
+ * @returns {Promise<{ user: Object }>}
+ */
+const verifyEmail = async (token, reqMeta = {}) => {
+  const tokenHash = hashToken(token);
+
+  const result = await db.query(
+    `SELECT id, user_id, expires_at, revoked FROM refresh_tokens
+     WHERE token_hash = $1 AND family_id = '11111111-1111-1111-1111-111111111111'`,
+    [tokenHash]
+  );
+
+  if (result.rows.length === 0 || result.rows[0].revoked) {
+    throw AppError.badRequest(
+      'Invalid or already used verification token',
+      'AUTH_VERIFY_TOKEN_INVALID'
+    );
+  }
+
+  const tokenRecord = result.rows[0];
+
+  if (new Date(tokenRecord.expires_at) < new Date()) {
+    throw AppError.badRequest(
+      'Verification token has expired. Please request a new one.',
+      'AUTH_VERIFY_TOKEN_EXPIRED'
+    );
+  }
+
+  // Update user as email verified
+  await db.query('UPDATE users SET is_email_verified = true WHERE id = $1', [tokenRecord.user_id]);
+
+  // Mark token revoked
+  await db.query('UPDATE refresh_tokens SET revoked = true WHERE id = $1', [tokenRecord.id]);
+
+  const userResult = await db.query(
+    'SELECT id, email, first_name, last_name, is_active, is_email_verified, mfa_enabled FROM users WHERE id = $1',
+    [tokenRecord.user_id]
+  );
+
+  const user = userResult.rows[0];
+
+  await auditService.log({
+    actorId: tokenRecord.user_id,
+    actorEmail: user?.email,
+    action: AUDIT_ACTIONS.EMAIL_VERIFIED,
+    resourceType: 'user',
+    resourceId: tokenRecord.user_id,
+    ip: reqMeta.ip,
+    userAgent: reqMeta.userAgent,
+  });
+
+  return { user };
+};
+
 // ── Helper Functions ────────────────────────────────
 
 /**
@@ -400,5 +508,7 @@ module.exports = {
   logout,
   forgotPassword,
   resetPassword,
+  sendVerificationEmail,
+  verifyEmail,
   getUserRolesAndPermissions,
 };

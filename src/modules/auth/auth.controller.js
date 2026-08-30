@@ -119,6 +119,41 @@ const resetPassword = async (req, res) => {
   });
 };
 
+/**
+ * POST /api/v1/auth/send-verification-email
+ */
+const sendVerificationEmail = async (req, res) => {
+  const verificationToken = await authService.sendVerificationEmail(req.user.id, {
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  const data =
+    process.env.NODE_ENV === 'development' ? { verification_token: verificationToken } : {};
+
+  return apiResponse.success(res, {
+    message: 'Verification email has been dispatched. Please check your inbox.',
+    data,
+  });
+};
+
+/**
+ * POST /api/v1/auth/verify-email
+ */
+const verifyEmail = async (req, res) => {
+  const { token } = req.body;
+
+  const result = await authService.verifyEmail(token, {
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  return apiResponse.success(res, {
+    message: 'Email address has been successfully verified.',
+    data: result,
+  });
+};
+
 module.exports = {
   register,
   login,
@@ -126,4 +161,6 @@ module.exports = {
   logout,
   forgotPassword,
   resetPassword,
+  sendVerificationEmail,
+  verifyEmail,
 };

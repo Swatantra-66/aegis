@@ -94,6 +94,23 @@ const Profile = () => {
     onError: (err) => setActionError(getErrorMessage(err)),
   });
 
+  const [devVerifyToken, setDevVerifyToken] = useState('');
+
+  const sendVerificationMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post('/auth/send-verification-email');
+      return data;
+    },
+    onSuccess: (data) => {
+      setActionSuccess('Verification email dispatched!');
+      if (data.data?.verification_token) {
+        setDevVerifyToken(data.data.verification_token);
+      }
+      setTimeout(() => setActionSuccess(''), 4000);
+    },
+    onError: (err) => setActionError(getErrorMessage(err)),
+  });
+
   const disableMfaMutation = useMutation({
     mutationFn: async (code) => {
       await api.delete('/mfa/disable', { data: { code } });
@@ -166,8 +183,55 @@ const Profile = () => {
           </form>
         </div>
 
-        {/* MFA Setup */}
+        {/* Security & Trust Management */}
         <div>
+          {/* Email Verification Card */}
+          <span className="sirnik-meta block mb-lg">IDENTITY VERIFICATION TIER</span>
+          <div style={{ borderBottom: '1px solid var(--line)', paddingBottom: '1.75rem', marginBottom: '1.75rem' }}>
+            <div className="flex justify-between items-center mb-sm">
+              <h3>Email Verification</h3>
+              <span
+                className={`sirnik-tag ${profileUser?.is_email_verified ? 'sirnik-tag-success' : ''}`}
+                style={!profileUser?.is_email_verified ? { background: 'rgba(234, 179, 8, 0.15)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.3)' } : {}}
+              >
+                {profileUser?.is_email_verified ? 'VERIFIED' : 'UNVERIFIED'}
+              </span>
+            </div>
+            <p className="mb-md text-sm text-muted" style={{ lineHeight: '1.55' }}>
+              {profileUser?.is_email_verified
+                ? 'Your email address is cryptographically verified with full audit provenance.'
+                : 'Confirm your email address to unlock full zero-trust tier credentials and verified audit badges.'}
+            </p>
+
+            {!profileUser?.is_email_verified && (
+              <div className="flex flex-col gap-sm">
+                <button
+                  type="button"
+                  onClick={() => sendVerificationMutation.mutate()}
+                  disabled={sendVerificationMutation.isPending}
+                  className="sirnik-btn-solid"
+                  style={{ width: 'fit-content', fontSize: '0.8rem', padding: '8px 18px' }}
+                >
+                  {sendVerificationMutation.isPending ? 'DISPATCHING...' : 'SEND VERIFICATION LINK'}
+                </button>
+
+                {devVerifyToken && (
+                  <div className="mt-sm p-sm" style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '6px', border: '1px solid var(--line)' }}>
+                    <div className="font-mono text-xs text-muted mb-xs">DEV VERIFICATION LINK:</div>
+                    <a
+                      href={`/verify-email?token=${devVerifyToken}`}
+                      className="font-mono text-xs text-accent"
+                      style={{ textDecoration: 'underline' }}
+                    >
+                      Click here to verify email now
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* MFA Setup */}
           <span className="sirnik-meta block mb-lg">HARDWARE 2FA PROTECTION</span>
           <div style={{ borderBottom: '1px solid var(--line)', paddingBottom: '2rem' }}>
             <div className="flex justify-between items-center mb-md">
@@ -182,11 +246,11 @@ const Profile = () => {
 
             {profileUser?.mfa_enabled ? (
               <button onClick={() => setIsDisableModalOpen(true)} className="sirnik-btn text-danger" style={{ padding: 0 }}>
-                <span>DISABLE MFA →</span>
+                <span>DISABLE MFA</span>
               </button>
             ) : (
               <button onClick={() => setupMfaMutation.mutate()} disabled={setupMfaMutation.isPending} className="sirnik-btn-solid w-full">
-                {setupMfaMutation.isPending ? 'GENERATING SECRET...' : 'SETUP MFA AUTHENTICATOR →'}
+                {setupMfaMutation.isPending ? 'GENERATING SECRET' : 'SETUP MFA AUTHENTICATOR'}
               </button>
             )}
           </div>
