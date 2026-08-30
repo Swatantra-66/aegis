@@ -12,21 +12,6 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // Load remembered credentials if stored within 30 days
-  useEffect(() => {
-    const savedEmail = localStorage.getItem('aegis_remember_email');
-    const expiry = localStorage.getItem('aegis_remember_expiry');
-    if (savedEmail && expiry) {
-      if (Date.now() < parseInt(expiry, 10)) {
-        setEmail(savedEmail);
-        setRememberMe(true);
-      } else {
-        localStorage.removeItem('aegis_remember_email');
-        localStorage.removeItem('aegis_remember_expiry');
-      }
-    }
-  }, []);
-
   useEffect(() => {
     if (isAuthenticated) navigate('/dashboard', { replace: true });
   }, [isAuthenticated, navigate]);
@@ -38,17 +23,6 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
-
-    // Persist or clear 30-day remember email
-    if (rememberMe) {
-      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-      localStorage.setItem('aegis_remember_email', email);
-      localStorage.setItem('aegis_remember_expiry', String(Date.now() + thirtyDaysMs));
-    } else {
-      localStorage.removeItem('aegis_remember_email');
-      localStorage.removeItem('aegis_remember_expiry');
-    }
-
     try {
       await login(email, password);
     } catch {

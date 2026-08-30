@@ -148,6 +148,8 @@ const useAuthStore = create((set, get) => ({
 
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('aegis_remember_email');
+    localStorage.removeItem('aegis_remember_expiry');
 
     set({
       user: null,
