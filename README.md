@@ -24,7 +24,7 @@
     <a href="./ARCHITECTURE.md"><b>Detailed Design</b></a> •
     <a href="./SECURITY.md"><b>Security Policy</b></a> •
     <a href="./ROADMAP.md"><b>Roadmap</b></a> •
-    <a href="#-installation"><b>Quick Start</b></a> •
+    <a href="./QUICKSTART.md"><b>Quick Start</b></a> •
     <a href="./CONTRIBUTING.md"><b>Contributing</b></a>
   </p>
 
