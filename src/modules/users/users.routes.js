@@ -74,7 +74,7 @@ router.get(
  */
 router.get(
   '/:id',
-  authorize('user:read'),
+  authorize.selfOr('user:read'),
   usersValidator.validateParams(usersValidator.userId),
   catchAsync(usersController.getUserById)
 );
@@ -106,7 +106,7 @@ router.get(
  */
 router.patch(
   '/:id',
-  authorize('user:update'),
+  authorize.selfOr('user:update'),
   usersValidator.validateParams(usersValidator.userId),
   usersValidator.validate(usersValidator.updateUser),
   catchAsync(usersController.updateUser)

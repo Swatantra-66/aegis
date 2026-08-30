@@ -7,7 +7,12 @@ const apiResponse = require('../../utils/apiResponse');
 
 const listUsers = async (req, res) => {
   const { page, limit, search, is_active } = req.query;
-  const { users, total } = await usersService.listUsers({ page, limit, search, isActive: is_active });
+  const { users, total } = await usersService.listUsers({
+    page,
+    limit,
+    search,
+    isActive: is_active,
+  });
 
   return apiResponse.paginated(res, {
     data: users,
@@ -37,7 +42,15 @@ const getMe = async (req, res) => {
 };
 
 const updateUser = async (req, res) => {
-  const user = await usersService.updateUser(req.params.id, req.body, {
+  const isSelf = req.user.id === req.params.id;
+  const updateData = { ...req.body };
+
+  // Regular users cannot modify their own active status
+  if (isSelf && !req.user.permissions?.includes('user:update')) {
+    delete updateData.is_active;
+  }
+
+  const user = await usersService.updateUser(req.params.id, updateData, {
     actorId: req.user.id,
     actorEmail: req.user.email,
     ip: req.ip,

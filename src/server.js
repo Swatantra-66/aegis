@@ -32,12 +32,12 @@ const startServer = async () => {
 
     // 4. Start HTTP server
     const server = app.listen(config.port, () => {
-      logger.info(`🚀 ${config.app.name} running on port ${config.port} (${config.env})`);
-      logger.info(`📚 API Docs: ${config.app.url}/api/docs`);
-      logger.info(`❤️  Health:   ${config.app.url}/health`);
+      logger.info(`${config.app.name} running on port ${config.port} (${config.env})`);
+      logger.info(`API Docs: ${config.app.url}/api/docs`);
+      logger.info(`Health:   ${config.app.url}/health`);
     });
 
-    // ── Graceful Shutdown ───────────────────────────
+    // Graceful Shutdown
     const gracefulShutdown = async (signal) => {
       logger.info(`${signal} received. Starting graceful shutdown...`);
 
