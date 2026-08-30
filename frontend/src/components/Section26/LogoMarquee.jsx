@@ -52,6 +52,12 @@ const TECH_LOGOS = [
     isCustomColor: false,
   },
   {
+    name: "Certbot",
+    iconSrc: "/logos/certbot.svg",
+    isCustomColor: true,
+    scale: 1.35,
+  },
+  {
     name: "GitHub",
     iconSrc: "/logos/github.svg",
     isCustomColor: false,
@@ -77,6 +83,7 @@ export const LogoMarquee = () => (
                 className="section26-logo-img"
                 style={{
                   filter: item.isCustomColor ? "none" : "brightness(0) invert(0.85)",
+                  transform: item.scale ? `scale(${item.scale})` : "none",
                 }}
               />
               <span className="section26-logo-text">
