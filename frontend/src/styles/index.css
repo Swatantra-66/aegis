@@ -3731,7 +3731,18 @@ p {
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 20px 45px rgba(0, 0, 0, 0.95));
+}
+
+.preloader-radial-halo {
+  position: absolute;
+  width: 160%;
+  height: 160%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.18) 0%, rgba(180, 220, 255, 0.08) 40%, transparent 70%);
+  filter: blur(35px);
+  pointer-events: none;
+  z-index: 1;
+  will-change: transform, opacity;
 }
 
 .preloader-logo-img {
@@ -3743,15 +3754,16 @@ p {
   display: block;
   user-select: none;
   pointer-events: none;
+  z-index: 2;
 }
 
 .preloader-logo-base {
-  filter: brightness(0.18) grayscale(100%);
-  opacity: 0.5;
+  opacity: 0.15;
+  filter: grayscale(100%);
 }
 
 .preloader-logo-fill {
-  filter: drop-shadow(0 0 25px rgba(255, 255, 255, 0.45));
+  z-index: 3;
   will-change: clip-path;
 }
 

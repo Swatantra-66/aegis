@@ -6,9 +6,9 @@ const Preloader = ({ onComplete }) => {
   const [isExited, setIsExited] = useState(false);
 
   useEffect(() => {
-    // Mid-pace loader: ~1.8s total duration with natural easing
+    // Cinematic pacing: ~2.6s total duration with smooth natural easing
     const startTime = performance.now();
-    const duration = 1800; // 1.8 seconds (mid pace)
+    const duration = 2600; // 2.6 seconds (relaxed, premium pace)
 
     const updateProgress = (currentTime) => {
       const elapsed = currentTime - startTime;
@@ -51,16 +51,25 @@ const Preloader = ({ onComplete }) => {
       <div className="preloader-center-stage">
         {/* AEGIS Shield Logo with Bottom-to-Top Liquid Fill */}
         <div className="preloader-logo-container">
+          {/* Organic circular refraction halo behind logo */}
+          <div
+            className="preloader-radial-halo"
+            style={{
+              opacity: (progress / 100) * 0.85,
+              transform: `scale(${0.85 + (progress / 100) * 0.25})`,
+            }}
+          />
+
           {/* Inactive / Dim Background Logo */}
           <img
-            src="/aegis-logo.png"
+            src="/aegis-logo-new.png"
             alt="Aegis IAM Logo Base"
             className="preloader-logo-img preloader-logo-base"
           />
 
           {/* Active Liquid Rising Full Logo */}
           <img
-            src="/aegis-logo.png"
+            src="/aegis-logo-new.png"
             alt="Aegis IAM Logo Fill"
             className="preloader-logo-img preloader-logo-fill"
             style={{
