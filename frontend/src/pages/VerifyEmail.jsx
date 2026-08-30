@@ -148,7 +148,7 @@ const VerifyEmail = () => {
       </div>
 
       {/* Right Banner Side */}
-      <AegisAuthBanner variant="login" />
+      <AegisAuthBanner variant="verify" />
     </div>
   );
 };

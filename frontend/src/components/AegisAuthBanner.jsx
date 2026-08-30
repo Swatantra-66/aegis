@@ -2,28 +2,46 @@ import React from 'react';
 
 const CONTENT = {
   login: {
-    topLabel: 'Zero-Trust Identity',
-    headline: <>Secure access<br />starts with<br />knowing who.</>,
+    topLabel: 'Zero-Trust Architecture',
+    headline: <>Continuous<br />verification for<br />modern systems.</>,
     paragraph:
-      'Aegis enforces cryptographic authentication with Argon2id hashing, short-lived JWT access tokens, and refresh token rotation — so every session is verified, not assumed.',
+      'Aegis verifies every transaction using Argon2id key derivation, short-lived cryptographic access tokens, and automatic token rotation to eliminate stale session vulnerabilities.',
   },
   register: {
-    topLabel: 'Enterprise Identity Governance',
-    headline: <>Your identity,<br />governed with<br />precision.</>,
+    topLabel: 'Identity Provisioning',
+    headline: <>Fine-grained<br />access control<br />by design.</>,
     paragraph:
-      'Aegis provides granular RBAC, RFC 6238 TOTP MFA, tamper-evident SHA-256 audit chaining, and distributed Redis rate limiting across enterprise infrastructure.',
+      'Define least-privilege permission sets, bind custom roles, and maintain complete tenant isolation across distributed enterprise services and microservice boundaries.',
   },
   recovery: {
-    topLabel: 'Cryptographic Credential Recovery',
-    headline: <>Recover access<br />with verified<br />security.</>,
+    topLabel: 'Credential Recovery',
+    headline: <>Secure account<br />restoration &<br />blast radius control.</>,
     paragraph:
-      'Aegis issues cryptographically signed, single-use recovery tokens with strict expiry to ensure identity integrity and prevent unauthorized takeovers.',
+      'Time-gated entropy tokens ensure identity recovery cannot be intercepted or replayed, automatically revoking compromised sessions across all active endpoints.',
+  },
+  verify: {
+    topLabel: 'Cryptographic Provenance',
+    headline: <>Authentic identities,<br />verified at<br />the origin.</>,
+    paragraph:
+      'End-to-end email validation attaches verifiable cryptographic proof to user identities, unlocking higher trust tiers and tamper-proof audit trails.',
   },
   mfa: {
-    topLabel: 'Multi-Factor Verification',
-    headline: <>Two-factor<br />hardware & TOTP<br />protection.</>,
+    topLabel: 'Multi-Factor Shield',
+    headline: <>Out-of-band<br />protection for<br />critical operations.</>,
     paragraph:
-      'RFC 6238 time-based one-time password protocol safeguards your identity with continuous cryptographic multi-layer validation.',
+      'Challenge-response verification guarantees that even compromised credentials cannot grant access without secondary hardware-derived authenticator consent.',
+  },
+  'mfa-setup': {
+    topLabel: 'Authenticator Enrollment',
+    headline: <>Pair your device<br />with encrypted<br />seed vaults.</>,
+    paragraph:
+      'Generates synchronized time-based shared secrets stored at rest with AES-256-GCM encryption, compatible with Google Authenticator, 1Password, and Authy.',
+  },
+  'mfa-disable': {
+    topLabel: 'Access Governance',
+    headline: <>Step-down<br />verification &<br />audit chaining.</>,
+    paragraph:
+      'Modifications to security tiers require active second-factor confirmation, generating an immutable SHA-256 event logged directly to the distributed audit stream.',
   },
 };
 
@@ -40,7 +58,7 @@ const AegisAuthBanner = ({ variant = 'login' }) => {
         AEGIS
       </div>
 
-      {/* Left side: Dramatic Large 3D Crystal Aegis Logo with Radial Halo */}
+      {/* Left side: Large 3D Crystal Aegis Logo with Radial Halo */}
       <div className="aegis-banner-logo-panel">
         <div className="aegis-logo-refraction-halo" />
         <img
