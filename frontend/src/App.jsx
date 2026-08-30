@@ -22,6 +22,8 @@ import Users from './pages/Users';
 import Roles from './pages/Roles';
 import AuditLogs from './pages/AuditLogs';
 import Profile from './pages/Profile';
+import MfaSetup from './pages/MfaSetup';
+import MfaDisable from './pages/MfaDisable';
 import SDLCStaging from './pages/SDLCStaging';
 
 function App() {
@@ -47,6 +49,8 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/mfa" element={<MfaVerify />} />
+      <Route path="/mfa-setup" element={<ProtectedRoute><MfaSetup /></ProtectedRoute>} />
+      <Route path="/mfa-disable" element={<ProtectedRoute><MfaDisable /></ProtectedRoute>} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/verify-email" element={<VerifyEmail />} />

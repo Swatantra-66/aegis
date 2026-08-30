@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { QRCodeSVG } from 'qrcode.react';
 import { gsap } from 'gsap';
 import api, { getErrorMessage } from '../lib/api';
 import useAuthStore from '../stores/authStore';
@@ -9,12 +9,6 @@ const Profile = () => {
   const queryClient = useQueryClient();
   const { fetchUser } = useAuthStore();
   const containerRef = useRef(null);
-
-  const [isMfaSetupOpen, setIsMfaSetupOpen] = useState(false);
-  const [mfaSecretData, setMfaSecretData] = useState(null);
-  const [totpVerifyCode, setTotpVerifyCode] = useState('');
-  const [disableMfaCode, setDisableMfaCode] = useState('');
-  const [isDisableModalOpen, setIsDisableModalOpen] = useState(false);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -65,35 +59,6 @@ const Profile = () => {
     onError: (err) => setActionError(getErrorMessage(err)),
   });
 
-  const setupMfaMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await api.post('/mfa/setup');
-      return data.data;
-    },
-    onSuccess: (data) => {
-      setMfaSecretData(data);
-      setIsMfaSetupOpen(true);
-      setTotpVerifyCode('');
-      setActionError('');
-    },
-    onError: (err) => setActionError(getErrorMessage(err)),
-  });
-
-  const verifyMfaMutation = useMutation({
-    mutationFn: async (code) => {
-      await api.post('/mfa/verify', { code });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['me'] });
-      fetchUser();
-      setIsMfaSetupOpen(false);
-      setMfaSecretData(null);
-      setActionSuccess('Multi-Factor Auth Enabled!');
-      setTimeout(() => setActionSuccess(''), 4000);
-    },
-    onError: (err) => setActionError(getErrorMessage(err)),
-  });
-
   const [devVerifyToken, setDevVerifyToken] = useState('');
 
   const sendVerificationMutation = useMutation({
@@ -106,21 +71,6 @@ const Profile = () => {
       if (data.data?.verification_token) {
         setDevVerifyToken(data.data.verification_token);
       }
-      setTimeout(() => setActionSuccess(''), 4000);
-    },
-    onError: (err) => setActionError(getErrorMessage(err)),
-  });
-
-  const disableMfaMutation = useMutation({
-    mutationFn: async (code) => {
-      await api.delete('/mfa/disable', { data: { code } });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['me'] });
-      fetchUser();
-      setIsDisableModalOpen(false);
-      setDisableMfaCode('');
-      setActionSuccess('Multi-Factor Auth Disabled');
       setTimeout(() => setActionSuccess(''), 4000);
     },
     onError: (err) => setActionError(getErrorMessage(err)),
@@ -245,13 +195,13 @@ const Profile = () => {
             </p>
 
             {profileUser?.mfa_enabled ? (
-              <button onClick={() => setIsDisableModalOpen(true)} className="sirnik-btn text-danger" style={{ padding: 0 }}>
-                <span>DISABLE MFA</span>
-              </button>
+              <Link to="/mfa-disable" className="sirnik-btn text-danger" style={{ padding: 0, textDecoration: 'none' }}>
+                <span>DISABLE MFA →</span>
+              </Link>
             ) : (
-              <button onClick={() => setupMfaMutation.mutate()} disabled={setupMfaMutation.isPending} className="sirnik-btn-solid w-full">
-                {setupMfaMutation.isPending ? 'GENERATING SECRET' : 'SETUP MFA AUTHENTICATOR'}
-              </button>
+              <Link to="/mfa-setup" className="sirnik-btn-solid w-full text-center block" style={{ textDecoration: 'none' }}>
+                SETUP MFA AUTHENTICATOR →
+              </Link>
             )}
           </div>
 
@@ -265,76 +215,6 @@ const Profile = () => {
           </div>
         </div>
       </div>
-
-      {/* MFA Modal */}
-      {isMfaSetupOpen && mfaSecretData && (
-        <div className="modal-overlay" onClick={() => setIsMfaSetupOpen(false)}>
-          <div className="modal" style={{ maxWidth: '440px' }} onClick={(e) => e.stopPropagation()}>
-            <h3 className="mb-xs">ENABLE MFA</h3>
-            <p className="font-mono text-xs text-muted mb-xl">Scan with Authenticator app</p>
-
-            <div style={{ background: '#fff', padding: '16px', borderRadius: '4px', width: 'fit-content', margin: '0 auto 1.5rem auto' }}>
-              <QRCodeSVG value={mfaSecretData.otpauth_url} size={150} />
-            </div>
-
-            <div className="text-center mb-lg">
-              <span className="sirnik-meta block">SECRET KEY:</span>
-              <code className="font-mono text-xs text-white" style={{ letterSpacing: '2px' }}>{mfaSecretData.secret}</code>
-            </div>
-
-            <form onSubmit={(e) => { e.preventDefault(); if (totpVerifyCode) verifyMfaMutation.mutate(totpVerifyCode); }}>
-              <div className="sirnik-input-group">
-                <label className="sirnik-label">ENTER 6-DIGIT CODE</label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  className="sirnik-input text-center font-mono text-xl"
-                  placeholder="123456"
-                  value={totpVerifyCode}
-                  onChange={(e) => setTotpVerifyCode(e.target.value.replace(/\D/g, ''))}
-                  autoFocus
-                  required
-                />
-              </div>
-
-              <div className="modal-actions mt-lg">
-                <button type="button" className="sirnik-btn" onClick={() => setIsMfaSetupOpen(false)}><span>CANCEL</span></button>
-                <button type="submit" className="sirnik-btn-solid" disabled={totpVerifyCode.length !== 6}>ACTIVATE MFA</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Disable Modal */}
-      {isDisableModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsDisableModalOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3 className="mb-xs">DISABLE MFA</h3>
-            <p className="font-mono text-xs text-muted mb-xl">Enter code to confirm deactivation</p>
-
-            <form onSubmit={(e) => { e.preventDefault(); if (disableMfaCode) disableMfaMutation.mutate(disableMfaCode); }}>
-              <div className="sirnik-input-group">
-                <label className="sirnik-label">AUTHENTICATOR CODE</label>
-                <input
-                  type="text"
-                  className="sirnik-input text-center font-mono text-xl"
-                  placeholder="123456"
-                  value={disableMfaCode}
-                  onChange={(e) => setDisableMfaCode(e.target.value.trim())}
-                  autoFocus
-                  required
-                />
-              </div>
-
-              <div className="modal-actions mt-xl">
-                <button type="button" className="sirnik-btn" onClick={() => setIsDisableModalOpen(false)}><span>CANCEL</span></button>
-                <button type="submit" className="sirnik-btn-solid" style={{ background: '#ef4444', color: '#fff' }}>DISABLE MFA</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
