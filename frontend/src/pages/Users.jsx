@@ -164,7 +164,7 @@ const Users = () => {
       {actionError && <div className="sirnik-toast" style={{ background: '#ef4444', color: '#fff' }}>{actionError}</div>}
 
       {/* ── Page Header & Directory Telemetry Status ── */}
-      <div className="sirnik-page-header sirnik-anim">
+      <div className="sirnik-page-header sirnik-anim" style={{ marginBottom: '2rem', paddingBottom: '1.5rem' }}>
         <div className="flex justify-between items-start flex-wrap gap-md">
           <div>
             <span className="sirnik-page-number">PROVISIONING DIRECTORY</span>
@@ -211,8 +211,7 @@ const Users = () => {
 
       {/* ── Search & Filter Controls ── */}
       <div
-        className="flex gap-md items-center mb-2xl sirnik-anim flex-wrap"
-        style={{ borderBottom: '1px solid var(--line)', paddingBottom: '1.25rem' }}
+        className="flex gap-md items-center mb-xl sirnik-anim flex-wrap"
       >
         <div style={{ position: 'relative', flex: '1', minWidth: '240px', maxWidth: '380px' }}>
           <input
