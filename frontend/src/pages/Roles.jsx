@@ -158,10 +158,10 @@ const Roles = () => {
         domain: (perm.resource === 'user'
           ? 'DIRECTORY IDENTITIES'
           : perm.resource === 'role'
-          ? 'ACCESS CONTROL & RBAC'
-          : perm.resource === 'audit'
-          ? 'AUDIT TRAIL & INTEGRITY'
-          : 'SECURITY & SESSIONS'),
+            ? 'ACCESS CONTROL & RBAC'
+            : perm.resource === 'audit'
+              ? 'AUDIT TRAIL & INTEGRITY'
+              : 'SECURITY & SESSIONS'),
         desc: `${perm.action} entitlement on ${perm.resource}`,
       };
 
@@ -185,7 +185,7 @@ const Roles = () => {
       <div className="sirnik-page-header sirnik-anim" style={{ marginBottom: '2rem', paddingBottom: '1.5rem' }}>
         <div className="flex justify-between items-start flex-wrap gap-md">
           <div>
-            <span className="sirnik-page-number">03 · AUTHORIZATION MATRIX</span>
+            <span className="sirnik-page-number">AUTHORIZATION MATRIX</span>
             <h1 className="sirnik-page-title">
               Role<br />Governance
             </h1>
