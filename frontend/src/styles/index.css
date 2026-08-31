@@ -1872,14 +1872,47 @@ p {
 }
 
 .sirnik-page {
-  padding: 4rem 5rem;
-  max-width: 1500px;
+  padding: 3rem 3.5rem;
+  max-width: 1440px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .sirnik-page-header {
-  margin-bottom: 4rem;
-  padding-bottom: 2rem;
+  margin-bottom: 2.25rem;
+  padding-bottom: 1.5rem;
   border-bottom: 1px solid var(--line);
+}
+
+/* ── Custom Dark Dropdown Menu ── */
+.sirnik-custom-dropdown-menu {
+  background: #0a0a0a !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) #0a0a0a;
+}
+
+.sirnik-custom-dropdown-menu::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sirnik-custom-dropdown-menu::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+.sirnik-custom-dropdown-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.sirnik-dropdown-item {
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sirnik-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
 }
 
 .sirnik-page-number {
