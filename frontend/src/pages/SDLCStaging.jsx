@@ -1320,7 +1320,7 @@ const SDLCStaging = () => {
       <div className="sirnik-page-header sirnik-anim" style={{ marginBottom: '2rem', paddingBottom: '1.5rem' }}>
         <div className="flex justify-between items-start flex-wrap gap-md">
           <div>
-            <span className="sirnik-page-number">06 · SOFTWARE DEVELOPMENT LIFE CYCLE</span>
+            <span className="sirnik-page-number">SOFTWARE DEVELOPMENT LIFE CYCLE</span>
             <h1 className="sirnik-page-title">
               SDLC Staging
             </h1>
