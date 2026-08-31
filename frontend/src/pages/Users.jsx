@@ -43,6 +43,7 @@ const Users = () => {
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [selectedRoleToAssign, setSelectedRoleToAssign] = useState('');
   const [revokeTarget, setRevokeTarget] = useState(null); // { user, role }
+  const [deactivateTarget, setDeactivateTarget] = useState(null); // user object
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
   const [editIsActive, setEditIsActive] = useState(true);
@@ -201,7 +202,7 @@ const Users = () => {
                 <span style={{ color: 'var(--text-white)', fontWeight: 600 }}>{activeCount}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1.5rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>MFA SECURED:</span>
+                <span style={{ color: 'var(--text-muted)' }}>MFA ENABLED:</span>
                 <span style={{ color: 'var(--text-white)', fontWeight: 600 }}>{mfaCount}</span>
               </div>
             </div>
@@ -380,7 +381,7 @@ const Users = () => {
                           className="font-mono text-xs"
                           style={{ color: u.mfa_enabled ? '#ffffff' : 'var(--text-muted)', fontSize: '0.75rem' }}
                         >
-                          {u.mfa_enabled ? '[TOTP ENROLLED]' : 'DISABLED'}
+                          {u.mfa_enabled ? '[MFA ENABLED]' : 'DISABLED'}
                         </span>
                       </td>
 
@@ -407,11 +408,7 @@ const Users = () => {
                           )}
                           {hasPermission('user:delete') && u.is_active && (
                             <button
-                              onClick={() => {
-                                if (confirm(`Deactivate identity ${u.email}?`)) {
-                                  deactivateUserMutation.mutate(u.id);
-                                }
-                              }}
+                              onClick={() => setDeactivateTarget(u)}
                               className="sirnik-action-box-btn"
                               style={{ fontSize: '0.68rem', padding: '0.35rem 0.65rem', color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.25)' }}
                             >
@@ -547,24 +544,49 @@ const Users = () => {
       {isRoleModalOpen && (
         <div
           className="modal-overlay"
-          style={{ backdropFilter: 'blur(20px)', background: 'rgba(0, 0, 0, 0.85)' }}
+          style={{ backdropFilter: 'blur(24px)', background: 'rgba(0, 0, 0, 0.88)', zIndex: 1000 }}
           onClick={() => setIsRoleModalOpen(false)}
         >
           <div
             className="modal"
             style={{
               background: '#090909',
-              border: '1px solid var(--line-strong)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
               borderRadius: '2px',
-              padding: '2rem',
-              maxWidth: '460px',
-              width: '90%',
+              padding: '2.2rem 2.4rem',
+              maxWidth: '520px',
+              width: '92%',
+              boxShadow: '0 24px 48px rgba(0, 0, 0, 0.8)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <span className="sirnik-page-number" style={{ fontSize: '0.68rem' }}>ACCESS CONTROL MATRIX</span>
-            <h3 style={{ margin: '0.25rem 0', fontWeight: 700 }}>ASSIGN RBAC ROLE</h3>
-            <p className="font-mono text-xs text-muted mb-xl">{selectedUser?.email}</p>
+            <div className="flex justify-between items-center mb-md" style={{ borderBottom: '1px solid var(--line)', paddingBottom: '0.75rem' }}>
+              <span className="sirnik-page-number" style={{ margin: 0, fontSize: '0.66rem', letterSpacing: '0.12em' }}>
+                ACCESS CONTROL MATRIX
+              </span>
+              <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>[ASSIGNMENT]</span>
+            </div>
+
+            <h3 style={{ margin: '0 0 0.25rem', fontWeight: 800, fontSize: '1.3rem', letterSpacing: '-0.02em', color: '#ffffff' }}>
+              Assign RBAC Role
+            </h3>
+
+            {/* Target Identity Box */}
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid var(--line-strong)',
+                padding: '0.75rem 1rem',
+                margin: '1rem 0 1.25rem',
+                borderRadius: '2px',
+              }}
+              className="font-mono text-xs"
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>TARGET IDENTITY:</span>
+                <span style={{ color: '#ffffff', fontWeight: 600 }}>{selectedUser?.email}</span>
+              </div>
+            </div>
 
             <form
               onSubmit={(e) => {
@@ -577,31 +599,72 @@ const Users = () => {
                 }
               }}
             >
-              <div className="sirnik-input-group mb-lg">
-                <label className="sirnik-label" style={{ fontSize: '0.68rem', letterSpacing: '0.06em' }}>SELECT RBAC ROLE</label>
-                <select
-                  className="sirnik-input"
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 0.8rem',
-                    border: '1px solid var(--line-strong)',
-                    background: '#0c0c0c',
-                    color: '#ffffff',
-                  }}
-                  value={selectedRoleToAssign}
-                  onChange={(e) => setSelectedRoleToAssign(e.target.value)}
-                  required
-                >
-                  <option value="">-- CHOOSE ROLE --</option>
-                  {allRoles?.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
+              <label className="sirnik-label" style={{ fontSize: '0.68rem', letterSpacing: '0.08em', marginBottom: '0.6rem', display: 'block' }}>
+                SELECT ROLE DEFINITION
+              </label>
+
+              {/* Bespoke Interactive Role Cards */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                {allRoles?.map((r) => {
+                  const isSelected = selectedRoleToAssign === r.id;
+                  const roleNameLower = (r.name || '').toLowerCase();
+                  const desc =
+                    roleNameLower === 'super_admin'
+                      ? 'Full root cryptographic governance & SDLC orchestration'
+                      : roleNameLower === 'admin'
+                      ? 'Directory provisioning, policy configuration & security audits'
+                      : roleNameLower === 'user'
+                      ? 'Standard consumer access & authenticated profile capabilities'
+                      : 'Granular access policy group';
+
+                  return (
+                    <div
+                      key={r.id}
+                      onClick={() => setSelectedRoleToAssign(r.id)}
+                      style={{
+                        padding: '0.85rem 1rem',
+                        border: `1px solid ${isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.08)'}`,
+                        background: isSelected ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.015)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '1rem',
+                      }}
+                      className="hover-card-lift"
+                    >
+                      <div>
+                        <div className="flex items-center gap-xs">
+                          <span style={{ color: '#ffffff', fontWeight: 700, fontSize: '0.82rem', letterSpacing: '0.04em' }}>
+                            {r.name?.toUpperCase()}
+                          </span>
+                        </div>
+                        <p style={{ margin: '0.2rem 0 0', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.3 }}>
+                          {desc}
+                        </p>
+                      </div>
+
+                      <div className="font-mono text-xs" style={{ flexShrink: 0 }}>
+                        <span
+                          className="sirnik-tag"
+                          style={{
+                            fontSize: '0.6rem',
+                            borderColor: isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.15)',
+                            color: isSelected ? '#000000' : 'rgba(255, 255, 255, 0.7)',
+                            background: isSelected ? '#ffffff' : 'transparent',
+                            fontWeight: isSelected ? 700 : 500,
+                          }}
+                        >
+                          {isSelected ? 'SELECTED' : 'SELECT'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
-              <div className="modal-actions mt-xl flex justify-end gap-md">
+              <div className="modal-actions flex justify-end gap-md">
                 <button
                   type="button"
                   className="sirnik-action-box-btn"
@@ -611,7 +674,14 @@ const Users = () => {
                 </button>
                 <button
                   type="submit"
-                  className="sirnik-btn-solid"
+                  className="sirnik-action-box-btn"
+                  style={{
+                    color: '#ffffff',
+                    borderColor: selectedRoleToAssign ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.1)',
+                    background: selectedRoleToAssign ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                    fontWeight: 700,
+                    opacity: selectedRoleToAssign ? 1 : 0.4,
+                  }}
                   disabled={!selectedRoleToAssign || assignRoleMutation.isPending}
                 >
                   {assignRoleMutation.isPending ? 'ASSIGNING...' : 'ASSIGN ROLE'}
@@ -709,6 +779,100 @@ const Users = () => {
                 }}
               >
                 {removeRoleMutation.isPending ? 'REVOKING...' : 'CONFIRM REVOCATION'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirm Deactivate Identity Modal ── */}
+      {deactivateTarget && (
+        <div
+          className="modal-overlay"
+          style={{ backdropFilter: 'blur(24px)', background: 'rgba(0, 0, 0, 0.88)', zIndex: 1000 }}
+          onClick={() => setDeactivateTarget(null)}
+        >
+          <div
+            className="modal"
+            style={{
+              background: '#090909',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '2px',
+              padding: '2.2rem 2.4rem',
+              maxWidth: '480px',
+              width: '90%',
+              boxShadow: '0 24px 48px rgba(0, 0, 0, 0.8)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-md" style={{ borderBottom: '1px solid var(--line)', paddingBottom: '0.75rem' }}>
+              <span className="sirnik-page-number" style={{ margin: 0, fontSize: '0.66rem', letterSpacing: '0.12em', color: 'var(--danger)' }}>
+                IDENTITY LIFECYCLE GOVERNANCE
+              </span>
+              <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>[DEACTIVATION]</span>
+            </div>
+
+            <h3 style={{ margin: '0 0 0.5rem', fontWeight: 800, fontSize: '1.3rem', letterSpacing: '-0.02em', color: '#ffffff' }}>
+              Deactivate Identity
+            </h3>
+
+            {/* Context Box */}
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid var(--line-strong)',
+                padding: '0.85rem 1rem',
+                margin: '1.25rem 0',
+                borderRadius: '2px',
+              }}
+              className="font-mono text-xs"
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>TARGET IDENTITY:</span>
+                <span style={{ color: '#ffffff', fontWeight: 600 }}>{deactivateTarget.email}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>ACCOUNT NAME:</span>
+                <span style={{ color: '#ffffff', fontWeight: 600 }}>
+                  {deactivateTarget.first_name || deactivateTarget.last_name
+                    ? `${deactivateTarget.first_name || ''} ${deactivateTarget.last_name || ''}`.trim()
+                    : 'UNNAMED'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.4rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>SECURITY IMPACT:</span>
+                <span style={{ color: 'var(--danger)' }}>IMMEDIATE SESSION TERMINATION</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted font-mono mb-xl" style={{ margin: '0 0 1.5rem', lineHeight: 1.5 }}>
+              This will mark the user account as INACTIVE and prevent all further logins or token refresh operations.
+            </p>
+
+            <div className="modal-actions flex justify-end gap-md">
+              <button
+                type="button"
+                className="sirnik-action-box-btn"
+                onClick={() => setDeactivateTarget(null)}
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                className="sirnik-action-box-btn"
+                style={{
+                  color: 'var(--danger)',
+                  borderColor: 'rgba(239, 68, 68, 0.4)',
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  fontWeight: 700,
+                }}
+                disabled={deactivateUserMutation.isPending}
+                onClick={() => {
+                  deactivateUserMutation.mutate(deactivateTarget.id);
+                  setDeactivateTarget(null);
+                }}
+              >
+                {deactivateUserMutation.isPending ? 'DEACTIVATING...' : 'CONFIRM DEACTIVATION'}
               </button>
             </div>
           </div>
