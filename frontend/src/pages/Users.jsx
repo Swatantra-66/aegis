@@ -77,7 +77,7 @@ const Users = () => {
     }, containerRef);
 
     return () => ctx.revert();
-  }, [data]);
+  }, []);
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ id, updateData }) => {

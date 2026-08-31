@@ -81,7 +81,7 @@ const Profile = () => {
     }, containerRef);
 
     return () => ctx.revert();
-  }, [profileUser]);
+  }, []);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (updateData) => {
