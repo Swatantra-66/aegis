@@ -5,7 +5,6 @@ import { Link } from 'react-router-dom';
 import { gsap } from 'gsap';
 import api, { healthCheck, getErrorMessage } from '../lib/api';
 import useAuthStore from '../stores/authStore';
-import { getActionBadgeType } from '../hooks/useAudit';
 
 const Dashboard = () => {
   const { user, roles: authRoles, hasPermission } = useAuthStore();
