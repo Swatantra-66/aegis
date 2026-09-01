@@ -27,7 +27,18 @@ export const Section26Hero = () => {
       {/* Top Floating White Pill Navbar Panel */}
       <header className="okaydev-navbar">
         <div className="okaydev-nav-inner">
-          <Link to="/" className="okaydev-brand" aria-label="AEGIS Home">
+          <Link to="/" className="okaydev-brand" aria-label="AEGIS Home" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <img
+              src="/aegis-logo-new.png"
+              alt="Aegis Logo"
+              style={{
+                width: '30px',
+                height: '30px',
+                objectFit: 'contain',
+                filter: 'invert(1)',
+                imageRendering: '-webkit-optimize-contrast',
+              }}
+            />
             <ShinyText
               text="AEGIS"
               fontSize={28}
@@ -43,9 +54,10 @@ export const Section26Hero = () => {
 
           <nav className="okaydev-nav-links">
             <Link to="/dashboard">OVERVIEW</Link>
-            <Link to="/users">IDENTITY</Link>
+            <Link to="/users">IDENTITIES</Link>
+            <Link to="/roles">GOVERNANCE</Link>
+            <Link to="/audit">AUDIT CHAIN</Link>
             <Link to="/profile">SECURITY</Link>
-            <Link to="/sdlc">SDLC STAGING</Link>
             <a href="#team">TEAM</a>
           </nav>
 
