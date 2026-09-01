@@ -171,7 +171,7 @@ const Dashboard = () => {
           <div>
             <span className="sirnik-page-number">ARCHITECTURE & TELEMETRY</span>
             <h1 className="sirnik-page-title">
-              Identity<br />Overview
+              Identity Overview
             </h1>
             <p className="mt-md" style={{ maxWidth: '520px' }}>
               Live zero-trust governance matrix monitoring directory identities, access control tokens, and cryptographic checksum trails.
@@ -315,7 +315,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ── Security Quick-Action Bar ── */}
+      {/*Security Quick-Action Bar*/}
       <div
         className="sirnik-section sirnik-anim mb-3xl"
         style={{
@@ -550,7 +550,7 @@ const Dashboard = () => {
       <div className="sirnik-section sirnik-anim mt-3xl">
         <div className="flex justify-between items-end mb-lg flex-wrap gap-md">
           <div>
-            <span className="sirnik-page-number">03 · EVENT LOG</span>
+            <span className="sirnik-page-number">EVENT LOG</span>
             <h3>Tamper-Evident Audit Stream</h3>
           </div>
           <Link
@@ -624,8 +624,8 @@ const Dashboard = () => {
                           const isCurrentLoggedIn = (user?.email || '').toLowerCase() === actorEmail;
                           const currentRoles = isCurrentLoggedIn
                             ? (Array.isArray(authRoles) ? authRoles : Array.isArray(user?.roles) ? user.roles : []).map(
-                                (r) => (typeof r === 'string' ? r.toLowerCase() : (r?.name || '').toLowerCase())
-                              )
+                              (r) => (typeof r === 'string' ? r.toLowerCase() : (r?.name || '').toLowerCase())
+                            )
                             : [];
 
                           const allRoles = [...new Set([...actorRoles, ...currentRoles])];
