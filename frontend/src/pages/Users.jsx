@@ -38,6 +38,11 @@ const Users = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [isActiveFilter, setIsActiveFilter] = useState('');
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const statusDropdownRef = useRef(null);
+  const [isMfaFilter, setIsMfaFilter] = useState('');
+  const [isMfaDropdownOpen, setIsMfaDropdownOpen] = useState(false);
+  const mfaDropdownRef = useRef(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -50,14 +55,28 @@ const Users = () => {
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
+        setIsStatusDropdownOpen(false);
+      }
+      if (mfaDropdownRef.current && !mfaDropdownRef.current.contains(event.target)) {
+        setIsMfaDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const { data: allRoles } = useRoles();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['users', { page, search, isActive: isActiveFilter }],
+    queryKey: ['users', { page, search, isActive: isActiveFilter, mfaEnabled: isMfaFilter }],
     queryFn: async () => {
       const params = { page, limit: 10 };
       if (search) params.search = search;
       if (isActiveFilter !== '') params.is_active = isActiveFilter;
+      if (isMfaFilter !== '') params.mfa_enabled = isMfaFilter;
 
       const { data } = await api.get('/users', { params });
       return { users: data.data || [], meta: data.meta || {} };
@@ -164,13 +183,12 @@ const Users = () => {
       {actionSuccess && <div className="sirnik-toast">{actionSuccess}</div>}
       {actionError && <div className="sirnik-toast" style={{ background: '#ef4444', color: '#fff' }}>{actionError}</div>}
 
-      {/* ── Page Header & Directory Telemetry Status ── */}
       <div className="sirnik-page-header sirnik-anim" style={{ marginBottom: '2rem', paddingBottom: '1.5rem' }}>
         <div className="flex justify-between items-start flex-wrap gap-md">
           <div>
             <span className="sirnik-page-number">PROVISIONING DIRECTORY</span>
             <h1 className="sirnik-page-title">
-              Directory<br />Identities
+              Directory Identities
             </h1>
             <p className="mt-md" style={{ maxWidth: '480px' }}>
               Manage user accounts, granular RBAC memberships, and account lifecycle activation states.
@@ -213,6 +231,7 @@ const Users = () => {
       {/* ── Search & Filter Controls ── */}
       <div
         className="flex gap-md items-center mb-xl sirnik-anim flex-wrap"
+        style={{ position: 'relative', zIndex: 100 }}
       >
         <div style={{ position: 'relative', flex: '1', minWidth: '240px', maxWidth: '380px' }}>
           <input
@@ -232,25 +251,230 @@ const Users = () => {
           />
         </div>
 
-        <div style={{ minWidth: '180px' }}>
-          <select
-            className="sirnik-input"
+        {/* Bespoke Dark Status Filter Dropdown */}
+        <div style={{ position: 'relative', minWidth: '170px' }} ref={statusDropdownRef}>
+          <div
+            onClick={() => setIsStatusDropdownOpen((prev) => !prev)}
             style={{
               width: '100%',
               padding: '0.6rem 1rem',
-              border: '1px solid var(--line-strong)',
-              background: '#0a0a0a',
+              border: `1px solid ${isStatusDropdownOpen ? '#ffffff' : 'var(--line-strong)'}`,
+              backgroundColor: '#0c0c0c',
+              background: '#0c0c0c',
               fontSize: '0.78rem',
               letterSpacing: '0.04em',
               color: '#ffffff',
+              cursor: 'pointer',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              userSelect: 'none',
+              transition: 'border-color 0.2s',
             }}
-            value={isActiveFilter}
-            onChange={(e) => { setIsActiveFilter(e.target.value); setPage(1); }}
           >
-            <option value="" style={{ background: '#0a0a0a' }}>ALL STATUSES</option>
-            <option value="true" style={{ background: '#0a0a0a' }}>ACTIVE ONLY</option>
-            <option value="false" style={{ background: '#0a0a0a' }}>INACTIVE ONLY</option>
-          </select>
+            <span className="font-mono" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {isActiveFilter === 'true' ? 'ACTIVE ONLY' : isActiveFilter === 'false' ? 'INACTIVE ONLY' : 'ALL STATUSES'}
+            </span>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                transform: isStatusDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                marginLeft: '0.5rem',
+                opacity: 0.6,
+                flexShrink: 0,
+              }}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+
+          {isStatusDropdownOpen && (
+            <div
+              className="sirnik-custom-dropdown-menu"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                right: 0,
+                backgroundColor: '#0c0c0c',
+                background: '#0c0c0c',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 24px 48px #000000, 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                zIndex: 9999,
+                borderRadius: '2px',
+              }}
+            >
+              {[
+                { value: '', label: 'ALL STATUSES' },
+                { value: 'true', label: 'ACTIVE ONLY' },
+                { value: 'false', label: 'INACTIVE ONLY' },
+              ].map((opt) => {
+                const isSelected = isActiveFilter === opt.value;
+                return (
+                  <div
+                    key={opt.value}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsActiveFilter(opt.value);
+                      setPage(1);
+                      setIsStatusDropdownOpen(false);
+                    }}
+                    style={{
+                      padding: '0.65rem 1rem',
+                      fontSize: '0.75rem',
+                      fontFamily: 'var(--font-mono)',
+                      letterSpacing: '0.04em',
+                      cursor: 'pointer',
+                      color: isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.7)',
+                      backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.08)' : '#0c0c0c',
+                      background: isSelected ? 'rgba(255, 255, 255, 0.08)' : '#0c0c0c',
+                      fontWeight: isSelected ? 700 : 400,
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      transition: 'background 0.15s, color 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.color = '#ffffff';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.background = '#0c0c0c';
+                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
+                      }
+                    }}
+                  >
+                    <span>{opt.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Bespoke Dark MFA Security Filter Dropdown */}
+        <div style={{ position: 'relative', minWidth: '170px' }} ref={mfaDropdownRef}>
+          <div
+            onClick={() => setIsMfaDropdownOpen((prev) => !prev)}
+            style={{
+              width: '100%',
+              padding: '0.6rem 1rem',
+              border: `1px solid ${isMfaDropdownOpen ? '#ffffff' : 'var(--line-strong)'}`,
+              backgroundColor: '#0c0c0c',
+              background: '#0c0c0c',
+              fontSize: '0.78rem',
+              letterSpacing: '0.04em',
+              color: '#ffffff',
+              cursor: 'pointer',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              userSelect: 'none',
+              transition: 'border-color 0.2s',
+            }}
+          >
+            <span className="font-mono" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {isMfaFilter === 'true' ? 'MFA ENABLED' : isMfaFilter === 'false' ? 'MFA DISABLED' : 'ALL MFA STATES'}
+            </span>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                transform: isMfaDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                marginLeft: '0.5rem',
+                opacity: 0.6,
+                flexShrink: 0,
+              }}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+
+          {isMfaDropdownOpen && (
+            <div
+              className="sirnik-custom-dropdown-menu"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                right: 0,
+                backgroundColor: '#0c0c0c',
+                background: '#0c0c0c',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 24px 48px #000000, 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                zIndex: 9999,
+                borderRadius: '2px',
+              }}
+            >
+              {[
+                { value: '', label: 'ALL MFA STATES' },
+                { value: 'true', label: 'MFA ENABLED' },
+                { value: 'false', label: 'MFA DISABLED' },
+              ].map((opt) => {
+                const isSelected = isMfaFilter === opt.value;
+                return (
+                  <div
+                    key={opt.value}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsMfaFilter(opt.value);
+                      setPage(1);
+                      setIsMfaDropdownOpen(false);
+                    }}
+                    style={{
+                      padding: '0.65rem 1rem',
+                      fontSize: '0.75rem',
+                      fontFamily: 'var(--font-mono)',
+                      letterSpacing: '0.04em',
+                      cursor: 'pointer',
+                      color: isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.7)',
+                      backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.08)' : '#0c0c0c',
+                      background: isSelected ? 'rgba(255, 255, 255, 0.08)' : '#0c0c0c',
+                      fontWeight: isSelected ? 700 : 400,
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      transition: 'background 0.15s, color 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.color = '#ffffff';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.background = '#0c0c0c';
+                        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
+                      }
+                    }}
+                  >
+                    <span>{opt.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -612,10 +836,10 @@ const Users = () => {
                     roleNameLower === 'super_admin'
                       ? 'Full root cryptographic governance & SDLC orchestration'
                       : roleNameLower === 'admin'
-                      ? 'Directory provisioning, policy configuration & security audits'
-                      : roleNameLower === 'user'
-                      ? 'Standard consumer access & authenticated profile capabilities'
-                      : 'Granular access policy group';
+                        ? 'Directory provisioning, policy configuration & security audits'
+                        : roleNameLower === 'user'
+                          ? 'Standard consumer access & authenticated profile capabilities'
+                          : 'Granular access policy group';
 
                   return (
                     <div
