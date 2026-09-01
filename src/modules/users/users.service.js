@@ -16,13 +16,21 @@ const { AUDIT_ACTIONS, PAGINATION } = require('../../config/constants');
  * @param {boolean} [options.isActive] - Filter by active status
  * @returns {Promise<{ users: Array, total: number }>}
  */
-const listUsers = async ({ page = PAGINATION.DEFAULT_PAGE, limit = PAGINATION.DEFAULT_LIMIT, search, isActive } = {}) => {
+const listUsers = async ({
+  page = PAGINATION.DEFAULT_PAGE,
+  limit = PAGINATION.DEFAULT_LIMIT,
+  search,
+  isActive,
+  mfaEnabled,
+} = {}) => {
   const conditions = [];
   const params = [];
   let paramIndex = 1;
 
   if (search) {
-    conditions.push(`(u.email ILIKE $${paramIndex} OR u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex})`);
+    conditions.push(
+      `(u.email ILIKE $${paramIndex} OR u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex})`
+    );
     params.push(`%${search}%`);
     paramIndex++;
   }
@@ -32,13 +40,15 @@ const listUsers = async ({ page = PAGINATION.DEFAULT_PAGE, limit = PAGINATION.DE
     params.push(isActive);
   }
 
+  if (mfaEnabled !== undefined) {
+    conditions.push(`u.mfa_enabled = $${paramIndex++}`);
+    params.push(mfaEnabled);
+  }
+
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   const offset = (page - 1) * limit;
 
-  const countResult = await db.query(
-    `SELECT COUNT(*) FROM users u ${whereClause}`,
-    params
-  );
+  const countResult = await db.query(`SELECT COUNT(*) FROM users u ${whereClause}`, params);
   const total = parseInt(countResult.rows[0].count, 10);
 
   const usersResult = await db.query(
@@ -161,7 +171,11 @@ const updateUser = async (userId, updateData, reqMeta = {}) => {
     action: AUDIT_ACTIONS.USER_UPDATED,
     resourceType: 'user',
     resourceId: userId,
-    oldData: { first_name: currentUser.first_name, last_name: currentUser.last_name, is_active: currentUser.is_active },
+    oldData: {
+      first_name: currentUser.first_name,
+      last_name: currentUser.last_name,
+      is_active: currentUser.is_active,
+    },
     newData: updateData,
     ip: reqMeta.ip,
     userAgent: reqMeta.userAgent,

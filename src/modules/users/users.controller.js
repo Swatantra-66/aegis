@@ -6,12 +6,13 @@ const apiResponse = require('../../utils/apiResponse');
  */
 
 const listUsers = async (req, res) => {
-  const { page, limit, search, is_active } = req.query;
+  const { page, limit, search, is_active, mfa_enabled } = req.query;
   const { users, total } = await usersService.listUsers({
     page,
     limit,
     search,
     isActive: is_active,
+    mfaEnabled: mfa_enabled,
   });
 
   return apiResponse.paginated(res, {

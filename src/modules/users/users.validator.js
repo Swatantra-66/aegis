@@ -7,15 +7,18 @@ const listUsers = Joi.object({
   limit: Joi.number().integer().min(1).max(PAGINATION.MAX_LIMIT).default(PAGINATION.DEFAULT_LIMIT),
   search: Joi.string().max(100).trim().optional(),
   is_active: Joi.boolean().optional(),
+  mfa_enabled: Joi.boolean().optional(),
 });
 
 const updateUser = Joi.object({
   first_name: Joi.string().max(100).trim().optional(),
   last_name: Joi.string().max(100).trim().optional(),
   is_active: Joi.boolean().optional(),
-}).min(1).messages({
-  'object.min': 'At least one field must be provided for update',
-});
+})
+  .min(1)
+  .messages({
+    'object.min': 'At least one field must be provided for update',
+  });
 
 const userId = Joi.object({
   id: Joi.string().uuid().required().messages({
