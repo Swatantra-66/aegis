@@ -125,16 +125,16 @@ export const Section26Hero = () => {
               Enterprise IAM architecture powered by Argon2id password hashing, Granular RBAC, TOTP Multi-Factor Authentication, Redis Token Revocation, and Tamper-Evident SHA-256 Audit Chains.
             </p>
           </div>
-
-          {/* Trusted logos — continuous marquee */}
-          <div className="section26-marquee-wrapper">
-            <LogoMarquee />
-          </div>
         </div>
 
         {/* Center Visual Area: Starburst Symphony Model */}
         <div className="section26-visual-stage-container">
           <Orb />
+        </div>
+
+        {/* Right Side: Dual-Column Vertical Logo Marquee */}
+        <div className="section26-right-marquee-wrapper">
+          <LogoMarquee />
         </div>
       </div>
     </main>

@@ -497,8 +497,8 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 32px;
-  width: 450px;
-  max-width: 38vw;
+  width: 520px;
+  max-width: 42vw;
 }
 
 .section26-headline-copy {
@@ -506,24 +506,24 @@
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
-  gap: 12px;
+  gap: 16px;
   color: #ffffff;
 }
 
 .section26-subtitle-tag {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.7);
   text-transform: uppercase;
 }
 
 .section26-serif-title {
   font-family: 'Instrument Serif', Georgia, serif;
-  font-size: 78px;
-  line-height: 1.05;
-  letter-spacing: -1.6px;
+  font-size: 88px;
+  line-height: 1.02;
+  letter-spacing: -2px;
   white-space: nowrap;
   font-weight: 400;
   color: #ffffff;
@@ -531,12 +531,12 @@
 }
 
 .section26-body-desc {
-  font-size: 15px;
-  line-height: 1.5;
-  letter-spacing: -0.25px;
-  opacity: 0.7;
+  font-size: 16.5px;
+  line-height: 1.55;
+  letter-spacing: -0.2px;
+  opacity: 0.75;
   color: #ffffff;
-  max-width: 400px;
+  max-width: 440px;
   margin: 0;
 }
 
@@ -720,77 +720,122 @@
   line-height: 1.2;
 }
 
-.section26-logo-marquee-root {
+/* Right Side Dual-Column Vertical Logo Marquee */
+.section26-right-marquee-wrapper {
+  position: absolute;
+  right: 14.5vw;
+  top: 45%;
+  transform: translateY(-50%);
+  z-index: 20;
+  pointer-events: auto;
+}
+
+.section26-vertical-marquee-root {
   position: relative;
-  height: 48px;
-  width: 480px;
-  max-width: 100%;
+  height: 400px;
+  width: 138px;
+  display: flex;
+  gap: 34px;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-}
-
-/* Logo Marquee Track */
-.section26-logo-track {
-  display: flex;
-  align-items: center;
-  gap: 3.5rem;
-  padding-right: 3.5rem;
-  width: max-content;
-  will-change: transform;
-  animation: logoMarqueeScroll 25s linear infinite;
-}
-
-.section26-logo-group {
-  display: flex;
-  align-items: center;
-  gap: 3.5rem;
-  flex-shrink: 0;
-}
-
-.section26-logo-item {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  flex-shrink: 0;
-  cursor: default;
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
   user-select: none;
-  opacity: 0.78;
-  transition: opacity 0.2s ease-out;
 }
 
-.section26-logo-item:hover {
-  opacity: 1;
+.section26-vertical-col {
+  width: 52px;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
 }
 
-.section26-logo-img {
-  width: 20px !important;
-  height: 20px !important;
-  min-width: 20px !important;
-  min-height: 20px !important;
-  max-width: 20px !important;
-  max-height: 20px !important;
+.section26-vertical-track {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  will-change: transform;
+}
+
+.section26-track-up {
+  animation: verticalMarqueeUp 28s linear infinite;
+}
+
+.section26-track-down {
+  animation: verticalMarqueeDown 32s linear infinite;
+}
+
+.section26-vertical-marquee-root:hover .section26-track-up,
+.section26-vertical-marquee-root:hover .section26-track-down {
+  animation-play-state: paused;
+}
+
+.section26-tile-group {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 24px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.section26-tile-item {
+  width: 52px;
+  height: 52px;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.section26-tile-img {
+  width: 27px !important;
+  height: 27px !important;
+  max-width: 27px !important;
+  max-height: 27px !important;
   object-fit: contain;
   display: block;
-  flex-shrink: 0;
+  pointer-events: none;
+  opacity: 0.65;
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.section26-logo-text {
-  font-family: var(--font-sans);
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  color: #ffffff;
+.section26-tile-item:hover .section26-tile-img {
+  opacity: 1;
+  transform: scale(1.2);
 }
 
-@keyframes logoMarqueeScroll {
+@keyframes verticalMarqueeUp {
   0% {
-    transform: translateX(0);
+    transform: translateY(0);
   }
 
   100% {
-    transform: translateX(-50%);
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes verticalMarqueeDown {
+  0% {
+    transform: translateY(-50%);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 1440px) {
+  .section26-right-marquee-wrapper {
+    right: 13vw;
+  }
+}
+
+@media (max-width: 1180px) {
+  .section26-right-marquee-wrapper {
+    display: none;
   }
 }
 
