@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { gsap } from 'gsap';
 import api, { healthCheck, getErrorMessage } from '../lib/api';
 import useAuthStore from '../stores/authStore';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { user, roles: authRoles, hasPermission } = useAuthStore();
   const containerRef = useRef(null);
   const [verificationResult, setVerificationResult] = useState(null);
+  const [permissionWarning, setPermissionWarning] = useState(null);
 
   // Queries for live metrics
   const { data: usersData } = useQuery({
@@ -20,12 +22,21 @@ const Dashboard = () => {
     },
   });
 
+  const hasRoleRead = hasPermission('role:read');
+  const userRolesCount = useMemo(() => {
+    if (user?.roles && Array.isArray(user.roles)) return user.roles.length;
+    if (authRoles && Array.isArray(authRoles)) return authRoles.length;
+    return 1;
+  }, [user, authRoles]);
+
   const { data: rolesData } = useQuery({
     queryKey: ['dashboard-roles-count'],
     queryFn: async () => {
+      if (!hasRoleRead) return userRolesCount;
       const { data } = await api.get('/roles');
       return data.data.roles?.length || 0;
     },
+    enabled: true,
   });
 
   const { data: auditCount } = useQuery({
@@ -249,7 +260,7 @@ const Dashboard = () => {
           }}
           className="hover-card-lift"
         >
-          <div className="flex justify-between items-center mb-xs" style={{ whiteSpace: 'nowrap' }}>
+          <div className="flex justify-between items-center mb-xs" style={{ gap: '0.75rem', whiteSpace: 'nowrap' }}>
             <span className="sirnik-stat-label" style={{ margin: 0, fontSize: '0.66rem', letterSpacing: '0.08em' }}>01 · IDENTITIES</span>
             <span className="sirnik-tag" style={{ fontSize: '0.6rem', borderColor: 'rgba(255, 255, 255, 0.15)', color: 'rgba(255, 255, 255, 0.7)', whiteSpace: 'nowrap' }}>SYNCED</span>
           </div>
@@ -257,7 +268,7 @@ const Dashboard = () => {
           <p className="text-xs mt-xs text-muted" style={{ margin: 0 }}>Active user records</p>
         </div>
 
-        {/* Card 2: RBAC Roles Defined */}
+        {/* Card 2: RBAC Roles */}
         <div
           style={{
             background: 'rgba(255, 255, 255, 0.015)',
@@ -268,12 +279,20 @@ const Dashboard = () => {
           }}
           className="hover-card-lift"
         >
-          <div className="flex justify-between items-center mb-xs" style={{ whiteSpace: 'nowrap' }}>
-            <span className="sirnik-stat-label" style={{ margin: 0, fontSize: '0.66rem', letterSpacing: '0.08em' }}>02 · ROLES</span>
-            <span className="sirnik-tag" style={{ fontSize: '0.6rem', borderColor: 'rgba(255, 255, 255, 0.15)', color: 'rgba(255, 255, 255, 0.7)', whiteSpace: 'nowrap' }}>ENFORCED</span>
+          <div className="flex justify-between items-center mb-xs" style={{ gap: '0.75rem', whiteSpace: 'nowrap' }}>
+            <span className="sirnik-stat-label" style={{ margin: 0, fontSize: '0.66rem', letterSpacing: '0.08em' }}>
+              02 · ROLES
+            </span>
+            <span className="sirnik-tag" style={{ fontSize: '0.6rem', borderColor: 'rgba(255, 255, 255, 0.15)', color: 'rgba(255, 255, 255, 0.7)', whiteSpace: 'nowrap' }}>
+              {hasRoleRead ? 'ENFORCED' : 'ACTIVE'}
+            </span>
           </div>
-          <div className="sirnik-stat-num" style={{ color: '#ffffff' }}>{rolesData !== undefined ? rolesData : '—'}</div>
-          <p className="text-xs mt-xs text-muted" style={{ margin: 0 }}>Role hierarchy matrix</p>
+          <div className="sirnik-stat-num" style={{ color: '#ffffff' }}>
+            {hasRoleRead ? (rolesData !== undefined ? rolesData : '—') : userRolesCount}
+          </div>
+          <p className="text-xs mt-xs text-muted" style={{ margin: 0 }}>
+            {hasRoleRead ? 'Role hierarchy matrix' : 'Assigned access clearance'}
+          </p>
         </div>
 
         {/* Card 3: Checksum Bit Strength */}
@@ -287,7 +306,7 @@ const Dashboard = () => {
           }}
           className="hover-card-lift"
         >
-          <div className="flex justify-between items-center mb-xs" style={{ whiteSpace: 'nowrap' }}>
+          <div className="flex justify-between items-center mb-xs" style={{ gap: '0.75rem', whiteSpace: 'nowrap' }}>
             <span className="sirnik-stat-label" style={{ margin: 0, fontSize: '0.66rem', letterSpacing: '0.08em' }}>03 · CRYPTO</span>
             <span className="sirnik-tag" style={{ fontSize: '0.6rem', borderColor: 'rgba(255, 255, 255, 0.15)', color: 'rgba(255, 255, 255, 0.7)', whiteSpace: 'nowrap' }}>SHA-256</span>
           </div>
@@ -306,12 +325,16 @@ const Dashboard = () => {
           }}
           className="hover-card-lift"
         >
-          <div className="flex justify-between items-center mb-xs" style={{ whiteSpace: 'nowrap' }}>
+          <div className="flex justify-between items-center mb-xs" style={{ gap: '0.75rem', whiteSpace: 'nowrap' }}>
             <span className="sirnik-stat-label" style={{ margin: 0, fontSize: '0.66rem', letterSpacing: '0.08em' }}>04 · AUDIT TRAIL</span>
-            <span className="sirnik-tag" style={{ fontSize: '0.6rem', borderColor: 'rgba(255, 255, 255, 0.15)', color: 'rgba(255, 255, 255, 0.7)', whiteSpace: 'nowrap' }}>CHAINED</span>
+            <span className="sirnik-tag" style={{ fontSize: '0.6rem', borderColor: 'rgba(255, 255, 255, 0.15)', color: 'rgba(255, 255, 255, 0.7)', whiteSpace: 'nowrap' }}>
+              {hasPermission('audit:read') ? 'CHAINED' : 'PERSONAL'}
+            </span>
           </div>
           <div className="sirnik-stat-num" style={{ color: '#ffffff' }}>{auditCount !== undefined ? auditCount : '—'}</div>
-          <p className="text-xs mt-xs text-muted" style={{ margin: 0 }}>Chained log entries</p>
+          <p className="text-xs mt-xs text-muted" style={{ margin: 0 }}>
+            {hasPermission('audit:read') ? 'Chained log entries' : 'Your security event trail'}
+          </p>
         </div>
       </div>
 
@@ -332,31 +355,109 @@ const Dashboard = () => {
 
           <div className="flex items-center gap-md flex-wrap">
             {/* Verify Integrity Button */}
-            {hasPermission('audit:verify') && (
-              <button
-                onClick={() => verifyMutation.mutate()}
-                disabled={verifyMutation.isPending}
-                className="sirnik-action-box-btn"
-              >
-                {verifyMutation.isPending ? 'VERIFYING HASH CHAIN...' : 'VERIFY AUDIT INTEGRITY'}
-              </button>
-            )}
+            <button
+              onClick={() => {
+                if (!hasPermission('audit:verify')) {
+                  setVerificationResult(null);
+                  setPermissionWarning({
+                    title: 'PERMISSION DENIED',
+                    message: 'You do not have permission to perform this action. Administrator privilege (audit:verify) required.',
+                    timestamp: new Date().toLocaleTimeString(),
+                  });
+                  return;
+                }
+                setPermissionWarning(null);
+                verifyMutation.mutate();
+              }}
+              disabled={verifyMutation.isPending}
+              className="sirnik-action-box-btn"
+            >
+              {verifyMutation.isPending ? 'VERIFYING HASH CHAIN...' : 'VERIFY AUDIT INTEGRITY'}
+            </button>
 
-            <Link
-              to="/roles"
+            <button
+              onClick={() => {
+                if (!hasPermission('role:read')) {
+                  setVerificationResult(null);
+                  setPermissionWarning({
+                    title: 'ACCESS RESTRICTED',
+                    message: 'You do not have permission to perform this action. Role governance requires (role:read) administrative privilege.',
+                    timestamp: new Date().toLocaleTimeString(),
+                  });
+                  return;
+                }
+                navigate('/roles');
+              }}
               className="sirnik-action-box-btn"
             >
               ACCESS GOVERNANCE
-            </Link>
+            </button>
 
-            <Link
-              to="/audit"
+            <button
+              onClick={() => {
+                if (!hasPermission('audit:read')) {
+                  setVerificationResult(null);
+                  setPermissionWarning({
+                    title: 'ACCESS RESTRICTED',
+                    message: 'You do not have permission to perform this action. Merkle Audit Chain management requires (audit:read) privilege.',
+                    timestamp: new Date().toLocaleTimeString(),
+                  });
+                  return;
+                }
+                navigate('/audit');
+              }}
               className="sirnik-action-box-btn"
             >
               FULL AUDIT CHAIN
-            </Link>
+            </button>
           </div>
         </div>
+
+        {/* Permission Warning Alert */}
+        {permissionWarning && (
+          <div
+            className="mt-lg"
+            style={{
+              background: 'rgba(239, 68, 68, 0.05)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              backdropFilter: 'blur(12px)',
+              borderRadius: '2px',
+              padding: '1rem 1.25rem',
+            }}
+          >
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-sm">
+                <span
+                  style={{
+                    color: '#ff5a5a',
+                    fontWeight: 700,
+                    letterSpacing: '0.06em',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  {permissionWarning.title}: You do not have permission to perform this action
+                </span>
+                <span className="text-xs text-muted font-mono">[{permissionWarning.timestamp}]</span>
+              </div>
+              <button
+                onClick={() => setPermissionWarning(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  padding: '0 0.25rem',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs font-mono" style={{ color: 'rgba(255, 255, 255, 0.8)', margin: '0.4rem 0 0', lineHeight: 1.5 }}>
+              {permissionWarning.message}
+            </p>
+          </div>
+        )}
 
         {/* Verification Status Report */}
         {verificationResult && (
@@ -553,13 +654,24 @@ const Dashboard = () => {
             <span className="sirnik-page-number">EVENT LOG</span>
             <h3>Tamper-Evident Audit Stream</h3>
           </div>
-          <Link
-            to="/audit"
+          <button
+            onClick={() => {
+              if (!hasPermission('audit:read')) {
+                setPermissionWarning({
+                  title: 'ACCESS RESTRICTED',
+                  message: 'You do not have permission to perform this action. Merkle Audit Chain management requires (audit:read) privilege.',
+                  timestamp: new Date().toLocaleTimeString(),
+                });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return;
+              }
+              navigate('/audit');
+            }}
             className="sirnik-action-box-btn"
             style={{ fontSize: '0.72rem', padding: '0.45rem 0.9rem' }}
           >
             VIEW FULL AUDIT CHAIN
-          </Link>
+          </button>
         </div>
 
         <div style={{ overflowX: 'auto', width: '100%' }}>
