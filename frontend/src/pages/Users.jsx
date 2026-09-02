@@ -4,8 +4,9 @@ import { gsap } from 'gsap';
 import api, { getErrorMessage } from '../lib/api';
 import useAuthStore from '../stores/authStore';
 import { useRoles } from '../hooks/useRoles';
+import adminLogo from '../assets/admin-logo.png';
 
-// Clean SVG UserCog Icon for Admins
+// Clean SVG UserCog Icon (Earlier Icon) for Super Administrators
 const UserCogIcon = ({ size = 13, color = '#ffffff' }) => (
   <svg
     width={size}
@@ -28,6 +29,25 @@ const UserCogIcon = ({ size = 13, color = '#ffffff' }) => (
     <path d="m21.6 12.5-.87-.5" />
     <path d="m17.27 10-.87-.5" />
   </svg>
+);
+
+// Administrator Image Icon from frontend/src/assets/admin-logo.png
+const AdminIcon = ({ size = 13 }) => (
+  <img
+    src={adminLogo}
+    alt="Administrator"
+    style={{
+      width: `${size}px`,
+      height: `${size}px`,
+      objectFit: 'contain',
+      display: 'inline-block',
+      verticalAlign: 'middle',
+      marginRight: '0.35rem',
+      flexShrink: 0,
+      filter: 'brightness(0) invert(1)',
+      imageRendering: '-webkit-optimize-contrast',
+    }}
+  />
 );
 
 const Users = () => {
@@ -528,11 +548,15 @@ const Users = () => {
                             }}
                             title={`ID: ${u.id}`}
                           >
-                            {(isSuperAdmin || isAdmin) && (
-                              <span title={isSuperAdmin ? 'Super Administrator' : 'Administrator'}>
+                            {isSuperAdmin ? (
+                              <span title="Super Administrator" style={{ display: 'inline-flex', alignItems: 'center' }}>
                                 <UserCogIcon size={13} color="#ffffff" />
                               </span>
-                            )}
+                            ) : isAdmin ? (
+                              <span title="Administrator" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <AdminIcon size={13} />
+                              </span>
+                            ) : null}
                             <span>{u.email}</span>
                           </div>
                         </div>
@@ -611,7 +635,7 @@ const Users = () => {
 
                       {/* Actions */}
                       <td style={{ padding: '1.1rem 0.6rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div className="flex justify-end gap-xs" style={{ whiteSpace: 'nowrap' }}>
+                        <div className="flex justify-end gap-xs" style={{ whiteSpace: 'nowrap', alignItems: 'center' }}>
                           {hasPermission('role:update') && (
                             <button
                               onClick={() => openRoleModal(u)}
@@ -638,6 +662,24 @@ const Users = () => {
                             >
                               DEACTIVATE
                             </button>
+                          )}
+                          {!hasPermission('role:update') && !hasPermission('user:update') && !hasPermission('user:delete') && (
+                            <span
+                              className="font-mono text-xs"
+                              style={{
+                                fontSize: '0.62rem',
+                                letterSpacing: '0.08em',
+                                color: 'rgba(255, 255, 255, 0.4)',
+                                padding: '0.22rem 0.6rem',
+                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                background: 'rgba(255, 255, 255, 0.015)',
+                                borderRadius: '2px',
+                                display: 'inline-block',
+                              }}
+                              title="Action restricted: Administrator clearance required (user:update / role:update)"
+                            >
+                              RESTRICTED
+                            </span>
                           )}
                         </div>
                       </td>

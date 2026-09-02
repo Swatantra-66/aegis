@@ -4,8 +4,8 @@ import { gsap } from 'gsap';
 import api, { getErrorMessage } from '../lib/api';
 import useAuthStore from '../stores/authStore';
 import { AUDIT_ACTIONS, getActionBadgeType } from '../hooks/useAudit';
+import adminLogo from '../assets/admin-logo.png';
 
-// Clean SVG UserCog Icon for Admins
 const UserCogIcon = ({ size = 12, color = '#ffffff' }) => (
   <svg
     width={size}
@@ -28,6 +28,24 @@ const UserCogIcon = ({ size = 12, color = '#ffffff' }) => (
     <path d="m21.6 12.5-.87-.5" />
     <path d="m17.27 10-.87-.5" />
   </svg>
+);
+
+const AdminIcon = ({ size = 12 }) => (
+  <img
+    src={adminLogo}
+    alt="Administrator"
+    style={{
+      width: `${size}px`,
+      height: `${size}px`,
+      objectFit: 'contain',
+      display: 'inline-block',
+      verticalAlign: 'middle',
+      marginRight: '0.35rem',
+      flexShrink: 0,
+      filter: 'brightness(0) invert(1)',
+      imageRendering: '-webkit-optimize-contrast',
+    }}
+  />
 );
 
 const AuditLogs = () => {
@@ -68,21 +86,33 @@ const AuditLogs = () => {
     },
   });
 
-  const adminEmails = useMemo(() => {
-    const set = new Set();
-    if (currentUser?.email) set.add(currentUser.email.toLowerCase());
+  const { superAdminEmails, adminEmails } = useMemo(() => {
+    const superSet = new Set();
+    const adminSet = new Set();
+    if (currentUser?.email) {
+      const currentRoleNames = (Array.isArray(currentUser.roles) ? currentUser.roles : []).map((r) =>
+        typeof r === 'string' ? r.toLowerCase() : (r?.name || '').toLowerCase()
+      );
+      if (currentRoleNames.some((r) => r.includes('super_admin') || r.includes('superadmin'))) {
+        superSet.add(currentUser.email.toLowerCase());
+      } else if (currentRoleNames.some((r) => r.includes('admin'))) {
+        adminSet.add(currentUser.email.toLowerCase());
+      }
+    }
     if (usersData && Array.isArray(usersData)) {
       usersData.forEach((u) => {
         if (!u.email) return;
         const roleNames = Array.isArray(u.roles)
           ? u.roles.map((r) => (typeof r === 'string' ? r.toLowerCase() : (r?.name || '').toLowerCase()))
           : [];
-        if (roleNames.some((r) => r.includes('admin') || r.includes('super_admin') || r.includes('superadmin'))) {
-          set.add(u.email.toLowerCase());
+        if (roleNames.some((r) => r.includes('super_admin') || r.includes('superadmin'))) {
+          superSet.add(u.email.toLowerCase());
+        } else if (roleNames.some((r) => r.includes('admin'))) {
+          adminSet.add(u.email.toLowerCase());
         }
       });
     }
-    return set;
+    return { superAdminEmails: superSet, adminEmails: adminSet };
   }, [usersData, currentUser]);
 
   const { data, isLoading } = useQuery({
@@ -435,7 +465,8 @@ const AuditLogs = () => {
             ) : data?.logs && data.logs.length > 0 ? (
               data.logs.map((log) => {
                 const actorEmail = (log.actor_email || 'SYSTEM').toLowerCase();
-                const isAdminActor = adminEmails.has(actorEmail);
+                const isSuperAdminActor = superAdminEmails.has(actorEmail);
+                const isAdminActor = !isSuperAdminActor && adminEmails.has(actorEmail);
                 const cleanIp = log.ip_address ? log.ip_address.replace('::ffff:', '') : '127.0.0.1';
                 const shortChecksum = log.checksum
                   ? `${log.checksum.substring(0, 8)}...${log.checksum.substring(log.checksum.length - 4)}`
@@ -476,11 +507,15 @@ const AuditLogs = () => {
                         }}
                         title={`Actor ID: ${log.actor_id || 'system'}`}
                       >
-                        {isAdminActor && (
-                          <span title="Administrator">
+                        {isSuperAdminActor ? (
+                          <span title="Super Administrator">
                             <UserCogIcon size={12} color="#ffffff" />
                           </span>
-                        )}
+                        ) : isAdminActor ? (
+                          <span title="Administrator">
+                            <AdminIcon size={12} />
+                          </span>
+                        ) : null}
                         <span>{log.actor_email || 'system'}</span>
                       </div>
                     </td>
