@@ -2,10 +2,17 @@ const auditService = require('./audit.service');
 const apiResponse = require('../../utils/apiResponse');
 
 const getAuditLogs = async (req, res) => {
-  const { actor_id, action, resource_type, resource_id, start_date, end_date, page, limit } = req.query;
+  const { actor_id, action, resource_type, resource_id, start_date, end_date, page, limit } =
+    req.query;
+
+  const userPermissions = req.user?.permissions || [];
+  const canReadAllAudit = userPermissions.includes('audit:read');
+
+  // If user doesn't have global audit:read, restrict query to their own actor ID
+  const effectiveActorId = canReadAllAudit ? actor_id : req.user.id;
 
   const { logs, total } = await auditService.getAuditTrail({
-    actorId: actor_id,
+    actorId: effectiveActorId,
     action,
     resourceType: resource_type,
     resourceId: resource_id,

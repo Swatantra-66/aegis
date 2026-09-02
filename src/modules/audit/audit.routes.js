@@ -41,11 +41,7 @@ router.use(authenticate);
  *       200: { description: Audit logs with pagination }
  *       403: { description: Insufficient permissions }
  */
-router.get(
-  '/',
-  authorize('audit:read'),
-  catchAsync(auditController.getAuditLogs)
-);
+router.get('/', catchAsync(auditController.getAuditLogs));
 
 /**
  * @openapi
@@ -64,10 +60,6 @@ router.get(
  *     responses:
  *       200: { description: Integrity check result }
  */
-router.get(
-  '/verify',
-  authorize('audit:verify'),
-  catchAsync(auditController.verifyIntegrity)
-);
+router.get('/verify', authorize('audit:verify'), catchAsync(auditController.verifyIntegrity));
 
 module.exports = router;

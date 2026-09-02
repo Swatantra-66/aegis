@@ -21,7 +21,10 @@ const auditRoutes = require('./modules/audit/audit.routes');
  */
 const app = express();
 
-// ── Security Middleware ─────────────────────────────
+// Enable trust proxy for reverse proxy environments (Nginx, DigitalOcean Load Balancers)
+app.set('trust proxy', 1);
+
+// Security Middleware
 app.use(helmet());
 app.use(
   cors({
@@ -32,27 +35,24 @@ app.use(
   })
 );
 
-// ── Body Parsing ────────────────────────────────────
+// Body Parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ── Request Logging ─────────────────────────────────
+// Request Logging
 app.use(requestLogger);
 
-// ── API Documentation (Swagger UI) ──────────────────
+// API Documentation
 if (config.env !== 'test') {
   setupSwagger(app);
 }
 
-// ── Health Check ────────────────────────────────────
+// Health Check
 app.get('/health', async (req, res) => {
   const db = require('./config/database');
   const redis = require('./config/redis');
 
-  const [dbHealth, redisHealth] = await Promise.all([
-    db.healthCheck(),
-    redis.healthCheck(),
-  ]);
+  const [dbHealth, redisHealth] = await Promise.all([db.healthCheck(), redis.healthCheck()]);
 
   const status = dbHealth && redisHealth ? 'healthy' : 'degraded';
   const statusCode = status === 'healthy' ? 200 : 503;
@@ -67,19 +67,19 @@ app.get('/health', async (req, res) => {
   });
 });
 
-// ── API Routes ──────────────────────────────────────
+// API Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', usersRoutes);
 app.use('/api/v1/roles', rolesRoutes);
 app.use('/api/v1/mfa', mfaRoutes);
 app.use('/api/v1/audit', auditRoutes);
 
-// ── 404 Handler ─────────────────────────────────────
+// 404 Handler
 app.use((req, res, next) => {
   next(AppError.notFound(`Route ${req.method} ${req.originalUrl} not found`));
 });
 
-// ── Centralized Error Handler ───────────────────────
+// Centralized Error Handler
 app.use(errorHandler);
 
 module.exports = app;
