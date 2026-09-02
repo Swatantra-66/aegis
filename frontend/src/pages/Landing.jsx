@@ -128,22 +128,26 @@ const Landing = () => {
               </h4>
 
               <div className="team-editorial-meta-block">
-                <div className="editorial-meta-lead">
-                  Every transaction authenticated<br /> Every permission verified
-                </div>
                 <div className="editorial-meta-pillars">
                   <div className="editorial-pillar-item">
-                    <span className="pillar-index">01</span>
+                    <span className="pillar-index">1</span>
                     <div className="pillar-content">
                       <strong>Argon2id Key Derivation</strong>
                       <span>Memory-hard password hashing engineered for post-quantum threat resistance.</span>
                     </div>
                   </div>
                   <div className="editorial-pillar-item">
-                    <span className="pillar-index">02</span>
+                    <span className="pillar-index">2</span>
                     <div className="pillar-content">
                       <strong>Deterministic RBAC Matrix</strong>
                       <span>Fine-grained permissions and instant Redis-backed token revocation.</span>
+                    </div>
+                  </div>
+                  <div className="editorial-pillar-item">
+                    <span className="pillar-index">3</span>
+                    <div className="pillar-content">
+                      <strong>Tamper-Evident SHA-256 Audit Chain</strong>
+                      <span>Cryptographic hash-chained telemetry ensuring non-repudiation and forensic auditability.</span>
                     </div>
                   </div>
                 </div>

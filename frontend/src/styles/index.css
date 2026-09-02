@@ -910,6 +910,11 @@
   padding-top: 0.85rem;
 }
 
+.editorial-pillar-item:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
 .pillar-index {
   font-family: var(--font-mono);
   font-size: 0.75rem;

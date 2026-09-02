@@ -132,7 +132,7 @@ export const Section26Hero = () => {
           </div>
         </div>
 
-        {/* Center / Right Visual Area: Starburst Symphony Model */}
+        {/* Center Visual Area: Starburst Symphony Model */}
         <div className="section26-visual-stage-container">
           <Orb />
         </div>
