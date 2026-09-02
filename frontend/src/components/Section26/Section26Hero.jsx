@@ -28,16 +28,22 @@ export const Section26Hero = () => {
       <header className="okaydev-navbar">
         <div className="okaydev-nav-inner">
           <Link to="/" className="okaydev-brand" aria-label="AEGIS Home" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <img
-              src="/aegis-logo-new.png"
-              alt="Aegis Logo"
+            <div
               style={{
-                width: '30px',
-                height: '30px',
-                objectFit: 'contain',
-                filter: 'invert(1)',
-                imageRendering: '-webkit-optimize-contrast',
+                width: '28px',
+                height: '28px',
+                backgroundColor: '#000000',
+                maskImage: 'url(/aegis-logo-new.png)',
+                WebkitMaskImage: 'url(/aegis-logo-new.png)',
+                maskSize: 'contain',
+                WebkitMaskSize: 'contain',
+                maskRepeat: 'no-repeat',
+                WebkitMaskRepeat: 'no-repeat',
+                maskPosition: 'center',
+                WebkitMaskPosition: 'center',
+                flexShrink: 0,
               }}
+              aria-label="Aegis Logo"
             />
             <ShinyText
               text="AEGIS"
