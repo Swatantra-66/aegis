@@ -200,7 +200,7 @@ const Roles = () => {
               className="sirnik-meta"
               style={{
                 border: '1px solid var(--line-strong)',
-                background: 'rgba(255, 255, 255, 0.02)',
+                background: '#080808',
                 backdropFilter: 'blur(12px)',
                 padding: '0.85rem 1.4rem',
                 borderRadius: '2px',
@@ -275,7 +275,8 @@ const Roles = () => {
                   style={{
                     padding: '1.25rem 1.4rem',
                     border: `1px solid ${isSelected ? '#ffffff' : 'rgba(255, 255, 255, 0.08)'}`,
-                    background: isSelected ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.015)',
+                    background: isSelected ? '#0e0e0e' : '#080808',
+                    backdropFilter: 'blur(12px)',
                     cursor: 'pointer',
                     transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                     position: 'relative',
@@ -311,7 +312,7 @@ const Roles = () => {
                     {r.description || 'Custom capability grouping matrix.'}
                   </p>
 
-                  <div className="flex justify-between items-center pt-xs" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="flex justify-between items-center pt-xs">
                     <span className="font-mono text-xs" style={{ color: isSelected ? '#ffffff' : 'var(--text-muted)', fontSize: '0.68rem' }}>
                       {isSelected ? '● ACTIVE MATRIX' : 'CLICK TO INSPECT'}
                     </span>
@@ -345,8 +346,9 @@ const Roles = () => {
       <div
         className="sirnik-anim"
         style={{
-          background: 'rgba(255, 255, 255, 0.01)',
+          background: '#080808',
           border: '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
           padding: '2rem 2.4rem',
           borderRadius: '2px',
           width: '100%',
