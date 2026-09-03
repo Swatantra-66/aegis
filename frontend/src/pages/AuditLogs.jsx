@@ -443,8 +443,18 @@ const AuditLogs = () => {
       </div>
 
       {/* ── Audit Stream Data Table ── */}
-      <div className="sirnik-anim">
-        <table className="sirnik-table" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+      <div
+        className="sirnik-anim"
+        style={{
+          background: '#080808',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
+          borderRadius: '2px',
+          padding: '0.5rem 1.25rem 0.5rem',
+          overflowX: 'auto',
+        }}
+      >
+        <table className="sirnik-table" style={{ width: '100%', minWidth: '940px', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
               <th style={{ width: '14%', padding: '0.85rem 0.6rem 0.85rem 0.2rem', whiteSpace: 'nowrap' }}>ACTION</th>
@@ -601,7 +611,14 @@ const AuditLogs = () => {
 
         {/* ── Pagination ── */}
         {data?.meta && (
-          <div className="flex justify-between items-center mt-2xl pt-md flex-wrap gap-md" style={{ borderTop: '1px solid var(--line)' }}>
+          <div
+            className="flex justify-between items-center flex-wrap gap-md"
+            style={{
+              marginTop: '0.85rem',
+              paddingTop: '0.25rem',
+              paddingBottom: '0.25rem',
+            }}
+          >
             <span className="sirnik-meta font-mono text-xs">
               SHOWING {data.logs?.length || 0} OF {data.meta.total || totalLogs} AUDITED EVENTS
             </span>
