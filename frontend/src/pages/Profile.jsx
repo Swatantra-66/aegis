@@ -157,7 +157,7 @@ const Profile = () => {
               className="sirnik-meta"
               style={{
                 border: '1px solid var(--line-strong)',
-                background: 'rgba(255, 255, 255, 0.02)',
+                background: '#080808',
                 backdropFilter: 'blur(12px)',
                 padding: '0.85rem 1.4rem',
                 borderRadius: '2px',
@@ -209,8 +209,9 @@ const Profile = () => {
           {/* Card 1: Identity Attributes */}
           <div
             style={{
-              background: 'rgba(255, 255, 255, 0.01)',
+              background: '#080808',
               border: '1px solid rgba(255, 255, 255, 0.08)',
+              backdropFilter: 'blur(12px)',
               padding: '1.75rem 2rem',
               borderRadius: '2px',
             }}
@@ -394,8 +395,9 @@ const Profile = () => {
           {/* Card 2: Cryptographic Posture */}
           <div
             style={{
-              background: 'rgba(255, 255, 255, 0.01)',
+              background: '#080808',
               border: '1px solid rgba(255, 255, 255, 0.08)',
+              backdropFilter: 'blur(12px)',
               padding: '1.75rem 2rem',
               borderRadius: '2px',
             }}
@@ -477,8 +479,9 @@ const Profile = () => {
           {/* Card 3: Security & 2FA Protection */}
           <div
             style={{
-              background: 'rgba(255, 255, 255, 0.01)',
+              background: '#080808',
               border: '1px solid rgba(255, 255, 255, 0.08)',
+              backdropFilter: 'blur(12px)',
               padding: '1.75rem 2rem',
               borderRadius: '2px',
             }}
@@ -620,8 +623,9 @@ const Profile = () => {
           {/* Card 4: Active Authorization Scopes */}
           <div
             style={{
-              background: 'rgba(255, 255, 255, 0.01)',
+              background: '#080808',
               border: '1px solid rgba(255, 255, 255, 0.08)',
+              backdropFilter: 'blur(12px)',
               padding: '1.75rem 2rem',
               borderRadius: '2px',
             }}
