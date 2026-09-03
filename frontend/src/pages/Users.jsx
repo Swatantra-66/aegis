@@ -52,7 +52,7 @@ const AdminIcon = ({ size = 13 }) => (
 
 const Users = () => {
   const queryClient = useQueryClient();
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, user: currentAuthUser } = useAuthStore();
   const containerRef = useRef(null);
 
   const [page, setPage] = useState(1);
@@ -74,6 +74,8 @@ const Users = () => {
   const [editIsActive, setEditIsActive] = useState(true);
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
+  const [editModalError, setEditModalError] = useState('');
+  const [roleModalError, setRoleModalError] = useState('');
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -125,14 +127,20 @@ const Users = () => {
       const { data } = await api.patch(`/users/${id}`, updateData);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.refetchQueries({ queryKey: ['users'] });
+      if (currentAuthUser?.id === variables?.id) {
+        useAuthStore.getState().fetchUser?.();
+      }
       setIsEditModalOpen(false);
       setActionSuccess('Identity updated successfully');
       setTimeout(() => setActionSuccess(''), 3000);
     },
     onError: (err) => {
-      setActionError(getErrorMessage(err));
+      const msg = getErrorMessage(err);
+      setActionError(msg);
+      setEditModalError(msg);
     },
   });
 
@@ -209,7 +217,9 @@ const filterDisplayRoles = (roles) => {
       setTimeout(() => setActionSuccess(''), 3000);
     },
     onError: (err) => {
-      setActionError(getErrorMessage(err));
+      const msg = getErrorMessage(err);
+      setActionError(msg);
+      setRoleModalError(msg);
     },
   });
 
@@ -233,6 +243,7 @@ const filterDisplayRoles = (roles) => {
     setEditLastName(user.last_name || '');
     setEditIsActive(user.is_active);
     setActionError('');
+    setEditModalError('');
     setIsEditModalOpen(true);
   };
 
@@ -240,6 +251,7 @@ const filterDisplayRoles = (roles) => {
     setSelectedUser(user);
     setSelectedRoleToAssign('');
     setActionError('');
+    setRoleModalError('');
     setIsRoleModalOpen(true);
   };
 
@@ -824,36 +836,87 @@ const filterDisplayRoles = (roles) => {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                setEditModalError('');
+
+                const trimmedFirst = editFirstName.trim();
+                const trimmedLast = editLastName.trim();
+
+                if (!trimmedFirst) {
+                  setEditModalError('First name is required to update identity.');
+                  return;
+                }
+
+                const updateData = {
+                  first_name: trimmedFirst,
+                  last_name: trimmedLast ? trimmedLast : null,
+                  is_active: editIsActive,
+                };
+
                 updateUserMutation.mutate({
                   id: selectedUser.id,
-                  updateData: {
-                    first_name: editFirstName,
-                    last_name: editLastName,
-                    is_active: editIsActive,
-                  },
+                  updateData,
                 });
               }}
             >
               <div className="sirnik-input-group mb-md">
-                <label className="sirnik-label" style={{ fontSize: '0.68rem', letterSpacing: '0.06em' }}>FIRST NAME</label>
+                <div className="flex justify-between items-center mb-xs">
+                  <label className="sirnik-label" style={{ fontSize: '0.68rem', letterSpacing: '0.06em', margin: 0 }}>
+                    FIRST NAME
+                  </label>
+                  <span className="font-mono text-xs" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                    [REQUIRED]
+                  </span>
+                </div>
                 <input
                   type="text"
                   className="sirnik-input"
                   style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid var(--line-strong)', background: 'rgba(255,255,255,0.02)' }}
                   value={editFirstName}
-                  onChange={(e) => setEditFirstName(e.target.value)}
+                  onChange={(e) => {
+                    setEditFirstName(e.target.value);
+                    setEditModalError('');
+                  }}
                 />
               </div>
+
               <div className="sirnik-input-group mb-lg">
-                <label className="sirnik-label" style={{ fontSize: '0.68rem', letterSpacing: '0.06em' }}>LAST NAME</label>
+                <div className="flex justify-between items-center mb-xs">
+                  <label className="sirnik-label" style={{ fontSize: '0.68rem', letterSpacing: '0.06em', margin: 0 }}>
+                    LAST NAME
+                  </label>
+                  <span className="font-mono text-xs" style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                    [OPTIONAL]
+                  </span>
+                </div>
                 <input
                   type="text"
                   className="sirnik-input"
                   style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid var(--line-strong)', background: 'rgba(255,255,255,0.02)' }}
                   value={editLastName}
-                  onChange={(e) => setEditLastName(e.target.value)}
+                  onChange={(e) => {
+                    setEditLastName(e.target.value);
+                    setEditModalError('');
+                  }}
                 />
               </div>
+
+              {/* Inline Modal Validation & Error Warning Box */}
+              {editModalError && (
+                <div
+                  className="font-mono text-xs mb-md"
+                  style={{
+                    padding: '0.65rem 0.85rem',
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    color: '#ef4444',
+                    fontSize: '0.72rem',
+                    borderRadius: '2px',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {editModalError}
+                </div>
+              )}
 
               <div className="modal-actions mt-xl flex justify-end gap-md">
                 <button
@@ -1000,6 +1063,25 @@ const filterDisplayRoles = (roles) => {
                   );
                 })}
               </div>
+
+              {/* Inline Role Assignment Error Box */}
+              {roleModalError && (
+                <div
+                  className="font-mono text-xs mb-md"
+                  style={{
+                    padding: '0.65rem 0.85rem',
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    color: '#ef4444',
+                    fontSize: '0.72rem',
+                    borderRadius: '2px',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  <span style={{ fontWeight: 700, marginRight: '0.4rem' }}>[ASSIGNMENT ERROR]</span>
+                  {roleModalError}
+                </div>
+              )}
 
               <div className="modal-actions flex justify-end gap-md">
                 <button

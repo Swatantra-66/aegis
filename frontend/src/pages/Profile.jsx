@@ -230,8 +230,8 @@ const Profile = () => {
                 e.preventDefault();
                 if (isEditing) {
                   updateProfileMutation.mutate({
-                    first_name: firstName,
-                    last_name: lastName,
+                    first_name: (firstName || '').trim(),
+                    last_name: (lastName || '').trim() || null,
                   });
                 }
               }}

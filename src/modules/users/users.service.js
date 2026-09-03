@@ -145,7 +145,7 @@ const updateUser = async (userId, updateData, reqMeta = {}) => {
   }
   if (updateData.last_name !== undefined) {
     updates.push(`last_name = $${paramIndex++}`);
-    values.push(updateData.last_name);
+    values.push(updateData.last_name === '' ? null : updateData.last_name);
   }
   if (updateData.is_active !== undefined) {
     updates.push(`is_active = $${paramIndex++}`);

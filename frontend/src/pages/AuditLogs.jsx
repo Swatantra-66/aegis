@@ -425,7 +425,7 @@ const AuditLogs = () => {
               fontSize: '0.78rem',
               letterSpacing: '0.04em',
             }}
-            placeholder="RESOURCE TYPE (e.g. user, role)"
+            placeholder="RESOURCE TYPE (USER, ROLE...)"
             value={resourceTypeFilter}
             onChange={(e) => { setResourceTypeFilter(e.target.value); setPage(1); }}
           />

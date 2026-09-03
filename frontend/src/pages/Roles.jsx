@@ -536,7 +536,7 @@ const Roles = () => {
                     background: 'rgba(255,255,255,0.02)',
                     fontSize: '0.82rem',
                   }}
-                  placeholder="e.g. security_analyst"
+                  placeholder="role_name"
                   value={newRoleName}
                   onChange={(e) => setNewRoleName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))}
                   required
@@ -558,7 +558,7 @@ const Roles = () => {
                     background: 'rgba(255,255,255,0.02)',
                     fontSize: '0.82rem',
                   }}
-                  placeholder="e.g. Read-only audit telemetry and hash chain inspection"
+                  placeholder="Role description and scope"
                   value={newRoleDesc}
                   onChange={(e) => setNewRoleDesc(e.target.value)}
                 />

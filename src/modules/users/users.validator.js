@@ -12,7 +12,7 @@ const listUsers = Joi.object({
 
 const updateUser = Joi.object({
   first_name: Joi.string().max(100).trim().optional(),
-  last_name: Joi.string().max(100).trim().optional(),
+  last_name: Joi.string().max(100).trim().allow('', null).optional(),
   is_active: Joi.boolean().optional(),
 })
   .min(1)
