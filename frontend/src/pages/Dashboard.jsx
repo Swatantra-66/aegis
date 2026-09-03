@@ -252,8 +252,9 @@ const Dashboard = () => {
         {/* Card 1: Directory Identities */}
         <div
           style={{
-            background: 'rgba(255, 255, 255, 0.015)',
+            background: '#080808',
             border: '1px solid var(--line)',
+            backdropFilter: 'blur(12px)',
             padding: '1.2rem 1.35rem',
             position: 'relative',
             transition: 'border-color 0.3s, transform 0.3s',
@@ -271,8 +272,9 @@ const Dashboard = () => {
         {/* Card 2: RBAC Roles */}
         <div
           style={{
-            background: 'rgba(255, 255, 255, 0.015)',
+            background: '#080808',
             border: '1px solid var(--line)',
+            backdropFilter: 'blur(12px)',
             padding: '1.2rem 1.35rem',
             position: 'relative',
             transition: 'border-color 0.3s, transform 0.3s',
@@ -298,8 +300,9 @@ const Dashboard = () => {
         {/* Card 3: Checksum Bit Strength */}
         <div
           style={{
-            background: 'rgba(255, 255, 255, 0.015)',
+            background: '#080808',
             border: '1px solid var(--line)',
+            backdropFilter: 'blur(12px)',
             padding: '1.2rem 1.35rem',
             position: 'relative',
             transition: 'border-color 0.3s, transform 0.3s',
@@ -317,8 +320,9 @@ const Dashboard = () => {
         {/* Card 4: Audit Records */}
         <div
           style={{
-            background: 'rgba(255, 255, 255, 0.015)',
+            background: '#080808',
             border: '1px solid var(--line)',
+            backdropFilter: 'blur(12px)',
             padding: '1.2rem 1.35rem',
             position: 'relative',
             transition: 'border-color 0.3s, transform 0.3s',
@@ -343,7 +347,8 @@ const Dashboard = () => {
         className="sirnik-section sirnik-anim mb-3xl"
         style={{
           border: '1px solid var(--line-strong)',
-          background: 'rgba(255, 255, 255, 0.015)',
+          background: '#080808',
+          backdropFilter: 'blur(12px)',
           padding: '1.5rem 2rem',
         }}
       >
@@ -506,8 +511,18 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* ── Activity Chart Section ── */}
-      <div className="sirnik-section sirnik-anim" style={{ paddingTop: '1.25rem' }}>
+      {/* Activity Chart Section*/}
+      <div
+        className="sirnik-section sirnik-anim"
+        style={{
+          background: '#080808',
+          border: '1px solid var(--line-strong)',
+          backdropFilter: 'blur(12px)',
+          padding: '1.75rem 2rem',
+          borderRadius: '2px',
+          marginBottom: '2.5rem',
+        }}
+      >
         <div className="flex justify-between items-start mb-lg flex-wrap gap-md">
           <div>
             <span className="sirnik-page-number">METRICS</span>
@@ -518,8 +533,7 @@ const Dashboard = () => {
             className="sirnik-meta"
             style={{
               border: '1px solid var(--line-strong)',
-              background: 'rgba(255, 255, 255, 0.02)',
-              backdropFilter: 'blur(12px)',
+              background: '#0e0e0e',
               padding: '0.65rem 1.15rem',
               borderRadius: '2px',
               minWidth: '230px',
@@ -550,7 +564,7 @@ const Dashboard = () => {
           }
 
           return (
-            <div style={{ height: '230px', width: '100%', borderBottom: '1px solid var(--line)', paddingBottom: '1.5rem' }}>
+            <div style={{ height: '230px', width: '100%', marginTop: '0.5rem' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={activityData} margin={{ top: 15, right: 15, left: -20, bottom: 0 }}>
                   <defs>
@@ -647,8 +661,17 @@ const Dashboard = () => {
         })()}
       </div>
 
-      {/* ── Recent Audit Stream ── */}
-      <div className="sirnik-section sirnik-anim mt-3xl">
+      {/*Recent Audit Stream */}
+      <div
+        className="sirnik-section sirnik-anim mt-3xl"
+        style={{
+          background: '#080808',
+          border: '1px solid var(--line-strong)',
+          backdropFilter: 'blur(12px)',
+          padding: '1.75rem 2rem',
+          borderRadius: '2px',
+        }}
+      >
         <div className="flex justify-between items-end mb-lg flex-wrap gap-md">
           <div>
             <span className="sirnik-page-number">EVENT LOG</span>
@@ -678,16 +701,17 @@ const Dashboard = () => {
           <table className="sirnik-table" style={{ width: '100%', minWidth: '860px', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ width: '14%', padding: '0.85rem 0.6rem 0.85rem 0.2rem', whiteSpace: 'nowrap' }}>ACTION</th>
-                <th style={{ width: '28%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>ACTOR</th>
-                <th style={{ width: '18%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>TARGET RESOURCE</th>
-                <th style={{ width: '18%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>IP ADDRESS</th>
-                <th style={{ width: '22%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>TIME</th>
+                <th style={{ width: '23%', padding: '0.85rem 0.6rem' }}>ACTION</th>
+                <th style={{ width: '33%', padding: '0.85rem 0.6rem' }}>ACTOR</th>
+                <th style={{ width: '18%', padding: '0.85rem 0.6rem' }}>TARGET RESOURCE</th>
+                <th style={{ width: '13%', padding: '0.85rem 0.6rem' }}>IP ADDRESS</th>
+                <th style={{ width: '13%', padding: '0.85rem 0.6rem', textAlign: 'right' }}>TIME</th>
               </tr>
             </thead>
             <tbody>
               {recentAudit && recentAudit.length > 0 ? (
-                recentAudit.slice(0, 8).map((log) => {
+                recentAudit.slice(0, 8).map((log, idx, arr) => {
+                  const isLast = idx === arr.length - 1;
                   const cleanIp = (log.ip_address || '127.0.0.1').replace('::ffff:', '');
                   const formattedTime = new Date(log.created_at).toLocaleTimeString([], {
                     hour: '2-digit',
@@ -700,21 +724,18 @@ const Dashboard = () => {
                     ? `${log.resource_type.toUpperCase()} · ${log.resource_id ? (log.resource_id.length > 10 ? log.resource_id.slice(0, 8) : log.resource_id) : 'SYSTEM'}`
                     : '—';
 
-                  const isLongAction = log.action && log.action.length > 14;
-
                   return (
-                    <tr key={log.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                      <td style={{ padding: '1.1rem 0.6rem 1.1rem 0.2rem', whiteSpace: 'nowrap' }}>
+                    <tr key={log.id} style={{ borderBottom: isLast ? 'none' : '1px solid rgba(255, 255, 255, 0.06)' }}>
+                      <td style={{ padding: '1.1rem 0.6rem', whiteSpace: 'nowrap', borderBottom: isLast ? 'none' : undefined }}>
                         <span
                           className="sirnik-tag"
                           style={{
-                            fontSize: isLongAction ? '0.58rem' : '0.65rem',
-                            letterSpacing: isLongAction ? '0.02em' : '0.05em',
+                            fontSize: '0.65rem',
+                            letterSpacing: '0.05em',
                             borderColor: 'rgba(255, 255, 255, 0.15)',
                             color: '#ffffff',
                             background: 'rgba(255, 255, 255, 0.02)',
                             maxWidth: '100%',
-                            padding: isLongAction ? '0.16rem 0.35rem' : '0.2rem 0.45rem',
                             display: 'inline-block',
                           }}
                         >
@@ -724,12 +745,13 @@ const Dashboard = () => {
                       <td
                         className="font-mono"
                         style={{
-                          padding: '1.1rem 0.75rem',
+                          padding: '1.1rem 0.6rem',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           color: 'var(--text-white)',
                           fontSize: '0.8rem',
+                          borderBottom: isLast ? 'none' : undefined,
                         }}
                         title={log.actor_email || 'system'}
                       >
@@ -787,11 +809,12 @@ const Dashboard = () => {
                       <td
                         className="font-mono text-muted"
                         style={{
-                          padding: '1.1rem 0.75rem',
+                          padding: '1.1rem 0.6rem',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           fontSize: '0.8rem',
+                          borderBottom: isLast ? 'none' : undefined,
                         }}
                         title={log.resource_type && log.resource_id ? `${log.resource_type}:${log.resource_id}` : '—'}
                       >
@@ -799,17 +822,19 @@ const Dashboard = () => {
                       </td>
                       <td
                         className="font-mono text-muted"
-                        style={{ padding: '1.1rem 0.75rem', whiteSpace: 'nowrap', fontSize: '0.82rem' }}
+                        style={{ padding: '1.1rem 0.6rem', whiteSpace: 'nowrap', fontSize: '0.82rem', borderBottom: isLast ? 'none' : undefined }}
                       >
                         {cleanIp}
                       </td>
                       <td
                         className="font-mono"
                         style={{
-                          padding: '1.1rem 0.75rem',
+                          padding: '1.1rem 0.6rem',
                           whiteSpace: 'nowrap',
+                          textAlign: 'right',
                           color: 'var(--text-muted)',
                           fontSize: '0.82rem',
+                          borderBottom: isLast ? 'none' : undefined,
                         }}
                       >
                         {formattedTime}
