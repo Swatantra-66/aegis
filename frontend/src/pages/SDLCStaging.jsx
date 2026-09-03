@@ -1130,9 +1130,17 @@ const Phase6 = () => {
     setIntegrityResult(null);
     try {
       const { data } = await api.get('/audit/verify');
-      setIntegrityResult(data.data);
-    } catch {
-      setIntegrityResult({ valid: false, error: 'Verification request failed' });
+      setIntegrityResult({
+        ...data.data,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message;
+      setIntegrityResult({
+        valid: false,
+        error: errorMsg,
+        timestamp: new Date().toISOString(),
+      });
     } finally {
       setIsVerifying(false);
     }
@@ -1186,35 +1194,127 @@ const Phase6 = () => {
         </button>
       </div>
 
-      {/* Verification Result Notification */}
+      {/* Cryptographic Ledger Verification Report Box */}
       {integrityResult && (
         <div
           style={{
-            padding: '1.25rem 1.5rem',
-            border: `1px solid ${integrityResult.valid ? 'rgba(255, 255, 255, 0.3)' : 'rgba(239, 68, 68, 0.4)'}`,
-            background: 'rgba(255, 255, 255, 0.02)',
+            padding: '1.5rem 1.75rem',
+            border: `1px solid ${
+              integrityResult.valid
+                ? 'rgba(0, 255, 102, 0.35)'
+                : integrityResult.firstInvalid
+                  ? 'rgba(239, 68, 68, 0.45)'
+                  : 'rgba(255, 90, 31, 0.45)'
+            }`,
+            background: integrityResult.valid
+              ? '#060d08'
+              : integrityResult.firstInvalid
+                ? '#0d0606'
+                : '#0d0806',
+            backdropFilter: 'blur(16px)',
             marginBottom: '2rem',
             borderRadius: '2px',
+            boxShadow: `0 0 30px ${
+              integrityResult.valid
+                ? 'rgba(0, 255, 102, 0.04)'
+                : integrityResult.firstInvalid
+                  ? 'rgba(239, 68, 68, 0.06)'
+                  : 'rgba(255, 90, 31, 0.05)'
+            }`,
           }}
         >
-          <div className="flex justify-between items-center">
-            <div>
-              <div className="font-mono text-sm font-bold text-white">
-                {integrityResult.valid ? '✓ CHAIN INTEGRITY VERIFIED — ZERO DISCREPANCIES' : '🚨 CHECKSUM MISMATCH DETECTED'}
+          <div className="flex justify-between items-start flex-wrap gap-md">
+            <div style={{ flex: 1, minWidth: '280px' }}>
+              <div className="flex items-center gap-sm flex-wrap mb-xs">
+                <span
+                  className="sirnik-tag font-mono"
+                  style={{
+                    fontSize: '0.62rem',
+                    letterSpacing: '0.08em',
+                    fontWeight: 700,
+                    borderColor: integrityResult.valid
+                      ? 'rgba(0, 255, 102, 0.35)'
+                      : integrityResult.firstInvalid
+                        ? 'rgba(239, 68, 68, 0.4)'
+                        : 'rgba(255, 90, 31, 0.4)',
+                    color: integrityResult.valid
+                      ? '#00FF66'
+                      : integrityResult.firstInvalid
+                        ? '#ef4444'
+                        : '#ff5a1f',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                  }}
+                >
+                  {integrityResult.valid
+                    ? 'CHAIN VALIDATED'
+                    : integrityResult.firstInvalid
+                      ? 'INTEGRITY BREACH'
+                      : 'VERIFICATION UNRESOLVED'}
+                </span>
+
+                <span
+                  className="font-mono text-sm font-bold"
+                  style={{
+                    letterSpacing: '0.02em',
+                    color: '#ffffff',
+                  }}
+                >
+                  {integrityResult.valid
+                    ? 'SHA-256 HASH CHAIN VERIFIED — ZERO ANOMALIES'
+                    : integrityResult.firstInvalid
+                      ? 'CRYPTOGRAPHIC CHECKSUM DISCREPANCY DETECTED'
+                      : 'LEDGER TRAVERSAL INTERRUPTED'}
+                </span>
               </div>
-              <p className="font-mono text-xs text-muted mt-xs mb-0" style={{ fontSize: '0.7rem' }}>
+
+              <p
+                className="font-mono text-xs text-muted"
+                style={{
+                  margin: '0.35rem 0 0.85rem',
+                  fontSize: '0.74rem',
+                  lineHeight: 1.5,
+                  maxWidth: '780px',
+                }}
+              >
                 {integrityResult.valid
-                  ? `Cryptographic proof verified across ${integrityResult.totalChecked || auditCount} audit entries.`
-                  : `Integrity breach at log ID: ${integrityResult.firstInvalid || 'unknown'}`}
+                  ? `Cryptographic proof confirmed across ${integrityResult.totalChecked || auditCount || 0} sequential audit ledger entries. Merkle link continuity verified with zero tamper discrepancies.`
+                  : integrityResult.firstInvalid
+                    ? `Sequential cryptographic mismatch identified at Ledger Log ID #${integrityResult.firstInvalid}. Hash reconciliation indicates potential data modification or non-sequential tampering.`
+                    : integrityResult.error || 'Chain traversal could not be completed. Clearance level [audit:verify] or database session verification required.'}
               </p>
+
+              {/* Micro-Telemetry Metadata Bar */}
+              <div
+                className="font-mono text-xs flex gap-md flex-wrap items-center"
+                style={{
+                  fontSize: '0.66rem',
+                  letterSpacing: '0.06em',
+                  color: 'rgba(255, 255, 255, 0.5)',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                  paddingTop: '0.65rem',
+                }}
+              >
+                <span>ALGORITHM: <strong style={{ color: '#ffffff' }}>SHA-256</strong></span>
+                <span>TRAVERSAL: <strong style={{ color: '#ffffff' }}>{integrityResult.totalChecked ?? 'N/A'} NODES</strong></span>
+                {integrityResult.firstInvalid && (
+                  <span>DISCREPANCY AT: <strong style={{ color: '#ef4444' }}>LOG #{integrityResult.firstInvalid}</strong></span>
+                )}
+                <span>TIMESTAMP: <strong style={{ color: '#ffffff' }}>{integrityResult.timestamp || new Date().toISOString()}</strong></span>
+              </div>
             </div>
+
             <button
               type="button"
               onClick={() => setIntegrityResult(null)}
-              className="font-mono text-xs text-muted"
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+              className="sirnik-action-box-btn font-mono"
+              style={{
+                fontSize: '0.66rem',
+                padding: '0.35rem 0.8rem',
+                letterSpacing: '0.06em',
+                alignSelf: 'flex-start',
+              }}
             >
-              [DISMISS]
+              ACKNOWLEDGE
             </button>
           </div>
         </div>
