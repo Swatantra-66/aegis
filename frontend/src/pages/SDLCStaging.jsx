@@ -304,10 +304,10 @@ const COVERAGE_DATA = [
 const ENV_CONFIG = [
   { key: 'NODE_ENV', value: 'production' },
   { key: 'PORT', value: '3000' },
-  { key: 'DB_HOST', value: 'postgres.internal' },
+  { key: 'DB_HOST', value: '127.0.0.1 (localhost)' },
   { key: 'DB_PORT', value: '5432' },
   { key: 'DB_NAME', value: 'iam_portal' },
-  { key: 'REDIS_HOST', value: 'redis.internal' },
+  { key: 'REDIS_HOST', value: '127.0.0.1 (localhost)' },
   { key: 'REDIS_PORT', value: '6379' },
   { key: 'JWT_ACCESS_EXPIRY', value: '15m' },
   { key: 'JWT_REFRESH_EXPIRY', value: '7d' },
@@ -343,7 +343,8 @@ const Accordion = ({ title, children, defaultOpen = false, badgeText }) => {
     <div
       style={{
         border: '1px solid rgba(255, 255, 255, 0.08)',
-        background: 'rgba(255, 255, 255, 0.01)',
+        background: '#080808',
+        backdropFilter: 'blur(12px)',
         marginBottom: '1rem',
         borderRadius: '2px',
       }}
@@ -404,8 +405,9 @@ const Phase1 = () => {
       {/* Phase Banner */}
       <div
         style={{
-          background: 'rgba(255, 255, 255, 0.01)',
+          background: '#080808',
           border: '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
           padding: '1.75rem 2rem',
           borderRadius: '2px',
           marginBottom: '2rem',
@@ -420,7 +422,7 @@ const Phase1 = () => {
           <span className="sirnik-page-number" style={{ margin: 0, fontSize: '0.68rem' }}>
             PHASE 01 · REQUIREMENT ANALYSIS
           </span>
-          <h2 style={{ margin: '0.35rem 0 0.25rem', fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
+          <h2 style={{ margin: '0.45rem 0 0.75rem', fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
             Software Requirements Specification
           </h2>
           <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -552,8 +554,9 @@ const Phase2 = () => (
     {/* Phase Banner */}
     <div
       style={{
-        background: 'rgba(255, 255, 255, 0.01)',
+        background: '#080808',
         border: '1px solid rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(12px)',
         padding: '1.75rem 2rem',
         borderRadius: '2px',
         marginBottom: '2rem',
@@ -562,7 +565,7 @@ const Phase2 = () => (
       <span className="sirnik-page-number" style={{ margin: 0, fontSize: '0.68rem' }}>
         PHASE 02 · SYSTEM DESIGN
       </span>
-      <h2 style={{ margin: '0.35rem 0 0.25rem', fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
+      <h2 style={{ margin: '0.45rem 0 0.75rem', fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
         High-Level Architecture
       </h2>
       <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -572,8 +575,9 @@ const Phase2 = () => (
 
     <div
       style={{
-        background: 'rgba(255, 255, 255, 0.01)',
+        background: '#080808',
         border: '1px solid rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(12px)',
         padding: '1.75rem 2rem',
         borderRadius: '2px',
         marginBottom: '2rem',
@@ -606,8 +610,9 @@ const Phase2 = () => (
         <div
           key={table.name}
           style={{
-            background: 'rgba(255, 255, 255, 0.01)',
+            background: '#080808',
             border: '1px solid rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(12px)',
             padding: '1.25rem 1.5rem',
             borderRadius: '2px',
           }}
@@ -653,8 +658,9 @@ const Phase3 = () => (
   <div>
     <div
       style={{
-        background: 'rgba(255, 255, 255, 0.01)',
+        background: '#080808',
         border: '1px solid rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(12px)',
         padding: '1.75rem 2rem',
         borderRadius: '2px',
         marginBottom: '2rem',
@@ -663,7 +669,7 @@ const Phase3 = () => (
       <span className="sirnik-page-number" style={{ margin: 0, fontSize: '0.68rem' }}>
         PHASE 03 · CODING & IMPLEMENTATION
       </span>
-      <h2 style={{ margin: '0.35rem 0 0.25rem', fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
+      <h2 style={{ margin: '0.45rem 0 0.75rem', fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
         Modular Codebase Architecture
       </h2>
       <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -677,8 +683,9 @@ const Phase3 = () => (
         <div
           key={idx}
           style={{
-            background: 'rgba(255, 255, 255, 0.01)',
+            background: '#080808',
             border: '1px solid rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(12px)',
             padding: '1.5rem',
             textAlign: 'center',
             borderRadius: '2px',
@@ -707,8 +714,9 @@ const Phase3 = () => (
         <div
           key={mod.name}
           style={{
-            background: 'rgba(255, 255, 255, 0.01)',
+            background: '#080808',
             border: '1px solid rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(12px)',
             padding: '1.4rem 1.6rem',
             borderRadius: '2px',
           }}
@@ -754,8 +762,9 @@ const Phase4 = () => {
       {/* Phase Banner */}
       <div
         style={{
-          background: 'rgba(255, 255, 255, 0.01)',
+          background: '#080808',
           border: '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
           padding: '1.75rem 2rem',
           borderRadius: '2px',
           marginBottom: '2rem',
@@ -770,7 +779,7 @@ const Phase4 = () => {
           <span className="sirnik-page-number" style={{ margin: 0, fontSize: '0.68rem' }}>
             PHASE 04 · TESTING & VERIFICATION
           </span>
-          <h2 style={{ margin: '0.35rem 0 0.25rem', fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
+          <h2 style={{ margin: '0.45rem 0 0.75rem', fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
             Test Suite Execution Verification
           </h2>
           <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -812,36 +821,46 @@ const Phase4 = () => {
         <span className="font-mono text-xs text-muted">[94.61% STMTS · 100% FUNCS]</span>
       </div>
 
-      <div style={{ marginBottom: '2.5rem', overflowX: 'auto' }}>
+      <div
+        style={{
+          background: '#080808',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
+          borderRadius: '2px',
+          padding: '0.5rem 1.25rem 0.75rem',
+          marginBottom: '2.5rem',
+          overflowX: 'auto',
+        }}
+      >
         <table className="sirnik-table font-mono text-xs" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr>
-              <th style={{ padding: '0.75rem 0.6rem' }}>SOURCE FILE / MODULE</th>
-              <th style={{ padding: '0.75rem 0.6rem', textAlign: 'center' }}>% STMTS</th>
-              <th style={{ padding: '0.75rem 0.6rem', textAlign: 'center' }}>% BRANCH</th>
-              <th style={{ padding: '0.75rem 0.6rem', textAlign: 'center' }}>% FUNCS</th>
-              <th style={{ padding: '0.75rem 0.6rem', textAlign: 'center' }}>% LINES</th>
-              <th style={{ padding: '0.75rem 0.6rem', textAlign: 'right' }}>UNCOVERED</th>
+            <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+              <th style={{ padding: '0.85rem 0.6rem', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 700 }}>SOURCE FILE / MODULE</th>
+              <th style={{ padding: '0.85rem 0.6rem', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 700 }}>% STMTS</th>
+              <th style={{ padding: '0.85rem 0.6rem', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 700 }}>% BRANCH</th>
+              <th style={{ padding: '0.85rem 0.6rem', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 700 }}>% FUNCS</th>
+              <th style={{ padding: '0.85rem 0.6rem', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 700 }}>% LINES</th>
+              <th style={{ padding: '0.85rem 0.6rem', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 700 }}>UNCOVERED</th>
             </tr>
           </thead>
           <tbody>
             {COVERAGE_DATA.map((cov, idx) => (
               <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                <td style={{ padding: '0.7rem 0.6rem', color: '#ffffff', fontWeight: 600 }}>{cov.file}</td>
-                <td style={{ padding: '0.7rem 0.6rem', textAlign: 'center', color: '#ffffff' }}>{cov.stmts}</td>
-                <td style={{ padding: '0.7rem 0.6rem', textAlign: 'center', color: 'rgba(255, 255, 255, 0.8)' }}>{cov.branch}</td>
-                <td style={{ padding: '0.7rem 0.6rem', textAlign: 'center', color: '#ffffff' }}>{cov.funcs}</td>
-                <td style={{ padding: '0.7rem 0.6rem', textAlign: 'center', color: '#ffffff' }}>{cov.lines}</td>
-                <td style={{ padding: '0.7rem 0.6rem', textAlign: 'right', color: 'var(--text-muted)' }}>{cov.uncovered}</td>
+                <td style={{ padding: '0.75rem 0.6rem', color: '#ffffff', fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>{cov.file}</td>
+                <td style={{ padding: '0.75rem 0.6rem', textAlign: 'center', color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>{cov.stmts}</td>
+                <td style={{ padding: '0.75rem 0.6rem', textAlign: 'center', color: 'rgba(255, 255, 255, 0.8)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>{cov.branch}</td>
+                <td style={{ padding: '0.75rem 0.6rem', textAlign: 'center', color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>{cov.funcs}</td>
+                <td style={{ padding: '0.75rem 0.6rem', textAlign: 'center', color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>{cov.lines}</td>
+                <td style={{ padding: '0.75rem 0.6rem', textAlign: 'right', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>{cov.uncovered}</td>
               </tr>
             ))}
-            <tr style={{ borderTop: '2px solid rgba(255, 255, 255, 0.2)', fontWeight: 700 }}>
-              <td style={{ padding: '0.85rem 0.6rem', color: '#ffffff' }}>OVERALL TOTALS</td>
-              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: '#ffffff' }}>94.61%</td>
-              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: 'rgba(255, 255, 255, 0.8)' }}>79.16%</td>
-              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: '#ffffff' }}>100%</td>
-              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: '#ffffff' }}>94.61%</td>
-              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'right', color: 'var(--text-muted)' }}>—</td>
+            <tr style={{ borderTop: '2px solid rgba(255, 255, 255, 0.2)', fontWeight: 700, borderBottom: 'none' }}>
+              <td style={{ padding: '0.85rem 0.6rem', color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>OVERALL TOTALS</td>
+              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>94.61%</td>
+              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: 'rgba(255, 255, 255, 0.8)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>79.16%</td>
+              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>100%</td>
+              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>94.61%</td>
+              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'right', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>—</td>
             </tr>
           </tbody>
         </table>
@@ -878,8 +897,9 @@ const Phase4 = () => {
       {/* Test List */}
       <div
         style={{
-          background: 'rgba(255, 255, 255, 0.01)',
+          background: '#080808',
           border: '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
           padding: '1.25rem 1.5rem',
           borderRadius: '2px',
         }}
@@ -937,8 +957,9 @@ const Phase5 = () => {
       {/* Phase Banner */}
       <div
         style={{
-          background: 'rgba(255, 255, 255, 0.01)',
+          background: '#080808',
           border: '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
           padding: '1.75rem 2rem',
           borderRadius: '2px',
           marginBottom: '2rem',
@@ -947,7 +968,7 @@ const Phase5 = () => {
         <span className="sirnik-page-number" style={{ margin: 0, fontSize: '0.68rem' }}>
           PHASE 05 · DEPLOYMENT & INFRASTRUCTURE
         </span>
-        <h2 style={{ margin: '0.35rem 0 0.25rem', fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
+        <h2 style={{ margin: '0.45rem 0 0.75rem', fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
           Production Staging & Service Telemetry
         </h2>
         <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -966,8 +987,9 @@ const Phase5 = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.25rem', marginBottom: '2.5rem' }}>
         <div
           style={{
-            background: 'rgba(255, 255, 255, 0.01)',
+            background: '#080808',
             border: '1px solid rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(12px)',
             padding: '1.5rem',
             borderRadius: '2px',
           }}
@@ -984,7 +1006,7 @@ const Phase5 = () => {
                 background: 'rgba(255, 255, 255, 0.04)',
               }}
             >
-              {systemHealth?.status === 'healthy' ? 'ONLINE' : 'ONLINE'}
+              {systemHealth?.status === 'healthy' ? 'ONLINE' : (systemHealth?.status === 'degraded' ? 'DEGRADED' : 'OFFLINE')}
             </span>
           </div>
           <div className="font-mono" style={{ fontSize: '2rem', fontWeight: 800, color: '#ffffff', margin: '0.35rem 0' }}>
@@ -997,8 +1019,9 @@ const Phase5 = () => {
 
         <div
           style={{
-            background: 'rgba(255, 255, 255, 0.01)',
+            background: '#080808',
             border: '1px solid rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(12px)',
             padding: '1.5rem',
             borderRadius: '2px',
           }}
@@ -1015,21 +1038,22 @@ const Phase5 = () => {
                 background: 'rgba(255, 255, 255, 0.04)',
               }}
             >
-              {systemHealth?.services?.database === 'connected' ? 'CONNECTED' : 'CONNECTED'}
+              {systemHealth?.services?.database === 'connected' ? 'CONNECTED' : 'DISCONNECTED'}
             </span>
           </div>
           <div className="font-mono" style={{ fontSize: '2rem', fontWeight: 800, color: '#ffffff', margin: '0.35rem 0' }}>
             2.4ms
           </div>
           <div className="font-mono text-muted" style={{ fontSize: '0.66rem' }}>
-            Pool (10 connections) · Port 5432
+            Pool (20 connections) · Port 5432
           </div>
         </div>
 
         <div
           style={{
-            background: 'rgba(255, 255, 255, 0.01)',
+            background: '#080808',
             border: '1px solid rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(12px)',
             padding: '1.5rem',
             borderRadius: '2px',
           }}
@@ -1046,7 +1070,7 @@ const Phase5 = () => {
                 background: 'rgba(255, 255, 255, 0.04)',
               }}
             >
-              {systemHealth?.services?.redis === 'connected' ? 'CONNECTED' : 'CONNECTED'}
+              {systemHealth?.services?.redis === 'connected' ? 'CONNECTED' : 'DISCONNECTED'}
             </span>
           </div>
           <div className="font-mono" style={{ fontSize: '2rem', fontWeight: 800, color: '#ffffff', margin: '0.35rem 0' }}>
@@ -1068,8 +1092,9 @@ const Phase5 = () => {
 
       <div
         style={{
-          background: 'rgba(255, 255, 255, 0.01)',
+          background: '#080808',
           border: '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
           padding: '1.25rem 1.5rem',
           borderRadius: '2px',
         }}
@@ -1118,8 +1143,9 @@ const Phase6 = () => {
       {/* Phase Banner */}
       <div
         style={{
-          background: 'rgba(255, 255, 255, 0.01)',
+          background: '#080808',
           border: '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
           padding: '1.75rem 2rem',
           borderRadius: '2px',
           marginBottom: '2rem',
@@ -1134,7 +1160,7 @@ const Phase6 = () => {
           <span className="sirnik-page-number" style={{ margin: 0, fontSize: '0.68rem' }}>
             PHASE 06 · MAINTENANCE & AUDIT GOVERNANCE
           </span>
-          <h2 style={{ margin: '0.35rem 0 0.25rem', fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
+          <h2 style={{ margin: '0.45rem 0 0.75rem', fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
             Cryptographic Audit Ledger
           </h2>
           <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -1198,8 +1224,9 @@ const Phase6 = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.25rem', marginBottom: '2.5rem' }}>
         <div
           style={{
-            background: 'rgba(255, 255, 255, 0.01)',
+            background: '#080808',
             border: '1px solid rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(12px)',
             padding: '1.5rem',
             textAlign: 'center',
             borderRadius: '2px',
@@ -1215,8 +1242,9 @@ const Phase6 = () => {
 
         <div
           style={{
-            background: 'rgba(255, 255, 255, 0.01)',
+            background: '#080808',
             border: '1px solid rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(12px)',
             padding: '1.5rem',
             textAlign: 'center',
             borderRadius: '2px',
@@ -1232,8 +1260,9 @@ const Phase6 = () => {
 
         <div
           style={{
-            background: 'rgba(255, 255, 255, 0.01)',
+            background: '#080808',
             border: '1px solid rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(12px)',
             padding: '1.5rem',
             textAlign: 'center',
             borderRadius: '2px',
@@ -1251,8 +1280,9 @@ const Phase6 = () => {
       {/* Mathematical Hash Formula Card */}
       <div
         style={{
-          background: 'rgba(255, 255, 255, 0.01)',
+          background: '#080808',
           border: '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
           padding: '1.75rem 2rem',
           borderRadius: '2px',
         }}
@@ -1284,12 +1314,12 @@ const Phase6 = () => {
 
 //  Phase Manifest 
 const PHASES = [
-  { id: 1, label: 'Requirements', shortLabel: 'SRS', component: Phase1 },
-  { id: 2, label: 'System Design', shortLabel: 'HLD/LLD', component: Phase2 },
-  { id: 3, label: 'Implementation', shortLabel: 'Modules', component: Phase3 },
-  { id: 4, label: 'Testing', shortLabel: 'Tests', component: Phase4 },
-  { id: 5, label: 'Deployment', shortLabel: 'Deploy', component: Phase5 },
-  { id: 6, label: 'Maintenance', shortLabel: 'Audit', component: Phase6 },
+  { id: 1, label: 'REQUIREMENTS', shortLabel: 'SRS', component: Phase1 },
+  { id: 2, label: 'SYSTEM DESIGN', shortLabel: 'HLD/LLD', component: Phase2 },
+  { id: 3, label: 'IMPLEMENTATION', shortLabel: 'Modules', component: Phase3 },
+  { id: 4, label: 'TESTING', shortLabel: 'Tests', component: Phase4 },
+  { id: 5, label: 'DEPLOYMENT', shortLabel: 'Deploy', component: Phase5 },
+  { id: 6, label: 'MAINTENANCE', shortLabel: 'Audit', component: Phase6 },
 ];
 
 //  Main SDLC Staging Component 
@@ -1334,7 +1364,7 @@ const SDLCStaging = () => {
               className="sirnik-meta"
               style={{
                 border: '1px solid var(--line-strong)',
-                background: 'rgba(255, 255, 255, 0.02)',
+                background: '#080808',
                 backdropFilter: 'blur(12px)',
                 padding: '0.75rem 1.25rem',
                 borderRadius: '2px',
@@ -1376,7 +1406,8 @@ const SDLCStaging = () => {
                 flexDirection: 'column',
                 alignItems: 'flex-start',
                 padding: '0.75rem 1rem',
-                background: isActive ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.01)',
+                background: isActive ? '#0e0e0e' : '#080808',
+                backdropFilter: 'blur(12px)',
                 border: `1px solid ${isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.07)'}`,
                 cursor: 'pointer',
                 borderRadius: '2px',
@@ -1397,11 +1428,17 @@ const SDLCStaging = () => {
                 PHASE {String(phase.id).padStart(2, '0')}
               </span>
               <span
+                className="font-mono"
                 style={{
-                  fontSize: '0.84rem',
-                  fontWeight: isActive ? 800 : 500,
-                  color: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.65)',
-                  letterSpacing: '-0.01em',
+                  fontSize: '0.74rem',
+                  fontWeight: isActive ? 700 : 500,
+                  color: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.75)',
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  width: '100%',
                 }}
               >
                 {phase.label}
