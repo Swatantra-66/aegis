@@ -106,6 +106,49 @@ api.interceptors.response.use(
       }
     }
 
+    // 403 INSUFFICIENT_PERMISSIONS — the user may have been granted a new role
+    // since their last JWT was issued. Silently refresh once to pick up new claims.
+    if (
+      error.response?.status === 403 &&
+      !originalRequest._retry403 &&
+      !originalRequest.url?.includes('/auth/')
+    ) {
+      originalRequest._retry403 = true;
+
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) {
+        return Promise.reject(error);
+      }
+
+      try {
+        const { data } = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
+          refresh_token: refreshToken,
+        });
+
+        const newAccessToken = data.data.access_token;
+        const newRefreshToken = data.data.refresh_token;
+
+        localStorage.setItem('access_token', newAccessToken);
+        localStorage.setItem('refresh_token', newRefreshToken);
+
+        api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+        // Sync authStore with fresh claims from the new JWT
+        try {
+          const { default: useAuthStore } = await import('../stores/authStore');
+          useAuthStore.getState().fetchUser();
+        } catch {
+          // Non-critical — UI will update on next navigation
+        }
+
+        return api(originalRequest);
+      } catch {
+        // Genuine permission denial — reject cleanly
+        return Promise.reject(error);
+      }
+    }
+
     return Promise.reject(error);
   }
 );
