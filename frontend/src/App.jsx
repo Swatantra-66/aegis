@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import useAuthStore from './stores/authStore';
 import Preloader from './components/Preloader';
@@ -35,6 +35,36 @@ function App() {
       fetchUser();
     }
   }, [isAuthenticated, fetchUser]);
+
+  // Sync roles & permissions when the user switches back to this tab.
+  // fetchUser() silently rotates the JWT, so newly granted roles are
+  // picked up immediately without a manual page reload.
+  const handleVisibilityChange = useCallback(() => {
+    if (document.visibilityState === 'visible' && useAuthStore.getState().isAuthenticated) {
+      useAuthStore.getState().fetchUser();
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+
+    // Background sync: check every 2.5 seconds so role changes are reflected live
+    const syncInterval = setInterval(() => {
+      if (
+        document.visibilityState === 'visible' &&
+        useAuthStore.getState().isAuthenticated
+      ) {
+        useAuthStore.getState().fetchUser();
+      }
+    }, 2500);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+      clearInterval(syncInterval);
+    };
+  }, [handleVisibilityChange]);
 
   return (
     <>
