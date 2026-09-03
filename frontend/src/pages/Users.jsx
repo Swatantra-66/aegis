@@ -101,6 +101,8 @@ const Users = () => {
       const { data } = await api.get('/users', { params });
       return { users: data.data || [], meta: data.meta || {} };
     },
+    refetchOnWindowFocus: true,
+    refetchInterval: 2500,
   });
 
   useEffect(() => {
@@ -148,9 +150,57 @@ const Users = () => {
     },
   });
 
+// Role hierarchy filter: super_admin > admin > user
+const filterDisplayRoles = (roles) => {
+  if (!roles || !Array.isArray(roles) || roles.length === 0) return [];
+  const names = roles.map((r) => (typeof r === 'string' ? r.toLowerCase() : (r?.name || '').toLowerCase()));
+  const hasSuperAdmin = names.some((n) => n.includes('super_admin') || n.includes('superadmin'));
+  const hasAdmin = names.some((n) => n === 'admin');
+
+  return roles.filter((r) => {
+    const name = (typeof r === 'string' ? r.toLowerCase() : (r?.name || '').toLowerCase());
+    if (hasSuperAdmin) {
+      if (name === 'user' || name === 'admin') return false;
+    } else if (hasAdmin) {
+      if (name === 'user') return false;
+    }
+    return true;
+  });
+};
+
   const assignRoleMutation = useMutation({
-    mutationFn: async ({ userId, roleId }) => {
+    mutationFn: async ({ userId, roleId, targetUser }) => {
       await api.post(`/roles/users/${userId}/roles`, { role_id: roleId });
+
+      // Clean up lower tier system roles upon promotion
+      const selectedRole = allRoles?.find((r) => r.id === roleId);
+      const selectedRoleName = (selectedRole?.name || '').toLowerCase();
+
+      if (targetUser?.roles && targetUser.roles.length > 0) {
+        for (const existingRole of targetUser.roles) {
+          const existingName = (typeof existingRole === 'string' ? existingRole : existingRole?.name || '').toLowerCase();
+          const existingId = typeof existingRole === 'string'
+            ? allRoles?.find((ar) => (ar.name || '').toLowerCase() === existingName)?.id
+            : existingRole?.id;
+
+          if (!existingId || existingId === roleId) continue;
+
+          let shouldRemove = false;
+          if (selectedRoleName === 'super_admin' && (existingName === 'admin' || existingName === 'user')) {
+            shouldRemove = true;
+          } else if (selectedRoleName === 'admin' && existingName === 'user') {
+            shouldRemove = true;
+          }
+
+          if (shouldRemove) {
+            try {
+              await api.delete(`/roles/users/${userId}/roles/${existingId}`);
+            } catch {
+              // Non-blocking cleanup
+            }
+          }
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -575,45 +625,48 @@ const Users = () => {
                       {/* RBAC Roles */}
                       <td style={{ padding: '1.1rem 0.6rem' }}>
                         <div className="flex gap-xs" style={{ flexWrap: 'wrap' }}>
-                          {u.roles && u.roles.length > 0 ? (
-                            u.roles.map((r, idx) => (
-                              <span
-                                key={idx}
-                                className="sirnik-tag"
-                                style={{
-                                  fontSize: '0.65rem',
-                                  borderColor: 'rgba(255, 255, 255, 0.15)',
-                                  color: '#ffffff',
-                                  background: 'rgba(255, 255, 255, 0.02)',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                }}
-                              >
-                                {typeof r === 'string' ? r : r.name}
-                                {hasPermission('role:update') && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setRevokeTarget({ user: u, role: r })}
-                                    style={{
-                                      background: 'none',
-                                      border: 'none',
-                                      color: 'var(--text-muted)',
-                                      cursor: 'pointer',
-                                      marginLeft: '6px',
-                                      padding: 0,
-                                      lineHeight: 1,
-                                      fontSize: '0.75rem',
-                                    }}
-                                    title="Revoke Role"
-                                  >
-                                    ×
-                                  </button>
-                                )}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-xs text-muted font-mono">NO ROLES</span>
-                          )}
+                          {(() => {
+                            const displayRoles = filterDisplayRoles(u.roles);
+                            return displayRoles && displayRoles.length > 0 ? (
+                              displayRoles.map((r, idx) => (
+                                <span
+                                  key={idx}
+                                  className="sirnik-tag"
+                                  style={{
+                                    fontSize: '0.65rem',
+                                    borderColor: 'rgba(255, 255, 255, 0.15)',
+                                    color: '#ffffff',
+                                    background: 'rgba(255, 255, 255, 0.02)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                  }}
+                                >
+                                  {typeof r === 'string' ? r : r.name}
+                                  {hasPermission('role:update') && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setRevokeTarget({ user: u, role: r })}
+                                      style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'var(--text-muted)',
+                                        cursor: 'pointer',
+                                        marginLeft: '6px',
+                                        padding: 0,
+                                        lineHeight: 1,
+                                        fontSize: '0.75rem',
+                                      }}
+                                      title="Revoke Role"
+                                    >
+                                      ×
+                                    </button>
+                                  )}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted font-mono">NO ROLES</span>
+                            );
+                          })()}
                         </div>
                       </td>
 
@@ -878,6 +931,7 @@ const Users = () => {
                   assignRoleMutation.mutate({
                     userId: selectedUser.id,
                     roleId: selectedRoleToAssign,
+                    targetUser: selectedUser,
                   });
                 }
               }}
