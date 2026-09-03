@@ -220,7 +220,7 @@ const Users = () => {
             className="sirnik-meta"
             style={{
               border: '1px solid var(--line-strong)',
-              background: 'rgba(255, 255, 255, 0.02)',
+              background: '#080808',
               backdropFilter: 'blur(12px)',
               padding: '0.85rem 1.4rem',
               borderRadius: '2px',
@@ -261,7 +261,8 @@ const Users = () => {
               width: '100%',
               padding: '0.6rem 1rem',
               border: '1px solid var(--line-strong)',
-              background: 'rgba(255, 255, 255, 0.02)',
+              background: '#0c0c0c',
+              backgroundColor: '#0c0c0c',
               fontSize: '0.78rem',
               letterSpacing: '0.04em',
             }}
@@ -499,7 +500,16 @@ const Users = () => {
       </div>
 
       {/* ── Identities Data Table ── */}
-      <div className="sirnik-anim">
+      <div
+        className="sirnik-anim"
+        style={{
+          background: '#080808',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
+          borderRadius: '2px',
+          padding: '0.5rem 1.25rem 0.5rem',
+        }}
+      >
         <div style={{ overflowX: 'auto', width: '100%' }}>
           <table className="sirnik-table" style={{ width: '100%', minWidth: '980px', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
             <thead>
@@ -699,7 +709,14 @@ const Users = () => {
 
         {/* ── Pagination ── */}
         {data?.meta && (
-          <div className="flex justify-between items-center mt-2xl pt-md flex-wrap gap-md" style={{ borderTop: '1px solid var(--line)' }}>
+          <div
+            className="flex justify-between items-center flex-wrap gap-md"
+            style={{
+              marginTop: '0.85rem',
+              paddingTop: '0.25rem',
+              paddingBottom: '0.25rem',
+            }}
+          >
             <span className="sirnik-meta font-mono text-xs">
               SHOWING {data.users?.length || 0} OF {data.meta.total || totalUsers} IDENTITIES
             </span>
