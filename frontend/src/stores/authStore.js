@@ -55,9 +55,16 @@ const useAuthStore = create((set, get) => ({
       // Automatically log in after registration
       return await get().login(userData.email, userData.password);
     } catch (error) {
+      const serverMsg = error.response?.data?.message || '';
+      let friendlyError;
+      if (error.response?.status === 409 || serverMsg.toLowerCase().includes('already exists')) {
+        friendlyError = 'An account with this email already exists.';
+      } else {
+        friendlyError = getErrorMessage(error);
+      }
       set({
         isLoading: false,
-        error: getErrorMessage(error),
+        error: friendlyError,
       });
       throw error;
     }
@@ -108,15 +115,19 @@ const useAuthStore = create((set, get) => ({
 
       let friendlyError;
       if (status === 404 || serverMsg.toLowerCase().includes('not found') || serverMsg.toLowerCase().includes('no user')) {
-        friendlyError = 'No account found with this email address. Please sign up first.';
+        friendlyError = 'No account found with this email.';
+      } else if (serverMsg.toLowerCase().includes('deactivated')) {
+        friendlyError = 'Account has been deactivated.';
+      } else if (serverMsg.toLowerCase().includes('locked')) {
+        friendlyError = serverMsg || 'Account locked. Please try again later.';
       } else if (status === 401 || serverMsg.toLowerCase().includes('invalid') || serverMsg.toLowerCase().includes('incorrect') || serverMsg.toLowerCase().includes('password')) {
-        friendlyError = 'Incorrect password. Please try again.';
+        friendlyError = 'Invalid email address or password.';
       } else if (status === 429) {
-        friendlyError = 'Too many login attempts. Please wait a moment and try again.';
+        friendlyError = 'Too many attempts. Please try again later.';
       } else if (status === 400) {
-        friendlyError = 'Invalid email or password format. Please check your input.';
+        friendlyError = serverMsg || 'Invalid input provided.';
       } else if (!status || status >= 500) {
-        friendlyError = 'Unable to reach the server. Please check your connection and try again.';
+        friendlyError = 'Authentication service temporarily unavailable.';
       } else {
         friendlyError = getErrorMessage(error);
       }
