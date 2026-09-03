@@ -678,11 +678,11 @@ const Dashboard = () => {
           <table className="sirnik-table" style={{ width: '100%', minWidth: '860px', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={{ width: '23%', padding: '0.85rem 0.6rem' }}>ACTION</th>
-                <th style={{ width: '33%', padding: '0.85rem 0.6rem' }}>ACTOR</th>
-                <th style={{ width: '18%', padding: '0.85rem 0.6rem' }}>TARGET RESOURCE</th>
-                <th style={{ width: '13%', padding: '0.85rem 0.6rem' }}>IP ADDRESS</th>
-                <th style={{ width: '13%', padding: '0.85rem 0.6rem', textAlign: 'right' }}>TIME</th>
+                <th style={{ width: '14%', padding: '0.85rem 0.6rem 0.85rem 0.2rem', whiteSpace: 'nowrap' }}>ACTION</th>
+                <th style={{ width: '28%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>ACTOR</th>
+                <th style={{ width: '18%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>TARGET RESOURCE</th>
+                <th style={{ width: '18%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>IP ADDRESS</th>
+                <th style={{ width: '22%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>TIME</th>
               </tr>
             </thead>
             <tbody>
@@ -700,18 +700,21 @@ const Dashboard = () => {
                     ? `${log.resource_type.toUpperCase()} · ${log.resource_id ? (log.resource_id.length > 10 ? log.resource_id.slice(0, 8) : log.resource_id) : 'SYSTEM'}`
                     : '—';
 
+                  const isLongAction = log.action && log.action.length > 14;
+
                   return (
                     <tr key={log.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                      <td style={{ padding: '1.1rem 0.6rem', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '1.1rem 0.6rem 1.1rem 0.2rem', whiteSpace: 'nowrap' }}>
                         <span
                           className="sirnik-tag"
                           style={{
-                            fontSize: '0.65rem',
-                            letterSpacing: '0.05em',
+                            fontSize: isLongAction ? '0.58rem' : '0.65rem',
+                            letterSpacing: isLongAction ? '0.02em' : '0.05em',
                             borderColor: 'rgba(255, 255, 255, 0.15)',
                             color: '#ffffff',
                             background: 'rgba(255, 255, 255, 0.02)',
                             maxWidth: '100%',
+                            padding: isLongAction ? '0.16rem 0.35rem' : '0.2rem 0.45rem',
                             display: 'inline-block',
                           }}
                         >
@@ -721,7 +724,7 @@ const Dashboard = () => {
                       <td
                         className="font-mono"
                         style={{
-                          padding: '1.1rem 0.6rem',
+                          padding: '1.1rem 0.75rem',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -805,7 +808,6 @@ const Dashboard = () => {
                         style={{
                           padding: '1.1rem 0.75rem',
                           whiteSpace: 'nowrap',
-                          textAlign: 'right',
                           color: 'var(--text-muted)',
                           fontSize: '0.82rem',
                         }}

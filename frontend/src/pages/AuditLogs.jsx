@@ -447,12 +447,12 @@ const AuditLogs = () => {
         <table className="sirnik-table" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th style={{ width: '20%', padding: '0.85rem 0.5rem' }}>ACTION</th>
-              <th style={{ width: '24%', padding: '0.85rem 0.5rem' }}>ACTOR IDENTITY</th>
-              <th style={{ width: '18%', padding: '0.85rem 0.5rem' }}>TARGET RESOURCE</th>
-              <th style={{ width: '11%', padding: '0.85rem 0.5rem' }}>IP TELEMETRY</th>
-              <th style={{ width: '12%', padding: '0.85rem 0.5rem' }}>SHA-256 HASH</th>
-              <th style={{ width: '15%', padding: '0.85rem 0.5rem', textAlign: 'right' }}>TIMESTAMP</th>
+              <th style={{ width: '14%', padding: '0.85rem 0.6rem 0.85rem 0.2rem', whiteSpace: 'nowrap' }}>ACTION</th>
+              <th style={{ width: '26%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>ACTOR IDENTITY</th>
+              <th style={{ width: '15%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>TARGET RESOURCE</th>
+              <th style={{ width: '12%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>IP ADDRESS</th>
+              <th style={{ width: '16%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>SHA-256 HASH</th>
+              <th style={{ width: '17%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>TIMESTAMP</th>
             </tr>
           </thead>
           <tbody>
@@ -471,21 +471,21 @@ const AuditLogs = () => {
                 const shortChecksum = log.checksum
                   ? `${log.checksum.substring(0, 8)}...${log.checksum.substring(log.checksum.length - 4)}`
                   : '—';
-                const isLongAction = log.action && log.action.length > 20;
+                const isLongAction = log.action && log.action.length > 14;
 
                 return (
                   <tr key={log.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
                     {/* Action Tag */}
-                    <td style={{ padding: '1rem 0.5rem', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '1rem 0.6rem 1rem 0.2rem', whiteSpace: 'nowrap' }}>
                       <span
                         className="sirnik-tag"
                         style={{
                           fontSize: isLongAction ? '0.58rem' : '0.62rem',
-                          letterSpacing: isLongAction ? '0.03em' : '0.04em',
+                          letterSpacing: isLongAction ? '0.02em' : '0.04em',
                           borderColor: 'rgba(255, 255, 255, 0.18)',
                           color: '#ffffff',
                           background: 'rgba(255, 255, 255, 0.02)',
-                          padding: isLongAction ? '0.18rem 0.4rem' : '0.2rem 0.45rem',
+                          padding: isLongAction ? '0.16rem 0.35rem' : '0.2rem 0.45rem',
                           display: 'inline-block',
                         }}
                       >
@@ -494,7 +494,7 @@ const AuditLogs = () => {
                     </td>
 
                     {/* Actor Identity */}
-                    <td style={{ padding: '1rem 0.6rem', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '1rem 0.75rem', whiteSpace: 'nowrap' }}>
                       <div
                         className="font-mono text-xs"
                         style={{
@@ -521,7 +521,7 @@ const AuditLogs = () => {
                     </td>
 
                     {/* Target Resource */}
-                    <td style={{ padding: '1rem 0.6rem', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '1rem 0.75rem', whiteSpace: 'nowrap' }}>
                       <span
                         className="font-mono text-xs"
                         style={{
@@ -539,12 +539,12 @@ const AuditLogs = () => {
                     </td>
 
                     {/* IP Telemetry */}
-                    <td style={{ padding: '1rem 0.6rem', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '1rem 0.75rem', whiteSpace: 'nowrap' }}>
                       <span className="font-mono text-xs text-muted">{cleanIp}</span>
                     </td>
 
                     {/* SHA-256 Hash */}
-                    <td style={{ padding: '1rem 0.6rem', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '1rem 0.75rem', whiteSpace: 'nowrap' }}>
                       <span
                         className="font-mono text-xs"
                         style={{
@@ -559,7 +559,7 @@ const AuditLogs = () => {
                     </td>
 
                     {/* Timestamp */}
-                    <td style={{ padding: '1rem 0.6rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '1rem 0.75rem', whiteSpace: 'nowrap' }}>
                       <span className="font-mono text-xs text-muted" style={{ fontSize: '0.72rem' }}>
                         {log.created_at
                           ? new Date(log.created_at).toLocaleDateString('en-US', {

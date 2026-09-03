@@ -187,7 +187,7 @@ const Roles = () => {
           <div>
             <span className="sirnik-page-number">AUTHORIZATION MATRIX</span>
             <h1 className="sirnik-page-title">
-              Role<br />Governance
+              Role Governance
             </h1>
             <p className="mt-md" style={{ maxWidth: '480px' }}>
               Define RBAC system roles, inspect entitlement scopes, and toggle granular capability grants in real time.
