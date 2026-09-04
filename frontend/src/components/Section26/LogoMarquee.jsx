@@ -12,14 +12,14 @@ const COLUMN_1_LOGOS = [
   { name: "Antigravity", iconSrc: "/logos/antigravity.svg", isCustomColor: true },
 ];
 
-// Line 2: Runtime & APIs (OpenAPI at index 0, PM2 at index 2 [opp Col 1], Certbot at index 5 [opp Col 1])
+// Line 2: Runtime & APIs (OpenAPI at index 0, PM2 at index 2 [opp Col 1], Let's Encrypt at index 5 [opp Col 1])
 const COLUMN_2_LOGOS = [
   { name: "OpenAPI", iconSrc: "/logos/openapi.svg", isCustomColor: false, scale: 1.15 },
   { name: "Node.js", iconSrc: "/logos/nodejs.svg", isCustomColor: false },
   { name: "PM2", iconSrc: "/logos/pm2.svg", isCustomColor: false, scale: 1.15 },
   { name: "Express", iconSrc: "/logos/express.svg", isCustomColor: false },
   { name: "Nginx", iconSrc: "/logos/nginx.svg", isCustomColor: false },
-  { name: "Certbot", iconSrc: "/logos/certbot.svg", isCustomColor: true, scale: 1.25 },
+  { name: "Let's Encrypt", iconSrc: "/logos/letsencrypt.svg", isCustomColor: true, scale: 1.2 },
   { name: "DigitalOcean", iconSrc: "/logos/digitalocean.svg", isCustomColor: false },
   { name: "npm", iconSrc: "/logos/npm.svg", isCustomColor: false },
 ];
