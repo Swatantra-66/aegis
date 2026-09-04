@@ -1,6 +1,10 @@
-# Aegis IAM Portal — DigitalOcean VPS & Custom Domain Deployment Guide
+# Aegis IAM Portal — Docker Production Deployment Guide
 
-This guide provides an end-to-end walkthrough for deploying **Aegis IAM Portal** to a **DigitalOcean VPS (Droplet)** with a **custom domain**, reverse proxy, automated **Let's Encrypt SSL/TLS certificates**, and production-hardened Docker containers.
+This guide provides an end-to-end walkthrough for deploying **Aegis IAM Portal** using **Docker & Docker Compose** with automated SSL/TLS certificates.
+
+> [!TIP]
+> **Looking for a lightweight Bare-Metal (PM2 + Nginx) deployment?**  
+> If you are deploying to a standard single VPS / Droplet and want minimal RAM usage and maximum performance without Docker, follow [**DROPLET_DEPLOYMENT.md**](./DROPLET_DEPLOYMENT.md).
 
 ---
 
