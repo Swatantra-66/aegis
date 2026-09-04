@@ -307,7 +307,7 @@ Aegis IAM supports **two production deployment workflows** depending on your inf
 
 | Method | Architecture | Best Suited For | Guide |
 | :--- | :--- | :--- | :---: |
-| **Native Bare-Metal (Recommended)** | **PM2 + Nginx + Native Postgres & Redis** | VPS Droplets (DigitalOcean, Linode, AWS EC2) requiring minimal RAM & maximum performance. | [**DROPLET_DEPLOYMENT.md**](./DROPLET_DEPLOYMENT.md) |
+| **Native Bare-Metal (Recommended)** | **PM2 + Nginx + Native Postgres & Redis** | DigitalOcean Droplets & Ubuntu VPS requiring minimal RAM & maximum performance. | [**DROPLET_DEPLOYMENT.md**](./DROPLET_DEPLOYMENT.md) |
 | **Containerized** | **Docker & Docker Compose** | Kubernetes clusters, multi-node cloud environments, and isolated container pipelines. | [**DOCKER_DEPLOYMENT.md**](./DOCKER_DEPLOYMENT.md) |
 
 ## Pre-Commit Safeguards

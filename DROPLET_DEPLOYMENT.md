@@ -1,6 +1,6 @@
-# Aegis IAM Portal — Quick Bare-Metal Deployment Guide (PM2 & Nginx)
+# Aegis IAM Portal — Droplet Deployment Guide (PM2 & Nginx)
 
-This guide provides the streamlined, step-by-step process for deploying Aegis IAM directly on a Linux VPS (DigitalOcean Droplet, AWS EC2, Ubuntu) using **Node.js 22, PostgreSQL, Redis, PM2, and Nginx**.
+This guide provides the streamlined, step-by-step process for deploying Aegis IAM directly on a **DigitalOcean Droplet (Ubuntu)** using **Node.js 22, PostgreSQL, Redis, PM2, and Nginx**.
 
 > [!NOTE]
 > **Prefer Docker containers?**  
