@@ -2,9 +2,7 @@
 
 # Default target
 help:
-	@echo "======================================================="
-	@echo "               AEGIS IAM — Make Commands               "
-	@echo "======================================================="
+	@echo "             ---AEGIS IAM — Make Commands---               "
 	@echo "  make docker-up   Start PostgreSQL & Redis in Docker"
 	@echo "  make docker-down Stop Docker containers"
 	@echo "  make install     Install all backend & frontend dependencies"
@@ -18,7 +16,6 @@ help:
 	@echo "  make lint        Run ESLint across codebase"
 	@echo "  make format      Format code with Prettier"
 	@echo "  make clean       Remove temporary files and logs"
-	@echo "======================================================="
 
 # Docker Infrastructure
 docker-up:
