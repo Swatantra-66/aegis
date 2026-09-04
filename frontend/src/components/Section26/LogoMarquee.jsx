@@ -1,6 +1,6 @@
 import React from 'react';
 
-// Line 1: Infrastructure & Security (Certbot at index 1, PM2 at index 6, Ubuntu at index 3)
+// Line 1: Infrastructure & Security (Certbot at index 1, JWT at index 6, Ubuntu at index 3)
 const COLUMN_1_LOGOS = [
   { name: "Docker", iconSrc: "/logos/docker.svg", isCustomColor: false },
   { name: "Certbot", iconSrc: "/logos/certbot.svg", isCustomColor: true, scale: 1.25 },
@@ -8,7 +8,7 @@ const COLUMN_1_LOGOS = [
   { name: "Ubuntu Linux", iconSrc: "/logos/ubuntu.svg", isCustomColor: false, scale: 1.15 },
   { name: "Redis", iconSrc: "/logos/redis.svg", isCustomColor: false },
   { name: "GitHub", iconSrc: "/logos/github.svg", isCustomColor: false },
-  { name: "PM2", iconSrc: "/logos/pm2.svg", isCustomColor: false, scale: 1.15 },
+  { name: "JWT", iconSrc: "/logos/jwt.svg", isCustomColor: false, scale: 1.2 },
   { name: "Antigravity", iconSrc: "/logos/antigravity.svg", isCustomColor: true },
 ];
 
