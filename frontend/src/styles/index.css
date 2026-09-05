@@ -8,6 +8,14 @@
   left: 0;
   right: 0;
   z-index: 1000;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+  will-change: transform, opacity;
+}
+
+.okaydev-navbar.nav-hidden {
+  transform: translateY(-130%);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .okaydev-nav-inner {
@@ -23,7 +31,7 @@
   box-shadow: 0 10px 35px rgba(0, 0, 0, 0.18);
 }
 
-/* ── Brand Logo with Framer ShinyText & Sparkle Glare ──────────── */
+/* Brand Logo with Framer ShinyText & Sparkle Glare */
 .okaydev-brand {
   text-decoration: none;
   display: inline-flex;
@@ -2404,7 +2412,7 @@ p {
   color: var(--warning);
 }
 
-/* ── Flow Diagram ──────────────────────────────────────────────── */
+/* ── Flow Diagram  */
 .flow-diagram {
   display: flex;
   align-items: center;
@@ -2460,7 +2468,7 @@ p {
   flex-shrink: 0;
 }
 
-/* ── Module Tree ───────────────────────────────────────────────── */
+/* ── Module Tree  */
 .module-tree {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -2495,7 +2503,7 @@ p {
   line-height: 1.8;
 }
 
-/* ── Test Runner Panel ─────────────────────────────────────────── */
+/* ── Test Runner Panel  */
 .test-suite {
   border-bottom: 1px solid var(--line);
   padding: 0.75rem 0;
@@ -2526,7 +2534,7 @@ p {
   color: var(--danger);
 }
 
-/* ── Health Check Cards ────────────────────────────────────────── */
+/* ── Health Check Cards  */
 .health-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -2568,7 +2576,7 @@ p {
   margin-bottom: 0.5rem;
 }
 
-/* ── Toggle Switch ─────────────────────────────────────────────── */
+/* ── Toggle Switch  */
 .toggle {
   width: 40px;
   height: 22px;
@@ -2602,7 +2610,7 @@ p {
   background: var(--success);
 }
 
-/* ── Modal Overlay ─────────────────────────────────────────────── */
+/* ── Modal Overlay  */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -2630,7 +2638,7 @@ p {
   gap: 1rem;
 }
 
-/* ── Checklist ─────────────────────────────────────────────────── */
+/* ── Checklist  */
 .checklist-item {
   display: flex;
   align-items: flex-start;
@@ -2668,7 +2676,7 @@ p {
   letter-spacing: 0.08em;
 }
 
-/* ── Env Config Table ──────────────────────────────────────────── */
+/* ── Env Config Table */
 .env-row {
   display: flex;
   justify-content: space-between;
@@ -2687,7 +2695,7 @@ p {
   color: var(--text-white);
 }
 
-/* ── Utility Classes ───────────────────────────────────────────── */
+/* ── Utility Classes  */
 .font-mono {
   font-family: var(--font-mono);
 }
@@ -2901,7 +2909,7 @@ p {
   padding-bottom: 1rem;
 }
 
-/* ── Responsive ────────────────────────────────────────────────── */
+/* Responsive */
 @media (max-width: 1024px) {
   .sirnik-auth-page {
     grid-template-columns: 1fr;
@@ -2964,9 +2972,7 @@ p {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   ── TRIONN-STYLE LUXURY AEGIS FOOTER & CUT-SCENE TRANSITION ──
-   ═══════════════════════════════════════════════════════════════════ */
+/* TRIONN-STYLE LUXURY AEGIS FOOTER & CUT-SCENE TRANSITION */
 
 .trionn-footer-root {
   background: #000000;
@@ -2979,7 +2985,7 @@ p {
   z-index: 20;
 }
 
-/* ── Cinematic Cut Scene Transition Header Bar ── */
+/* Cinematic Cut Scene Transition Header Bar */
 .cut-scene-transition-bar {
   display: flex;
   align-items: center;
@@ -3160,7 +3166,7 @@ p {
 .trionn-footer-container {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 4rem 3rem 1.5rem;
+  padding: 2.8rem 3rem 1.5rem;
   position: relative;
   z-index: 2;
 }
@@ -3248,7 +3254,7 @@ p {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 2.5rem;
-  padding: 3.5rem 0 2rem;
+  padding: 2.75rem 0 2.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -3408,9 +3414,7 @@ p {
   font-weight: 500;
   letter-spacing: 0.08em;
   color: rgba(255, 255, 255, 0.85);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-color: rgba(255, 255, 255, 0.3);
+  text-decoration: none;
 }
 
 .trionn-cookie-actions {

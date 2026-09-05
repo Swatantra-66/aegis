@@ -57,14 +57,9 @@ const Footer = () => {
     setMousePos({ x, y });
   };
 
-  const handleCookieAccept = () => {
-    localStorage.setItem('aegis_cookie_consent', 'accepted');
-    setCookieConsent('accepted');
-  };
-
-  const handleCookieDecline = () => {
-    localStorage.setItem('aegis_cookie_consent', 'declined');
-    setCookieConsent('declined');
+  const handleCookieAcknowledge = () => {
+    localStorage.setItem('aegis_cookie_consent', 'acknowledged');
+    setCookieConsent('acknowledged');
   };
 
   return (
@@ -179,6 +174,10 @@ const Footer = () => {
                 <span className="status-metric-val text-success">ACTIVE</span>
               </div>
               <div className="status-metric-row">
+                <span className="status-metric-label">UPTIME</span>
+                <span className="status-metric-val font-mono text-success">99.9%</span>
+              </div>
+              <div className="status-metric-row">
                 <span className="status-metric-label">IAAS</span>
                 <span className="status-metric-val font-mono">DigitalOcean</span>
               </div>
@@ -279,33 +278,33 @@ const Footer = () => {
             />
           </svg>
 
-          {/* ── Exact Trionn Cookie Consent Pill Modal ── */}
+          {/* ── Zero-Tracker Privacy Pledge Pill ── */}
           {cookieConsent === null && (
             <div className="trionn-cookie-pill">
               <span className="trionn-cookie-text">
-                WE USE COOKIES TO ENHANCE YOUR EXPERIENCE.
+                AEGIS OPERATES WITH ZERO TRACKING COOKIES • ZERO-TRUST PRIVACY.
               </span>
               <div className="trionn-cookie-actions">
                 <button
-                  onClick={handleCookieDecline}
+                  onClick={() => setActivePolicyModal('cookie')}
                   className="trionn-cookie-btn"
                   type="button"
                 >
-                  DECLINE
+                  DETAILS
                 </button>
                 <button
-                  onClick={handleCookieAccept}
+                  onClick={handleCookieAcknowledge}
                   className="trionn-cookie-btn trionn-cookie-btn-active"
                   type="button"
                 >
-                  ACCEPT
+                  GOT IT
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* ── Bottom Strip: Legal, Cryptographic Stamp & Back-to-Top ── */}
+        {/* Bottom Strip: Legal, Cryptographic Stamp & Back-to-Top */}
         <div className="trionn-footer-bottom-bar">
           <div className="trionn-bottom-left">
             <a
@@ -318,7 +317,7 @@ const Footer = () => {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
               </svg>
-              <span className="github-text">Github</span>
+              <span className="github-text">GitHub</span>
             </a>
           </div>
 
@@ -371,7 +370,7 @@ const Footer = () => {
         </div>
       </div>
 
-      {/* ── Interactive Policy Modal ── */}
+      {/* Interactive Policy Modal */}
       {activePolicyModal && (
         <div className="aegis-policy-overlay" onClick={() => setActivePolicyModal(null)}>
           <div className="aegis-policy-modal" onClick={(e) => e.stopPropagation()}>
@@ -407,13 +406,13 @@ const Footer = () => {
               ) : (
                 <>
                   <p>
-                    <strong>Authentication Cookies:</strong> Secure HTTP-only cookies and JWT tokens maintain authenticated sessions and manage Redis-backed token revocation.
+                    <strong>Zero Cookie Architecture:</strong> AEGIS operates completely cookie-free. Cryptographic JWT bearer tokens maintain authenticated sessions and manage Redis-backed token revocation.
                   </p>
                   <p>
-                    <strong>Session State:</strong> Local storage is used strictly to remember your active interface state and consent choices.
+                    <strong>Local Client Storage:</strong> Browser local storage is used strictly to preserve your active session tokens, interface preferences, and privacy acknowledgement.
                   </p>
                   <p>
-                    <strong>Zero Third-Party Trackers:</strong> AEGIS operates with zero advertising cookies or third-party behavioral tracking scripts.
+                    <strong>Zero Third-Party Trackers:</strong> AEGIS operates with zero advertising cookies, analytics beacons, or third-party behavioral tracking scripts.
                   </p>
                 </>
               )}
