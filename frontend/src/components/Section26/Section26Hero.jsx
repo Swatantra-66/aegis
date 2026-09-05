@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Backdrop from "./Backdrop";
 import LogoMarquee from "./LogoMarquee";
@@ -10,6 +10,30 @@ import useAuthStore from "../../stores/authStore";
 export const Section26Hero = () => {
   const navigate = useNavigate();
   const { isAuthenticated, logout } = useAuthStore();
+  const [isNavVisible, setIsNavVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      // Always show near the very top of the page
+      if (currentScrollY < 60) {
+        setIsNavVisible(true);
+      } else if (currentScrollY > lastScrollY.current && currentScrollY > 120) {
+        // Scrolling down -> smoothly hide
+        setIsNavVisible(false);
+      } else if (currentScrollY < lastScrollY.current) {
+        // Scrolling up -> reveal
+        setIsNavVisible(true);
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -24,8 +48,8 @@ export const Section26Hero = () => {
       {/* Overlay wash across the bottom */}
       <div aria-hidden="true" className="section26-bottom-wash" />
 
-      {/* Top Floating White Pill Navbar Panel */}
-      <header className="okaydev-navbar">
+      {/* Top Floating White Pill Navbar Panel with Auto-Hide */}
+      <header className={`okaydev-navbar ${isNavVisible ? "" : "nav-hidden"}`}>
         <div className="okaydev-nav-inner">
           <Link to="/" className="okaydev-brand" aria-label="AEGIS Home" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
             <div
