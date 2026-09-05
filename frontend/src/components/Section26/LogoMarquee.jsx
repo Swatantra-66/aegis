@@ -1,6 +1,6 @@
 import React from 'react';
 
-// Line 1: Infrastructure & Security (Certbot at index 1, JWT at index 6, Ubuntu at index 3)
+// Line 1:
 const COLUMN_1_LOGOS = [
   { name: "Docker", iconSrc: "/logos/docker.svg", isCustomColor: false },
   { name: "Certbot", iconSrc: "/logos/certbot.svg", isCustomColor: true, scale: 1.25 },
@@ -9,10 +9,11 @@ const COLUMN_1_LOGOS = [
   { name: "Redis", iconSrc: "/logos/redis.svg", isCustomColor: false },
   { name: "GitHub", iconSrc: "/logos/github.svg", isCustomColor: false },
   { name: "JWT", iconSrc: "/logos/jwt.svg", isCustomColor: false, scale: 1.2 },
-  { name: "Antigravity", iconSrc: "/logos/antigravity.svg", isCustomColor: true },
+  { name: "Jest", iconSrc: "/logos/jest.svg", isCustomColor: false, scale: 1.15 },
+  { name: "okaydev", iconSrc: "/logos/okaydev.svg", isCustomColor: true, scale: 1.25 },
 ];
 
-// Line 2: Runtime & APIs (OpenAPI at index 0, PM2 at index 2 [opp Col 1], Let's Encrypt at index 5 [opp Col 1])
+// Line 2:
 const COLUMN_2_LOGOS = [
   { name: "OpenAPI", iconSrc: "/logos/openapi.svg", isCustomColor: false, scale: 1.15 },
   { name: "Node.js", iconSrc: "/logos/nodejs.svg", isCustomColor: false },
@@ -21,7 +22,7 @@ const COLUMN_2_LOGOS = [
   { name: "Nginx", iconSrc: "/logos/nginx.svg", isCustomColor: false },
   { name: "Let's Encrypt", iconSrc: "/logos/letsencrypt.svg", isCustomColor: true, scale: 1.2 },
   { name: "DigitalOcean", iconSrc: "/logos/digitalocean.svg", isCustomColor: false },
-  { name: "npm", iconSrc: "/logos/npm.svg", isCustomColor: false },
+  { name: "Antigravity", iconSrc: "/logos/antigravity.svg", isCustomColor: true, scale: 1.25 },
 ];
 
 export const LogoMarquee = () => {
