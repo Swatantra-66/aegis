@@ -5,6 +5,7 @@ import api, { getErrorMessage } from '../lib/api';
 import useAuthStore from '../stores/authStore';
 import { AUDIT_ACTIONS, getActionBadgeType } from '../hooks/useAudit';
 import adminLogo from '../assets/admin-logo.png';
+import Pagination from '../components/Pagination';
 
 const UserCogIcon = ({ size = 12, color = '#ffffff' }) => (
   <svg
@@ -173,6 +174,36 @@ const AuditLogs = () => {
     const typeLabel = (resType || 'ITEM').toUpperCase();
     const shortId = resId ? (resId.length > 8 ? resId.substring(0, 8) : resId) : 'N/A';
     return `${typeLabel} · ${shortId}`;
+  };
+
+  // Format action name: strips trailing _REQUESTED for cleaner single-line display (e.g. EMAIL_VERIFICATION)
+  const formatAction = (action) => {
+    if (!action) return '—';
+    if (action === 'EMAIL_VERIFICATION_REQUESTED') return 'EMAIL_VERIFICATION';
+    if (action === 'PASSWORD_RESET_REQUESTED') return 'PASSWORD_RESET';
+    return action;
+  };
+
+  const renderActionBadge = (action) => {
+    if (!action) return null;
+    return (
+      <span
+        className="sirnik-tag"
+        style={{
+          fontSize: '0.62rem',
+          letterSpacing: '0.04em',
+          borderColor: 'rgba(255, 255, 255, 0.18)',
+          color: '#ffffff',
+          background: 'rgba(255, 255, 255, 0.02)',
+          padding: '0.2rem 0.45rem',
+          display: 'inline-block',
+          whiteSpace: 'nowrap',
+        }}
+        title={action}
+      >
+        {formatAction(action)}
+      </span>
+    );
   };
 
   const totalLogs = data?.meta?.total || (data?.logs?.length ?? 0);
@@ -450,25 +481,26 @@ const AuditLogs = () => {
           border: '1px solid rgba(255, 255, 255, 0.08)',
           backdropFilter: 'blur(12px)',
           borderRadius: '2px',
-          padding: '0.5rem 1.25rem 0.5rem',
+          padding: '0.5rem 1rem 0.5rem',
           overflowX: 'auto',
         }}
       >
-        <table className="sirnik-table" style={{ width: '100%', minWidth: '940px', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+        <table className="sirnik-table" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th style={{ width: '14%', padding: '0.85rem 0.6rem 0.85rem 0.2rem', whiteSpace: 'nowrap' }}>ACTION</th>
-              <th style={{ width: '26%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>ACTOR IDENTITY</th>
-              <th style={{ width: '15%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>TARGET RESOURCE</th>
-              <th style={{ width: '12%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>IP ADDRESS</th>
-              <th style={{ width: '16%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>SHA-256 HASH</th>
-              <th style={{ width: '17%', padding: '0.85rem 0.75rem', whiteSpace: 'nowrap' }}>TIMESTAMP</th>
+              <th style={{ width: '6%', padding: '0.85rem 0.4rem', whiteSpace: 'nowrap', letterSpacing: '0.06em', fontSize: '0.68rem' }}># SEQ</th>
+              <th style={{ width: '15%', padding: '0.85rem 0.5rem', whiteSpace: 'nowrap', letterSpacing: '0.06em', fontSize: '0.68rem' }}>ACTION</th>
+              <th style={{ width: '21%', padding: '0.85rem 0.5rem', whiteSpace: 'nowrap', letterSpacing: '0.06em', fontSize: '0.68rem' }}>ACTOR IDENTITY</th>
+              <th style={{ width: '14%', padding: '0.85rem 0.5rem', whiteSpace: 'nowrap', letterSpacing: '0.06em', fontSize: '0.68rem' }}>TARGET RESOURCE</th>
+              <th style={{ width: '11%', padding: '0.85rem 0.5rem', whiteSpace: 'nowrap', letterSpacing: '0.06em', fontSize: '0.68rem' }}>IP ADDRESS</th>
+              <th style={{ width: '15%', padding: '0.85rem 0.5rem', whiteSpace: 'nowrap', letterSpacing: '0.06em', fontSize: '0.68rem' }}>SHA-256 HASH</th>
+              <th style={{ width: '18%', padding: '0.85rem 0.5rem', whiteSpace: 'nowrap', letterSpacing: '0.06em', fontSize: '0.68rem' }}>TIMESTAMP</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={6} className="text-muted py-4 font-mono text-center">
+                <td colSpan={7} className="text-muted py-4 font-mono text-center">
                   LOADING AUDIT CHAIN TELEMETRY
                 </td>
               </tr>
@@ -481,66 +513,86 @@ const AuditLogs = () => {
                 const shortChecksum = log.checksum
                   ? `${log.checksum.substring(0, 8)}...${log.checksum.substring(log.checksum.length - 4)}`
                   : '—';
-                const isLongAction = log.action && log.action.length > 14;
+                const isInvalidRow = integrityResult && !integrityResult.valid && String(integrityResult.firstInvalid) === String(log.id);
 
                 return (
-                  <tr key={log.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                    {/* Action Tag */}
-                    <td style={{ padding: '1rem 0.6rem 1rem 0.2rem', whiteSpace: 'nowrap' }}>
+                  <tr
+                    key={log.id}
+                    style={{
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+                      backgroundColor: isInvalidRow ? 'rgba(239, 68, 68, 0.08)' : 'transparent',
+                      transition: 'background-color 0.2s ease',
+                    }}
+                  >
+                    {/* Log Sequence Number */}
+                    <td style={{ padding: '0.85rem 0.4rem', whiteSpace: 'nowrap' }}>
                       <span
-                        className="sirnik-tag"
+                        className="font-mono text-xs"
                         style={{
-                          fontSize: isLongAction ? '0.58rem' : '0.62rem',
-                          letterSpacing: isLongAction ? '0.02em' : '0.04em',
-                          borderColor: 'rgba(255, 255, 255, 0.18)',
-                          color: '#ffffff',
-                          background: 'rgba(255, 255, 255, 0.02)',
-                          padding: isLongAction ? '0.16rem 0.35rem' : '0.2rem 0.45rem',
+                          color: isInvalidRow ? '#ef4444' : 'rgba(255, 255, 255, 0.55)',
+                          fontWeight: 700,
+                          fontSize: '0.72rem',
+                          letterSpacing: '0.02em',
+                          background: isInvalidRow ? 'rgba(239, 68, 68, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                          padding: '0.18rem 0.35rem',
+                          border: `1px solid ${isInvalidRow ? 'rgba(239, 68, 68, 0.5)' : 'rgba(255, 255, 255, 0.08)'}`,
+                          borderRadius: '2px',
                           display: 'inline-block',
                         }}
+                        title={`Audit Log Sequence #${log.id}`}
                       >
-                        {log.action}
+                        #{log.id}
                       </span>
                     </td>
 
+                    {/* Action Tag */}
+                    <td style={{ padding: '0.85rem 0.5rem', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                      {renderActionBadge(log.action)}
+                    </td>
+
                     {/* Actor Identity */}
-                    <td style={{ padding: '1rem 0.75rem', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '0.85rem 0.5rem', whiteSpace: 'nowrap', overflow: 'hidden' }}>
                       <div
                         className="font-mono text-xs"
                         style={{
                           color: '#ffffff',
                           fontWeight: 500,
+                          fontSize: '0.70rem',
                           display: 'flex',
                           alignItems: 'center',
+                          gap: '5px',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                         }}
                         title={`Actor ID: ${log.actor_id || 'system'}`}
                       >
                         {isSuperAdminActor ? (
-                          <span title="Super Administrator">
+                          <span title="Super Administrator" style={{ flexShrink: 0 }}>
                             <UserCogIcon size={12} color="#ffffff" />
                           </span>
                         ) : isAdminActor ? (
-                          <span title="Administrator">
+                          <span title="Administrator" style={{ flexShrink: 0 }}>
                             <AdminIcon size={12} />
                           </span>
                         ) : null}
-                        <span>{log.actor_email || 'system'}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {actorEmail}
+                        </span>
                       </div>
                     </td>
 
                     {/* Target Resource */}
-                    <td style={{ padding: '1rem 0.75rem', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '0.85rem 0.5rem', whiteSpace: 'nowrap' }}>
                       <span
                         className="font-mono text-xs"
                         style={{
                           color: 'var(--text-muted)',
                           background: 'rgba(255, 255, 255, 0.02)',
-                          padding: '0.2rem 0.45rem',
+                          padding: '0.18rem 0.4rem',
                           border: '1px solid rgba(255, 255, 255, 0.06)',
                           borderRadius: '2px',
                           display: 'inline-block',
+                          fontSize: '0.70rem',
                         }}
                         title={`Full Resource: ${log.resource_type}:${log.resource_id || 'N/A'}`}
                       >
@@ -549,17 +601,17 @@ const AuditLogs = () => {
                     </td>
 
                     {/* IP Telemetry */}
-                    <td style={{ padding: '1rem 0.75rem', whiteSpace: 'nowrap' }}>
-                      <span className="font-mono text-xs text-muted">{cleanIp}</span>
+                    <td style={{ padding: '0.85rem 0.5rem', whiteSpace: 'nowrap' }}>
+                      <span className="font-mono text-xs text-muted" style={{ fontSize: '0.72rem' }}>{cleanIp}</span>
                     </td>
 
                     {/* SHA-256 Hash */}
-                    <td style={{ padding: '1rem 0.75rem', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '0.85rem 0.5rem', whiteSpace: 'nowrap' }}>
                       <span
                         className="font-mono text-xs"
                         style={{
                           color: 'rgba(255, 255, 255, 0.7)',
-                          fontSize: '0.7rem',
+                          fontSize: '0.70rem',
                           cursor: 'pointer',
                         }}
                         title={`Full SHA-256: ${log.checksum || 'N/A'}`}
@@ -569,7 +621,7 @@ const AuditLogs = () => {
                     </td>
 
                     {/* Timestamp */}
-                    <td style={{ padding: '1rem 0.75rem', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '0.85rem 0.5rem', whiteSpace: 'nowrap' }}>
                       <span className="font-mono text-xs text-muted" style={{ fontSize: '0.72rem' }}>
                         {log.created_at
                           ? new Date(log.created_at).toLocaleDateString('en-US', {
@@ -592,7 +644,7 @@ const AuditLogs = () => {
             ) : (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   style={{
                     padding: '3rem 1rem',
                     textAlign: 'center',
@@ -614,35 +666,19 @@ const AuditLogs = () => {
           <div
             className="flex justify-between items-center flex-wrap gap-md"
             style={{
-              marginTop: '0.85rem',
-              paddingTop: '0.25rem',
+              marginTop: '1rem',
+              paddingTop: '0.5rem',
               paddingBottom: '0.25rem',
             }}
           >
             <span className="sirnik-meta font-mono text-xs">
               SHOWING {data.logs?.length || 0} OF {data.meta.total || totalLogs} AUDITED EVENTS
             </span>
-            <div className="flex gap-md items-center font-mono">
-              <button
-                className="sirnik-action-box-btn"
-                style={{ fontSize: '0.72rem', padding: '0.4rem 0.8rem' }}
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                PREV
-              </button>
-              <span className="text-xs text-muted">
-                PAGE {data.meta.page || page} OF {data.meta.totalPages || 1}
-              </span>
-              <button
-                className="sirnik-action-box-btn"
-                style={{ fontSize: '0.72rem', padding: '0.4rem 0.8rem' }}
-                disabled={page >= (data.meta.totalPages || 1)}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                NEXT
-              </button>
-            </div>
+            <Pagination
+              page={page}
+              totalPages={data.meta.totalPages || 1}
+              onPageChange={setPage}
+            />
           </div>
         )}
       </div>
