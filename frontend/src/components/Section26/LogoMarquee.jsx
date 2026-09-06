@@ -19,6 +19,7 @@ const COLUMN_2_LOGOS = [
   { name: "Node.js", iconSrc: "/logos/nodejs.svg", isCustomColor: false },
   { name: "PM2", iconSrc: "/logos/pm2.svg", isCustomColor: false, scale: 1.15 },
   { name: "Express", iconSrc: "/logos/express.svg", isCustomColor: false },
+  { name: "Git", iconSrc: "/logos/git.svg", isCustomColor: false, scale: 1.15 },
   { name: "Nginx", iconSrc: "/logos/nginx.svg", isCustomColor: false },
   { name: "Let's Encrypt", iconSrc: "/logos/letsencrypt.svg", isCustomColor: true, scale: 1.2 },
   { name: "DigitalOcean", iconSrc: "/logos/digitalocean.svg", isCustomColor: false },
