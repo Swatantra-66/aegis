@@ -26,7 +26,7 @@ The visual design language synthesizes high-contrast Neo-Brutalism, dark obsidia
 |    ████████████████████████████████████████████████████████████████             |
 |                                                                                   |
 +-----------------------------------------------------------------------------------+
-|  ❖ AUTHENTICATION •  AUTHORIZATION  •  RBAC  •  OAUTH / JWT  • Rate Limiting • TOTP MFA • SECURITY AUDIT PASSED ❖  |
+|  ❖ AUTHENTICATION •  AUTHORIZATION  •  RBAC  •  JWT BEARER AUTH  • Rate Limiting • TOTP MFA • SECURITY AUDIT PASSED ❖  |
 +-----------------------------------------------------------------------------------+
 ```
 

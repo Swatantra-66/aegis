@@ -5,7 +5,7 @@
   <h1>AEGIS IAM</h1>
 
   <p><strong>Enterprise Identity & Access Management Infrastructure</strong></p>
-  <p><em>Production-grade, zero-trust IAM portal featuring JWT/OAuth 2.0, granular RBAC, RFC 6238 TOTP MFA, distributed Redis rate limiting, and tamper-evident PostgreSQL audit logging.</em></p>
+  <p><em>Production-grade, zero-trust IAM portal featuring JWT Bearer Authentication, granular RBAC, RFC 6238 TOTP MFA, distributed Redis rate limiting, and tamper-evident PostgreSQL audit logging.</em></p>
 
   <p>
     <a href="https://github.com/Swatantra-66/aegis"><img src="https://img.shields.io/badge/tests-66%20passed%2C%200%20failed-brightgreen.svg?style=for-the-badge&logo=jest&logoColor=white" alt="Tests" /></a>
@@ -69,7 +69,7 @@ graph TD
 ## Features
 
 ### Core (Phase 1)
-- **OAuth 2.0 / JWT Authentication** — Register, login, token refresh with rotation, logout
+- **JWT Bearer Authentication** — Register, login, token refresh with rotation, logout
 - **Multi-Factor Authentication (MFA)** — TOTP-based (Google Authenticator compatible) with backup codes
 - **Role-Based Access Control (RBAC)** — Roles, permissions, junction tables, middleware guards
 - **Token Lifecycle Management** — Short-lived access tokens (15min), refresh token rotation with reuse detection, Redis-backed blacklist

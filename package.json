@@ -1,7 +1,7 @@
 {
   "name": "iam-portal",
   "version": "1.0.0",
-  "description": "Production-grade Identity & Access Management Portal with OAuth 2.0, JWT, RBAC, MFA, and audit logging",
+  "description": "Production-grade Identity & Access Management Portal with JWT Bearer Auth, RBAC, RFC 6238 TOTP MFA, and tamper-evident audit logging",
   "main": "src/server.js",
   "scripts": {
     "start": "nodemon src/server.js",
@@ -21,7 +21,7 @@
     "authorization",
     "rbac",
     "mfa",
-    "oauth2",
+    "jwt",
     "jwt"
   ],
   "license": "MIT",

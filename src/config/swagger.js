@@ -13,7 +13,7 @@ const swaggerOptions = {
       title: 'IAM Portal API',
       version: '1.0.0',
       description:
-        'Identity & Access Management Portal — OAuth 2.0, JWT, RBAC, MFA, and audit logging.',
+        'Identity & Access Management Portal — JWT Bearer Authentication, RBAC, MFA, and audit logging.',
       contact: {
         name: 'IAM Portal',
       },

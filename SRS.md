@@ -65,7 +65,7 @@ This specification conforms to the IEEE Std 830-1998 recommendations for Softwar
   - **High (Mandatory):** Core features essential for zero-trust security and authentication.
   - **Medium (Desirable):** Administrative and analytical management workflows.
   - **Low (Optional/Future):** Federation extensions (SCIM 2.0, OpenID Connect SSO).
-- **Standards:** RFC 6238 (TOTP), RFC 7519 (JSON Web Tokens), RFC 6749 (OAuth 2.0 Authorization Framework), OWASP ASVS v4.0.
+- **Standards:** RFC 6238 (TOTP), RFC 7519 (JSON Web Tokens), RFC 6750 (JWT Bearer Token Usage), OWASP ASVS v4.0.
 
 ### 1.3 Intended Audience & Reading Suggestions
 - **Evaluators / Academic Supervisors:** Read Section 1, 2, 4, 5, and 7 to review software engineering rigor, requirement coverage, and verification.
