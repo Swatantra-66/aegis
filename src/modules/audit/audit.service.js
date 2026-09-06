@@ -10,6 +10,12 @@ const logger = require('../../utils/logger');
  */
 
 /**
+ * PostgreSQL 64-bit advisory transaction lock key dedicated to sequential audit log chaining.
+ * Guarantees atomic FIFO serialization across concurrent requests without table locking.
+ */
+const AUDIT_CHAIN_LOCK_ID = 987654321;
+
+/**
  * Create a new audit log entry.
  * @param {Object} event
  * @param {string|null} event.actorId - User who performed the action
@@ -23,9 +29,16 @@ const logger = require('../../utils/logger');
  * @param {string} [event.userAgent] - Client user agent
  */
 const log = async (event) => {
+  let client;
   try {
+    client = await db.getClient();
+    await client.query('BEGIN');
+
+    // Acquire transaction-level advisory lock to serialize audit chaining across concurrent threads
+    await client.query('SELECT pg_advisory_xact_lock($1)', [AUDIT_CHAIN_LOCK_ID]);
+
     // Get the previous checksum for chain integrity
-    const lastEntry = await db.query(
+    const lastEntry = await client.query(
       'SELECT checksum FROM audit_logs ORDER BY id DESC LIMIT 1'
     );
     const previousChecksum = lastEntry.rows.length > 0 ? lastEntry.rows[0].checksum : '';
@@ -41,7 +54,7 @@ const log = async (event) => {
       previousChecksum,
     });
 
-    await db.query(
+    await client.query(
       `INSERT INTO audit_logs
         (actor_id, actor_email, action, resource_type, resource_id,
          old_data, new_data, ip_address, user_agent, checksum, created_at)
@@ -60,12 +73,25 @@ const log = async (event) => {
         timestamp,
       ]
     );
+
+    await client.query('COMMIT');
   } catch (err) {
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rbErr) {
+        // ignore rollback error
+      }
+    }
     // Audit logging should NEVER crash the app
     logger.error('Failed to write audit log:', {
       error: err.message,
       action: event.action,
     });
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 };
 
@@ -127,10 +153,7 @@ const getAuditTrail = async (filters = {}) => {
   const offset = (page - 1) * limit;
 
   // Count total
-  const countResult = await db.query(
-    `SELECT COUNT(*) FROM audit_logs ${whereClause}`,
-    params
-  );
+  const countResult = await db.query(`SELECT COUNT(*) FROM audit_logs ${whereClause}`, params);
   const total = parseInt(countResult.rows[0].count, 10);
 
   // Fetch paginated results
