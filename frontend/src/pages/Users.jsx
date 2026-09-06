@@ -5,6 +5,7 @@ import api, { getErrorMessage } from '../lib/api';
 import useAuthStore from '../stores/authStore';
 import { useRoles } from '../hooks/useRoles';
 import adminLogo from '../assets/admin-logo.png';
+import Pagination from '../components/Pagination';
 
 // Clean SVG UserCog Icon (Earlier Icon) for Super Administrators
 const UserCogIcon = ({ size = 13, color = '#ffffff' }) => (
@@ -777,35 +778,19 @@ const filterDisplayRoles = (roles) => {
           <div
             className="flex justify-between items-center flex-wrap gap-md"
             style={{
-              marginTop: '0.85rem',
-              paddingTop: '0.25rem',
+              marginTop: '1rem',
+              paddingTop: '0.5rem',
               paddingBottom: '0.25rem',
             }}
           >
             <span className="sirnik-meta font-mono text-xs">
               SHOWING {data.users?.length || 0} OF {data.meta.total || totalUsers} IDENTITIES
             </span>
-            <div className="flex gap-md items-center font-mono">
-              <button
-                className="sirnik-action-box-btn"
-                style={{ fontSize: '0.72rem', padding: '0.4rem 0.8rem' }}
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                PREV
-              </button>
-              <span className="text-xs text-muted">
-                PAGE {data.meta.page || page} OF {data.meta.totalPages || 1}
-              </span>
-              <button
-                className="sirnik-action-box-btn"
-                style={{ fontSize: '0.72rem', padding: '0.4rem 0.8rem' }}
-                disabled={page >= (data.meta.totalPages || 1)}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                NEXT
-              </button>
-            </div>
+            <Pagination
+              page={page}
+              totalPages={data.meta.totalPages || 1}
+              onPageChange={setPage}
+            />
           </div>
         )}
       </div>
