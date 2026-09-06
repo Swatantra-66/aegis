@@ -1,44 +1,86 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const Preloader = ({ onComplete }) => {
-  const [progress, setProgress] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isExited, setIsExited] = useState(false);
 
+  const fillRef = useRef(null);
+  const haloRef = useRef(null);
+  const counterRef = useRef(null);
+
   useEffect(() => {
-    // Cinematic pacing: ~2.6s total duration with smooth natural easing
-    const startTime = performance.now();
-    const duration = 2600; // 2.6 seconds (relaxed, premium pace)
+    let animFrameId;
+    let isCancelled = false;
 
-    const updateProgress = (currentTime) => {
-      const elapsed = currentTime - startTime;
-      const t = Math.min(elapsed / duration, 1);
+    // Pre-decode logo image to guarantee zero texture-upload jank during animation
+    const preloadImg = new Image();
+    preloadImg.src = '/aegis-logo-new.png';
 
-      // Smooth custom easing
-      const easeProgress = t < 0.5
-        ? 2 * t * t
-        : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const startAnimation = () => {
+      if (isCancelled) return;
+      const startTime = performance.now();
+      const duration = 2000; // Ultra-smooth 2.0s cinematic pace
 
-      const currentPercent = Math.min(Math.round(easeProgress * 100), 100);
-      setProgress(currentPercent);
+      const updateProgress = (currentTime) => {
+        if (isCancelled) return;
+        const elapsed = currentTime - startTime;
+        const t = Math.min(elapsed / duration, 1);
 
-      if (t < 1) {
-        requestAnimationFrame(updateProgress);
-      } else {
-        setProgress(100);
-        // Brief pause at 100% then trigger slide up exit
-        setTimeout(() => {
-          setIsLoaded(true);
-          if (onComplete) onComplete();
+        // Smooth cubic easing for uninterrupted, fluid motion
+        const ease = t < 0.5
+          ? 4 * t * t * t
+          : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+        const currentPercent = Math.min(Math.round(ease * 100), 100);
+
+        // Direct DOM updates: 0 React re-renders, 0 frame drops
+        if (fillRef.current) {
+          fillRef.current.style.clipPath = `inset(${100 - currentPercent}% 0 0 0)`;
+          fillRef.current.style.webkitClipPath = `inset(${100 - currentPercent}% 0 0 0)`;
+        }
+        if (haloRef.current) {
+          haloRef.current.style.opacity = `${(currentPercent / 100) * 0.85}`;
+          haloRef.current.style.transform = `scale(${0.85 + (currentPercent / 100) * 0.25}) translateZ(0)`;
+        }
+        if (counterRef.current) {
+          counterRef.current.textContent = `${currentPercent}%`;
+        }
+
+        if (t < 1) {
+          animFrameId = requestAnimationFrame(updateProgress);
+        } else {
+          if (counterRef.current) counterRef.current.textContent = '100%';
+          if (fillRef.current) {
+            fillRef.current.style.clipPath = 'inset(0% 0 0 0)';
+            fillRef.current.style.webkitClipPath = 'inset(0% 0 0 0)';
+          }
+
+          // Brief pause at 100% then trigger smooth slide up exit
           setTimeout(() => {
-            setIsExited(true);
-          }, 750);
-        }, 220);
-      }
+            if (isCancelled) return;
+            setIsLoaded(true);
+            if (onComplete) onComplete();
+            setTimeout(() => {
+              if (isCancelled) return;
+              setIsExited(true);
+            }, 750);
+          }, 180);
+        }
+      };
+
+      animFrameId = requestAnimationFrame(updateProgress);
     };
 
-    const animFrame = requestAnimationFrame(updateProgress);
-    return () => cancelAnimationFrame(animFrame);
+    if (preloadImg.decode) {
+      preloadImg.decode().then(startAnimation).catch(startAnimation);
+    } else {
+      startAnimation();
+    }
+
+    return () => {
+      isCancelled = true;
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+    };
   }, [onComplete]);
 
   if (isExited) return null;
@@ -53,10 +95,11 @@ const Preloader = ({ onComplete }) => {
         <div className="preloader-logo-container">
           {/* Organic circular refraction halo behind logo */}
           <div
+            ref={haloRef}
             className="preloader-radial-halo"
             style={{
-              opacity: (progress / 100) * 0.85,
-              transform: `scale(${0.85 + (progress / 100) * 0.25})`,
+              opacity: 0,
+              transform: 'scale(0.85) translateZ(0)',
             }}
           />
 
@@ -65,23 +108,28 @@ const Preloader = ({ onComplete }) => {
             src="/aegis-logo-new.png"
             alt="Aegis IAM Logo Base"
             className="preloader-logo-img preloader-logo-base"
+            fetchPriority="high"
+            decoding="async"
           />
 
           {/* Active Liquid Rising Full Logo */}
           <img
+            ref={fillRef}
             src="/aegis-logo-new.png"
             alt="Aegis IAM Logo Fill"
             className="preloader-logo-img preloader-logo-fill"
+            fetchPriority="high"
+            decoding="async"
             style={{
-              clipPath: `inset(${100 - progress}% 0 0 0)`,
-              WebkitClipPath: `inset(${100 - progress}% 0 0 0)`,
+              clipPath: 'inset(100% 0 0 0)',
+              WebkitClipPath: 'inset(100% 0 0 0)',
             }}
           />
         </div>
 
         {/* Counter Percentage Text */}
-        <div className="preloader-counter-text">
-          {progress}%
+        <div ref={counterRef} className="preloader-counter-text">
+          0%
         </div>
       </div>
     </div>

@@ -3845,7 +3845,7 @@ p {
   }
 }
 
-/* ── Luxury Logo 0-100% Preloader ── */
+/* Luxury Logo 0-100% Preloader */
 .aegis-preloader-root {
   position: fixed;
   inset: 0;
@@ -3883,6 +3883,8 @@ p {
   align-items: center;
   justify-content: center;
   background: transparent;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .preloader-radial-halo {
@@ -3896,6 +3898,7 @@ p {
   z-index: 1;
   mix-blend-mode: screen;
   will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 .preloader-logo-img {
@@ -3910,6 +3913,8 @@ p {
   background: transparent;
   mix-blend-mode: screen;
   z-index: 2;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .preloader-logo-base {
@@ -3920,6 +3925,7 @@ p {
 .preloader-logo-fill {
   z-index: 3;
   will-change: clip-path;
+  transform: translateZ(0);
 }
 
 .preloader-counter-text {
