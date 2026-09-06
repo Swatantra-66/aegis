@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import useAuthStore from './stores/authStore';
 import Preloader from './components/Preloader';
 
@@ -28,6 +28,20 @@ import SDLCStaging from './pages/SDLCStaging';
 
 function App() {
   const { isAuthenticated, fetchUser } = useAuthStore();
+  const location = useLocation();
+  const isLanding = location.pathname === '/' || location.pathname === '/home';
+
+  // Smooth scroll to top or anchor on navigation
+  useEffect(() => {
+    if (location.hash) {
+      const elem = document.querySelector(location.hash);
+      if (elem) {
+        elem.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+    }
+    window.scrollTo(0, 0);
+  }, [location.pathname, location.hash]);
 
   // Load user profile on initial app mount if access token exists
   useEffect(() => {
@@ -69,64 +83,71 @@ function App() {
   return (
     <>
       <Preloader />
-      <Routes>
-        {/* Public Home Page */}
-        <Route path="/" element={<Landing />} />
-        <Route path="/home" element={<Landing />} />
-        <Route path="/landing" element={<Navigate to="/home" replace />} />
 
-      {/* Public Authentication Routes */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/mfa" element={<MfaVerify />} />
-      <Route path="/mfa-setup" element={<ProtectedRoute><MfaSetup /></ProtectedRoute>} />
-      <Route path="/mfa-disable" element={<ProtectedRoute><MfaDisable /></ProtectedRoute>} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
+      {/* Persistent Landing Page: preserves the 3D Starburst Symphony model & WebGL context across page changes */}
+      <div style={{ display: isLanding ? 'block' : 'none' }}>
+        <Landing />
+      </div>
 
-      {/* Protected Portal Application Routes */}
-      <Route
-        element={
-          <ProtectedRoute>
-            <AppLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route
-          path="/users"
-          element={
-            <ProtectedRoute permission="user:read">
-              <Users />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/roles"
-          element={
-            <ProtectedRoute permission="role:read">
-              <Roles />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/audit"
-          element={
-            <ProtectedRoute permission="audit:read">
-              <AuditLogs />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/sdlc" element={<SDLCStaging />} />
-      </Route>
+      {/* Other routes (rendered when not on landing page) */}
+      {!isLanding && (
+        <Routes>
+          {/* Public Home Route Redirects */}
+          <Route path="/landing" element={<Navigate to="/home" replace />} />
 
-      {/* Catch-all redirect */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  </>
-);
+          {/* Public Authentication Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/mfa" element={<MfaVerify />} />
+          <Route path="/mfa-setup" element={<ProtectedRoute><MfaSetup /></ProtectedRoute>} />
+          <Route path="/mfa-disable" element={<ProtectedRoute><MfaDisable /></ProtectedRoute>} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+
+          {/* Protected Portal Application Routes */}
+          <Route
+            element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute permission="user:read">
+                  <Users />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/roles"
+              element={
+                <ProtectedRoute permission="role:read">
+                  <Roles />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/audit"
+              element={
+                <ProtectedRoute permission="audit:read">
+                  <AuditLogs />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/sdlc" element={<SDLCStaging />} />
+          </Route>
+
+          {/* Catch-all redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      )}
+    </>
+  );
 }
 
 export default App;
