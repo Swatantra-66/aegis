@@ -123,8 +123,13 @@ const DB_SCHEMA = [
       { name: 'first_name', type: 'VARCHAR(100)' },
       { name: 'last_name', type: 'VARCHAR(100)' },
       { name: 'is_active', type: 'BOOLEAN DEFAULT true' },
+      { name: 'is_email_verified', type: 'BOOLEAN DEFAULT false' },
       { name: 'mfa_enabled', type: 'BOOLEAN DEFAULT false' },
-      { name: 'mfa_secret', type: 'TEXT (AES-256-GCM)' },
+      { name: 'mfa_secret', type: 'VARCHAR(500)' },
+      { name: 'mfa_backup_codes', type: 'TEXT' },
+      { name: 'failed_login_attempts', type: 'INTEGER DEFAULT 0' },
+      { name: 'locked_until', type: 'TIMESTAMPTZ' },
+      { name: 'last_login_at', type: 'TIMESTAMPTZ' },
       { name: 'created_at', type: 'TIMESTAMPTZ' },
       { name: 'updated_at', type: 'TIMESTAMPTZ' },
     ],
@@ -134,9 +139,11 @@ const DB_SCHEMA = [
     desc: 'RBAC authorization roles with descriptions and metadata',
     columns: [
       { name: 'id', type: 'UUID', pk: true },
-      { name: 'name', type: 'VARCHAR(50) UNIQUE' },
+      { name: 'name', type: 'VARCHAR(100) UNIQUE' },
       { name: 'description', type: 'TEXT' },
+      { name: 'is_system_role', type: 'BOOLEAN DEFAULT false' },
       { name: 'created_at', type: 'TIMESTAMPTZ' },
+      { name: 'updated_at', type: 'TIMESTAMPTZ' },
     ],
   },
   {
@@ -144,9 +151,11 @@ const DB_SCHEMA = [
     desc: 'Atomic capability grants scoped to specific resources and actions',
     columns: [
       { name: 'id', type: 'UUID', pk: true },
-      { name: 'name', type: 'VARCHAR(100) UNIQUE' },
-      { name: 'resource', type: 'VARCHAR(50)' },
+      { name: 'name', type: 'VARCHAR(150) UNIQUE' },
+      { name: 'description', type: 'TEXT' },
+      { name: 'resource', type: 'VARCHAR(100)' },
       { name: 'action', type: 'VARCHAR(50)' },
+      { name: 'created_at', type: 'TIMESTAMPTZ' },
     ],
   },
   {
@@ -173,8 +182,9 @@ const DB_SCHEMA = [
       { name: 'id', type: 'UUID', pk: true },
       { name: 'user_id', type: 'UUID', fk: 'users.id' },
       { name: 'token_hash', type: 'VARCHAR(255)' },
+      { name: 'family_id', type: 'UUID' },
       { name: 'expires_at', type: 'TIMESTAMPTZ' },
-      { name: 'is_revoked', type: 'BOOLEAN DEFAULT false' },
+      { name: 'revoked', type: 'BOOLEAN DEFAULT false' },
       { name: 'created_at', type: 'TIMESTAMPTZ' },
     ],
   },
@@ -182,16 +192,71 @@ const DB_SCHEMA = [
     name: 'audit_logs',
     desc: 'Cryptographically chained SHA-256 tamper-evident security ledger',
     columns: [
-      { name: 'id', type: 'SERIAL', pk: true },
+      { name: 'id', type: 'BIGSERIAL', pk: true },
       { name: 'actor_id', type: 'UUID', fk: 'users.id' },
-      { name: 'action', type: 'VARCHAR(50)' },
-      { name: 'resource_type', type: 'VARCHAR(50)' },
-      { name: 'resource_id', type: 'UUID' },
+      { name: 'actor_email', type: 'VARCHAR(255)' },
+      { name: 'action', type: 'VARCHAR(100)' },
+      { name: 'resource_type', type: 'VARCHAR(100)' },
+      { name: 'resource_id', type: 'VARCHAR(255)' },
+      { name: 'old_data', type: 'JSONB' },
+      { name: 'new_data', type: 'JSONB' },
       { name: 'ip_address', type: 'INET' },
       { name: 'user_agent', type: 'TEXT' },
       { name: 'checksum', type: 'VARCHAR(64)' },
-      { name: 'previous_checksum', type: 'VARCHAR(64)' },
       { name: 'created_at', type: 'TIMESTAMPTZ' },
+    ],
+  },
+  {
+    name: 'sessions',
+    desc: 'Active browser & device sessions with IP and user-agent binding',
+    columns: [
+      { name: 'id', type: 'UUID', pk: true },
+      { name: 'user_id', type: 'UUID', fk: 'users.id' },
+      { name: 'ip_address', type: 'INET' },
+      { name: 'user_agent', type: 'TEXT' },
+      { name: 'expires_at', type: 'TIMESTAMPTZ' },
+      { name: 'revoked', type: 'BOOLEAN DEFAULT false' },
+      { name: 'created_at', type: 'TIMESTAMPTZ' },
+    ],
+  },
+  {
+    name: 'login_events',
+    desc: 'Authentication telemetry and adaptive risk-scoring event log',
+    columns: [
+      { name: 'id', type: 'BIGSERIAL', pk: true },
+      { name: 'user_id', type: 'UUID', fk: 'users.id' },
+      { name: 'ip_address', type: 'INET' },
+      { name: 'user_agent', type: 'TEXT' },
+      { name: 'geo_location', type: 'VARCHAR(255)' },
+      { name: 'login_result', type: 'VARCHAR(20)' },
+      { name: 'risk_score', type: 'DECIMAL(3,2)' },
+      { name: 'created_at', type: 'TIMESTAMPTZ' },
+    ],
+  },
+  {
+    name: 'sso_identities',
+    desc: 'Enterprise federated identity mappings (SAML 2.0 / OIDC)',
+    columns: [
+      { name: 'id', type: 'UUID', pk: true },
+      { name: 'user_id', type: 'UUID', fk: 'users.id' },
+      { name: 'provider', type: 'VARCHAR(50)' },
+      { name: 'provider_user_id', type: 'VARCHAR(255)' },
+      { name: 'email', type: 'VARCHAR(255)' },
+      { name: 'profile_data', type: 'JSONB' },
+      { name: 'created_at', type: 'TIMESTAMPTZ' },
+    ],
+  },
+  {
+    name: 'scim_resources',
+    desc: 'SCIM 2.0 automated identity lifecycle & directory provisioning',
+    columns: [
+      { name: 'id', type: 'UUID', pk: true },
+      { name: 'external_id', type: 'VARCHAR(255) UNIQUE' },
+      { name: 'user_id', type: 'UUID', fk: 'users.id' },
+      { name: 'scim_data', type: 'JSONB' },
+      { name: 'provisioned_by', type: 'VARCHAR(100)' },
+      { name: 'created_at', type: 'TIMESTAMPTZ' },
+      { name: 'updated_at', type: 'TIMESTAMPTZ' },
     ],
   },
 ];
@@ -200,7 +265,7 @@ const BACKEND_MODULES = [
   { name: 'auth', desc: 'Authentication, registration, password lifecycle', files: ['auth.controller.js', 'auth.service.js', 'auth.routes.js', 'auth.validator.js'] },
   { name: 'users', desc: 'Identity CRUD, profile updates & deactivation', files: ['users.controller.js', 'users.service.js', 'users.routes.js', 'users.validator.js'] },
   { name: 'roles', desc: 'RBAC role creation, deletion & policy mapping', files: ['roles.controller.js', 'roles.service.js', 'roles.routes.js', 'roles.validator.js'] },
-  { name: 'tokens', desc: 'JWT token family rotation & Redis blacklisting', files: ['tokens.service.js', 'tokens.utils.js'] },
+  { name: 'tokens', desc: 'JWT token family rotation & Redis blacklisting', files: ['tokens.service.js', 'tokens.blacklist.js'] },
   { name: 'mfa', desc: 'TOTP secret enrollment, verification & disable', files: ['mfa.controller.js', 'mfa.service.js', 'mfa.routes.js'] },
   { name: 'audit', desc: 'Tamper-evident SHA-256 cryptographic ledger', files: ['audit.controller.js', 'audit.service.js', 'audit.routes.js'] },
 ];
@@ -331,9 +396,9 @@ const FLOW_NODES = [
 
 const REPO_STATS = [
   { label: 'BACKEND MODULES', value: '6' },
-  { label: 'REST ENDPOINTS', value: '24' },
-  { label: 'DATABASE TABLES', value: '7' },
-  { label: 'FRONTEND PAGES', value: '10' },
+  { label: 'REST ENDPOINTS', value: '30' },
+  { label: 'DATABASE TABLES', value: '11' },
+  { label: 'FRONTEND PAGES', value: '15' },
 ];
 
 //  Shared Accordion Component 
@@ -972,7 +1037,7 @@ const Phase5 = () => {
           Production Staging & Service Telemetry
         </h2>
         <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-          Containerized micro-services with PostgreSQL connection pooling, Redis caching, and health probe validation.
+          DigitalOcean VPS deployment with PostgreSQL connection pooling, Redis caching, and health probe validation.
         </p>
       </div>
 
@@ -1010,10 +1075,10 @@ const Phase5 = () => {
             </span>
           </div>
           <div className="font-mono" style={{ fontSize: '2rem', fontWeight: 800, color: '#ffffff', margin: '0.35rem 0' }}>
-            99.9%
+            99.95%
           </div>
           <div className="font-mono text-muted" style={{ fontSize: '0.66rem' }}>
-            Node.js Express · Port 3000
+            Node.js Express · VPS Port 3000
           </div>
         </div>
 
@@ -1199,13 +1264,12 @@ const Phase6 = () => {
         <div
           style={{
             padding: '1.5rem 1.75rem',
-            border: `1px solid ${
-              integrityResult.valid
+            border: `1px solid ${integrityResult.valid
                 ? 'rgba(0, 255, 102, 0.35)'
                 : integrityResult.firstInvalid
                   ? 'rgba(239, 68, 68, 0.45)'
                   : 'rgba(255, 90, 31, 0.45)'
-            }`,
+              }`,
             background: integrityResult.valid
               ? '#060d08'
               : integrityResult.firstInvalid
@@ -1214,13 +1278,12 @@ const Phase6 = () => {
             backdropFilter: 'blur(16px)',
             marginBottom: '2rem',
             borderRadius: '2px',
-            boxShadow: `0 0 30px ${
-              integrityResult.valid
+            boxShadow: `0 0 30px ${integrityResult.valid
                 ? 'rgba(0, 255, 102, 0.04)'
                 : integrityResult.firstInvalid
                   ? 'rgba(239, 68, 68, 0.06)'
                   : 'rgba(255, 90, 31, 0.05)'
-            }`,
+              }`,
           }}
         >
           <div className="flex justify-between items-start flex-wrap gap-md">

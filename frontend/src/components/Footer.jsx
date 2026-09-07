@@ -175,7 +175,7 @@ const Footer = () => {
               </div>
               <div className="status-metric-row">
                 <span className="status-metric-label">UPTIME</span>
-                <span className="status-metric-val font-mono text-success">99.9%</span>
+                <span className="status-metric-val font-mono text-success">99.95%</span>
               </div>
               <div className="status-metric-row">
                 <span className="status-metric-label">IAAS</span>
@@ -197,7 +197,7 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* ── Signature Trionn Horizontal Striped AEGIS Cut Scene Graphic ── */}
+        {/* Signature Trionn Horizontal Striped AEGIS Cut Scene Graphic*/}
         <div
           className="trionn-giant-striped-wrap"
           onMouseMove={handleMouseMove}
@@ -278,7 +278,7 @@ const Footer = () => {
             />
           </svg>
 
-          {/* ── Zero-Tracker Privacy Pledge Pill ── */}
+          {/* Zero-Tracker Privacy Pledge Pill */}
           {cookieConsent === null && (
             <div className="trionn-cookie-pill">
               <span className="trionn-cookie-text">
