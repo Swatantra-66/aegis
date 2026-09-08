@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 const config = require('../../config/index');
 const db = require('../../config/database');
 const { hashToken } = require('../../utils/crypto');

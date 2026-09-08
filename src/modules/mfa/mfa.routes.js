@@ -2,6 +2,7 @@ const { Router } = require('express');
 const mfaController = require('./mfa.controller');
 const authenticate = require('../../middleware/authenticate');
 const catchAsync = require('../../middleware/asyncWrapper');
+const { mfaRateLimiter } = require('../../middleware/rateLimiter');
 
 const router = Router();
 
@@ -38,7 +39,7 @@ router.post('/setup', authenticate, catchAsync(mfaController.setup));
  *       200: { description: MFA activated }
  *       400: { description: Invalid code }
  */
-router.post('/verify', authenticate, catchAsync(mfaController.verify));
+router.post('/verify', authenticate, mfaRateLimiter, catchAsync(mfaController.verify));
 
 /**
  * @openapi
@@ -60,7 +61,7 @@ router.post('/verify', authenticate, catchAsync(mfaController.verify));
  *       200: { description: Code valid }
  *       401: { description: Invalid code }
  */
-router.post('/validate', catchAsync(mfaController.validate));
+router.post('/validate', mfaRateLimiter, catchAsync(mfaController.validate));
 
 /**
  * @openapi
@@ -81,6 +82,6 @@ router.post('/validate', catchAsync(mfaController.validate));
  *     responses:
  *       200: { description: MFA disabled }
  */
-router.delete('/disable', authenticate, catchAsync(mfaController.disable));
+router.delete('/disable', authenticate, mfaRateLimiter, catchAsync(mfaController.disable));
 
 module.exports = router;

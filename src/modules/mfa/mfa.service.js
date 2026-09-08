@@ -18,10 +18,9 @@ const { AUDIT_ACTIONS } = require('../../config/constants');
  * @returns {Promise<{ secret: string, otpauthUrl: string, backupCodes: string[] }>}
  */
 const setup = async (userId) => {
-  const userResult = await db.query(
-    'SELECT id, email, mfa_enabled FROM users WHERE id = $1',
-    [userId]
-  );
+  const userResult = await db.query('SELECT id, email, mfa_enabled FROM users WHERE id = $1', [
+    userId,
+  ]);
 
   if (userResult.rows.length === 0) {
     throw AppError.notFound('User not found');
@@ -42,15 +41,13 @@ const setup = async (userId) => {
 
   // Encrypt and store temporarily (not activated yet)
   const encryptedSecret = encrypt(secret, config.mfa.encryptionKey);
-  const encryptedBackupCodes = encrypt(
-    JSON.stringify(backupCodes),
-    config.mfa.encryptionKey
-  );
+  const encryptedBackupCodes = encrypt(JSON.stringify(backupCodes), config.mfa.encryptionKey);
 
-  await db.query(
-    'UPDATE users SET mfa_secret = $1, mfa_backup_codes = $2 WHERE id = $3',
-    [encryptedSecret, encryptedBackupCodes, userId]
-  );
+  await db.query('UPDATE users SET mfa_secret = $1, mfa_backup_codes = $2 WHERE id = $3', [
+    encryptedSecret,
+    encryptedBackupCodes,
+    userId,
+  ]);
 
   return { secret, otpauthUrl, backupCodes };
 };
@@ -146,18 +143,13 @@ const validate = async (userId, code) => {
 
   // Check backup codes
   if (user.mfa_backup_codes) {
-    const backupCodes = JSON.parse(
-      decrypt(user.mfa_backup_codes, config.mfa.encryptionKey)
-    );
+    const backupCodes = JSON.parse(decrypt(user.mfa_backup_codes, config.mfa.encryptionKey));
     const codeIndex = backupCodes.indexOf(code.toUpperCase());
 
     if (codeIndex !== -1) {
       // Remove used backup code
       backupCodes.splice(codeIndex, 1);
-      const encryptedBackupCodes = encrypt(
-        JSON.stringify(backupCodes),
-        config.mfa.encryptionKey
-      );
+      const encryptedBackupCodes = encrypt(JSON.stringify(backupCodes), config.mfa.encryptionKey);
       await db.query('UPDATE users SET mfa_backup_codes = $1 WHERE id = $2', [
         encryptedBackupCodes,
         userId,
@@ -176,6 +168,22 @@ const validate = async (userId, code) => {
  * @param {Object} reqMeta
  */
 const disable = async (userId, code, reqMeta = {}) => {
+  // Query user roles and enforce zero-trust security policy
+  const rolesResult = await db.query(
+    `SELECT r.name FROM roles r
+     INNER JOIN user_roles ur ON ur.role_id = r.id
+     WHERE ur.user_id = $1`,
+    [userId]
+  );
+  const roles = rolesResult.rows.map((r) => r.name);
+  const securityPolicy = require('../auth/securityPolicy');
+  if (!securityPolicy.canDisableMfa(roles)) {
+    throw AppError.forbidden(
+      'MFA is strictly mandatory for administrative accounts under AEGIS security policy and cannot be disabled.',
+      'MFA_MANDATORY_ROLE'
+    );
+  }
+
   // Must verify current code before disabling
   await validate(userId, code);
 

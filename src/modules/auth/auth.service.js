@@ -7,8 +7,8 @@ const {
 } = require('../../utils/crypto');
 const tokenService = require('../tokens/tokens.service');
 const auditService = require('../audit/audit.service');
+const securityPolicy = require('./securityPolicy');
 const AppError = require('../../utils/AppError');
-const logger = require('../../utils/logger');
 const {
   AUDIT_ACTIONS,
   MAX_FAILED_LOGIN_ATTEMPTS,
@@ -86,7 +86,7 @@ const login = async (credentials, reqMeta = {}) => {
   // Find user
   const result = await db.query(
     `SELECT u.id, u.email, u.password_hash, u.first_name, u.last_name,
-            u.is_active, u.mfa_enabled, u.mfa_secret,
+            u.is_active, u.is_email_verified, u.mfa_enabled, u.mfa_secret,
             u.failed_login_attempts, u.locked_until
      FROM users u WHERE u.email = $1`,
     [email]
@@ -165,11 +165,39 @@ const login = async (credentials, reqMeta = {}) => {
     throw AppError.unauthorized('Invalid email or password', 'AUTH_INVALID_CREDENTIALS');
   }
 
-  // Check MFA requirement
-  if (user.mfa_enabled) {
-    if (!mfa_code) {
-      return { user: null, accessToken: null, refreshToken: null, mfaRequired: true };
+  // Get user roles and permissions for policy evaluation
+  const { roles, permissions } = await getUserRolesAndPermissions(user.id);
+
+  // Evaluate Zero-Trust Security Policy
+  const policyResult = securityPolicy.evaluateLoginPolicy({
+    user,
+    roles,
+    mfaCode: mfa_code,
+  });
+
+  if (!policyResult.allowed) {
+    if (policyResult.requirement === 'MFA_SETUP_REQUIRED') {
+      return {
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+        mfaSetupRequired: true,
+        message: policyResult.message,
+      };
     }
+    if (policyResult.requirement === 'MFA_REQUIRED') {
+      return {
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+        mfaRequired: true,
+        message: policyResult.message,
+      };
+    }
+  }
+
+  // If MFA enabled, validate TOTP code
+  if (user.mfa_enabled) {
     const mfaService = require('../mfa/mfa.service');
     await mfaService.validate(user.id, mfa_code);
   }
@@ -181,12 +209,9 @@ const login = async (credentials, reqMeta = {}) => {
     [user.id]
   );
 
-  // Get user roles and permissions
-  const { roles, permissions } = await getUserRolesAndPermissions(user.id);
-
   const expiryDays = remember_me ? 7 : 1;
 
-  // Generate tokens
+  // Generate tokens (Full authenticated session)
   const accessTokenData = tokenService.generateAccessToken(user, roles, permissions);
   const refreshTokenData = await tokenService.generateRefreshToken(user.id, null, expiryDays);
 
@@ -207,6 +232,7 @@ const login = async (credentials, reqMeta = {}) => {
       email: user.email,
       first_name: user.first_name,
       last_name: user.last_name,
+      is_email_verified: user.is_email_verified,
       mfa_enabled: user.mfa_enabled,
       roles,
     },
@@ -289,10 +315,12 @@ const logout = async (accessTokenJti, refreshToken, reqMeta = {}) => {
 };
 
 /**
- * Initiate password reset — generate reset token.
+ * Initiate password reset — generate token and store in database.
+ * Always returns success to prevent user enumeration.
+ *
  * @param {string} email
  * @param {Object} reqMeta
- * @returns {Promise<string>} Reset token (in real app, this would be emailed)
+ * @returns {Promise<string>} Reset token (in dev only; in prod would email)
  */
 const forgotPassword = async (email, reqMeta = {}) => {
   const result = await db.query('SELECT id, email FROM users WHERE email = $1', [email]);
@@ -304,15 +332,15 @@ const forgotPassword = async (email, reqMeta = {}) => {
 
   const user = result.rows[0];
   const resetToken = generateRandomToken();
-  const resetTokenHash = hashToken(resetToken);
+  const tokenHash = hashToken(resetToken);
   const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 1);
+  expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15-minute lifetime
 
-  // Store reset token (using refresh_tokens table for simplicity)
+  // Store reset token in refresh_tokens table under dedicated family UUID
   await db.query(
     `INSERT INTO refresh_tokens (user_id, token_hash, family_id, expires_at)
      VALUES ($1, $2, $3, $4)`,
-    [user.id, resetTokenHash, '00000000-0000-0000-0000-000000000000', expiresAt]
+    [user.id, tokenHash, '00000000-0000-0000-0000-000000000000', expiresAt]
   );
 
   await auditService.log({

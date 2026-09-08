@@ -187,10 +187,22 @@ const adminLimiter = createLimiter({
   prefix: 'admin',
 });
 
+/**
+ * MFA code verification limiter: 5 attempts / 5 min per user or IP (prevent TOTP brute-force)
+ */
+const mfaRateLimiter = createLimiter({
+  windowMs: 5 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => req.user?.id || req.body?.user_id || req.ip,
+  message: 'Too many MFA attempts, please try again later',
+  prefix: 'mfa_verify',
+});
+
 module.exports = {
   createLimiter,
   authLimiter,
   passwordResetLimiter,
+  mfaRateLimiter,
   apiLimiter,
   adminLimiter,
 };

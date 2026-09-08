@@ -30,7 +30,16 @@ const login = async (req, res) => {
     userAgent: req.get('user-agent'),
   });
 
-  // MFA required — return partial response
+  // Security Policy Enforcement: Zero access token issuance on policy block
+  if (result.mfaSetupRequired) {
+    return apiResponse.success(res, {
+      statusCode: 200,
+      message: result.message || 'MFA setup required before accessing this role',
+      data: { mfa_setup_required: true },
+    });
+  }
+
+  // MFA required — return partial response (no tokens)
   if (result.mfaRequired) {
     return apiResponse.success(res, {
       statusCode: 200,
