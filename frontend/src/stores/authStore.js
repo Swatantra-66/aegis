@@ -79,6 +79,15 @@ const useAuthStore = create((set, get) => ({
     try {
       const { data } = await api.post('/auth/login', { email, password, remember_me });
 
+      if (data.data.mfa_setup_required) {
+        const msg = data.message || 'Administrative policy requires Multi-Factor Authentication (TOTP) setup before access is granted.';
+        set({
+          isLoading: false,
+          error: msg,
+        });
+        return { mfaSetupRequired: true, message: msg };
+      }
+
       if (data.data.mfa_required) {
         set({
           mfaRequired: true,

@@ -6,7 +6,18 @@ import AegisAuthBanner from '../components/AegisAuthBanner';
 
 const MfaDisable = () => {
   const navigate = useNavigate();
-  const { fetchUser } = useAuthStore();
+  const { fetchUser, roles, user } = useAuthStore();
+
+  const userRoles = [
+    ...(roles || []),
+    ...(user?.roles?.map((r) => (typeof r === 'string' ? r : r.name)) || []),
+    ...(user?.role ? [user.role] : []),
+  ];
+
+  const isAdmin = userRoles.some((r) => {
+    const name = (typeof r === 'string' ? r : r.name || '').toLowerCase();
+    return name === 'admin' || name === 'super_admin';
+  });
 
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
@@ -83,7 +94,9 @@ const MfaDisable = () => {
           <div className="aegis-form-header" style={{ marginBottom: '1.25rem' }}>
             <h1 className="aegis-auth-heading">Disable 2FA Protection</h1>
             <p className="aegis-auth-subheading">
-              Enter your current 6-digit authenticator code to confirm deactivation
+              {isAdmin
+                ? 'Multi-factor authentication (TOTP) is mandatory for administrative accounts under Aegis security policy.'
+                : 'Enter your current 6-digit authenticator code to confirm deactivation'}
             </p>
           </div>
 
@@ -93,59 +106,85 @@ const MfaDisable = () => {
             </div>
           )}
 
+          {isAdmin ? (
+            <div style={{ marginBottom: '1.75rem' }}>
+              <div
+                className="aegis-auth-alert-error"
+                role="alert"
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '0.85rem 1rem',
+                  marginBottom: '1.75rem',
+                  borderRadius: '4px',
+                  fontSize: '0.82rem',
+                  lineHeight: '1.5',
+                }}
+              >
+                Super Admin and Admin are required to maintain active 2FA. Deactivation is strictly prohibited.
+              </div>
 
-
-          {/* 6 Digit OTP Inputs */}
-          <div style={{ marginBottom: '1.75rem' }}>
-            <label className="aegis-field-label" style={{ textAlign: 'center', display: 'block', marginBottom: '0.65rem' }}>
-              Verification Code
-            </label>
-            <div className="aegis-mfa-digits-wrap" onPaste={handlePaste} style={{ margin: '0', justifyContent: 'center', gap: '8px' }}>
-              {digits.map((digit, index) => (
-                <input
-                  key={index}
-                  ref={(el) => (inputRefs.current[index] = el)}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  className="aegis-mfa-digit"
-                  value={digit}
-                  onChange={(e) => handleChange(index, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(index, e)}
-                  autoFocus={index === 0}
-                  disabled={isLoading}
-                />
-              ))}
+              <Link
+                to="/profile"
+                className="aegis-primary-btn"
+                style={{
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  display: 'block',
+                  width: '100%',
+                }}
+              >
+                Return to Security Profile
+              </Link>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* 6 Digit OTP Inputs */}
+              <div style={{ marginBottom: '1.75rem' }}>
+                <label className="aegis-field-label" style={{ textAlign: 'center', display: 'block', marginBottom: '0.65rem' }}>
+                  Verification Code
+                </label>
+                <div className="aegis-mfa-digits-wrap" onPaste={handlePaste} style={{ margin: '0', justifyContent: 'center', gap: '8px' }}>
+                  {digits.map((digit, index) => (
+                    <input
+                      key={index}
+                      ref={(el) => (inputRefs.current[index] = el)}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      className="aegis-mfa-digit"
+                      value={digit}
+                      onChange={(e) => handleChange(index, e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(index, e)}
+                      autoFocus={index === 0}
+                      disabled={isLoading}
+                    />
+                  ))}
+                </div>
+              </div>
 
-          {/* Destructive Action Button */}
-          <button
-            type="button"
-            className="aegis-primary-btn"
-            style={{
-              background: '#dc2626',
-              borderColor: '#dc2626',
-            }}
-            onClick={() => handleDisable()}
-            disabled={isLoading || digits.some((d) => !d)}
-          >
-            {isLoading ? (
-              <span className="aegis-btn-loading-content">
-                <span className="aegis-inline-spinner" />
-                Deactivating 2FA...
-              </span>
-            ) : (
-              'Confirm & Disable 2FA'
-            )}
-          </button>
-
-          {/* Footer Back Link */}
-          <div className="aegis-auth-bottom-row" style={{ marginTop: '1.75rem' }}>
-            <Link to="/profile" className="aegis-auth-switch-link">
-              Cancel and Return to Security Profile
-            </Link>
-          </div>
+              {/* Destructive Action Button */}
+              <button
+                type="button"
+                className="aegis-primary-btn"
+                style={{
+                  background: '#dc2626',
+                  borderColor: '#dc2626',
+                }}
+                onClick={() => handleDisable()}
+                disabled={isLoading || digits.some((d) => !d)}
+              >
+                {isLoading ? (
+                  <span className="aegis-btn-loading-content">
+                    <span className="aegis-inline-spinner" />
+                    Deactivating 2FA...
+                  </span>
+                ) : (
+                  'Confirm & Disable 2FA'
+                )}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

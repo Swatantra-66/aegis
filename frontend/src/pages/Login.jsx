@@ -26,12 +26,12 @@ const Login = () => {
     if (mfaRequired) navigate('/mfa', { replace: true });
   }, [mfaRequired, navigate]);
 
-  // Auto-dismiss error badge after 6 seconds
+  // Auto-dismiss error badge after 15 seconds
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => {
         clearError();
-      }, 6000);
+      }, 15000);
       return () => clearTimeout(timer);
     }
   }, [error, clearError]);

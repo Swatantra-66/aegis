@@ -65,10 +65,31 @@ const ResetPassword = () => {
 
               <h1 className="aegis-auth-heading">Password Updated</h1>
               <p className="aegis-auth-subheading" style={{ marginTop: '0.75rem', lineHeight: '1.6' }}>
-                Your credentials have been securely hashed with Argon2id. Previous sessions have been revoked.
+                Your credentials have been securely hashed with Argon2id. All previous sessions have been revoked.
               </p>
 
-              <div style={{ marginTop: '2.5rem' }}>
+              <div
+                style={{
+                  marginTop: '1.25rem',
+                  padding: '0.85rem 1rem',
+                  borderRadius: '6px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  fontSize: '0.82rem',
+                  color: '#334155',
+                  lineHeight: '1.5',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: '#0f172a', marginBottom: '4px', letterSpacing: '0.03em', fontSize: '0.78rem' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  </svg>
+                  MFA REMAINS ACTIVE
+                </div>
+                If Two-Factor Authentication is configured on your account, it remains strictly enabled and enforced. You will enter your 6-digit TOTP code upon signing in.
+              </div>
+
+              <div style={{ marginTop: '2rem' }}>
                 <Link to="/login" className="aegis-primary-btn" style={{ textDecoration: 'none' }}>
                   Sign In with New Password →
                 </Link>
