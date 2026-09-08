@@ -122,6 +122,8 @@ const Profile = () => {
     if (roleNames.some((r) => r.toLowerCase().includes('admin'))) {
       return 'ADMIN';
     }
+    const nonUserRole = roleNames.find((r) => r.toUpperCase() !== 'USER');
+    if (nonUserRole) return nonUserRole.toUpperCase();
     return roleNames[0]?.toUpperCase() || 'USER';
   }, [profileUser]);
 
@@ -264,8 +266,8 @@ const Profile = () => {
               </div>
 
               {/* First Name & Last Name (Side by Side 2-Column Grid) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }} className="mb-lg">
-                <div className="sirnik-input-group">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.65rem' }}>
+                <div className="sirnik-input-group" style={{ marginBottom: 0 }}>
                   <label className="sirnik-label" style={{ fontSize: '0.66rem', letterSpacing: '0.06em' }}>
                     FIRST NAME
                   </label>
@@ -288,7 +290,7 @@ const Profile = () => {
                   />
                 </div>
 
-                <div className="sirnik-input-group">
+                <div className="sirnik-input-group" style={{ marginBottom: 0 }}>
                   <label className="sirnik-label" style={{ fontSize: '0.66rem', letterSpacing: '0.06em' }}>
                     LAST NAME
                   </label>
@@ -313,26 +315,23 @@ const Profile = () => {
               </div>
 
               {/* Roles & Save Action Footer */}
-              <div className="flex justify-between items-center pt-md flex-wrap gap-md" style={{ borderTop: '1px solid var(--line)' }}>
+              <div className="flex justify-between items-end flex-wrap gap-md" style={{ borderTop: '1px solid var(--line)', paddingTop: '1.15rem' }}>
                 <div>
                   <span className="sirnik-label" style={{ fontSize: '0.64rem', marginBottom: '0.35rem', display: 'block' }}>
-                    ASSIGNED RBAC ROLES
+                    ASSIGNED RBAC ROLE
                   </span>
                   <div className="flex gap-xs flex-wrap">
-                    {profileUser?.roles?.map((r, i) => (
-                      <span
-                        key={i}
-                        className="sirnik-tag font-mono"
-                        style={{
-                          fontSize: '0.62rem',
-                          borderColor: 'rgba(255, 255, 255, 0.2)',
-                          color: '#ffffff',
-                          background: 'rgba(255, 255, 255, 0.03)',
-                        }}
-                      >
-                        {typeof r === 'string' ? r : r.name}
-                      </span>
-                    ))}
+                    <span
+                      className="sirnik-tag font-mono"
+                      style={{
+                        fontSize: '0.62rem',
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                        color: '#ffffff',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                      }}
+                    >
+                      {primaryRole}
+                    </span>
                   </div>
                 </div>
 
@@ -505,7 +504,7 @@ const Profile = () => {
                 </span>
               </div>
 
-              <h3 style={{ margin: '0.2rem 0 0.35rem', fontWeight: 800, fontSize: '1.1rem', color: '#ffffff', letterSpacing: '-0.01em' }}>
+              <h3 style={{ margin: '0.2rem 0 0.65rem', fontWeight: 800, fontSize: '1.1rem', color: '#ffffff', letterSpacing: '-0.01em' }}>
                 Email Verification
               </h3>
               <p style={{ margin: '0 0 1rem', fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
@@ -577,11 +576,11 @@ const Profile = () => {
                 </span>
               </div>
 
-              <h3 style={{ margin: '0.2rem 0 0.35rem', fontWeight: 800, fontSize: '1.1rem', color: '#ffffff', letterSpacing: '-0.01em' }}>
+              <h3 style={{ margin: '0.2rem 0 0.65rem', fontWeight: 800, fontSize: '1.1rem', color: '#ffffff', letterSpacing: '-0.01em' }}>
                 TOTP Authenticator
               </h3>
               <p style={{ margin: '0 0 1rem', fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                Authenticators generate time-based one-time codes. TOTP secret keys are encrypted at rest with AES-256-GCM.
+                Time-based one-time codes with AES-256-GCM encryption at rest.
               </p>
 
               {profileUser?.mfa_enabled ? (
