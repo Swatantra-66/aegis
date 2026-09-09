@@ -12,7 +12,7 @@ const VerifyEmail = () => {
 
   const [status, setStatus] = useState('verifying'); // 'verifying' | 'success' | 'error'
   const [errorMsg, setErrorMsg] = useState('');
-  const hasVerifiedRef = useRef(false);
+  const verifiedTokenRef = useRef(null);
 
   useEffect(() => {
     if (!token) {
@@ -21,8 +21,8 @@ const VerifyEmail = () => {
       return;
     }
 
-    if (hasVerifiedRef.current) return;
-    hasVerifiedRef.current = true;
+    if (verifiedTokenRef.current === token) return;
+    verifiedTokenRef.current = token;
 
     const verify = async () => {
       try {
