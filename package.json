@@ -52,6 +52,7 @@
     "ioredis": "^6.0.0",
     "joi": "^18.2.5",
     "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^10.0.2",
     "otplib": "^13.4.1",
     "pg": "^8.23.0",
     "rate-limit-redis": "^6.0.1",

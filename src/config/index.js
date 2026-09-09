@@ -11,9 +11,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
  */
 const envSchema = Joi.object({
   // Application
-  NODE_ENV: Joi.string()
-    .valid('development', 'production', 'test')
-    .default('development'),
+  NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   PORT: Joi.number().port().default(3000),
   APP_NAME: Joi.string().default('IAM-Portal'),
   APP_URL: Joi.string().uri().default('http://localhost:3000'),
@@ -44,8 +42,7 @@ const envSchema = Joi.object({
     'any.required': 'JWT_SECRET is required',
   }),
   JWT_REFRESH_SECRET: Joi.string().min(32).required().messages({
-    'string.min':
-      'JWT_REFRESH_SECRET must be at least 32 characters for security',
+    'string.min': 'JWT_REFRESH_SECRET must be at least 32 characters for security',
     'any.required': 'JWT_REFRESH_SECRET is required',
   }),
   JWT_ACCESS_EXPIRY: Joi.string().default('15m'),
@@ -53,10 +50,18 @@ const envSchema = Joi.object({
 
   // MFA
   MFA_ENCRYPTION_KEY: Joi.string().min(32).required().messages({
-    'string.min':
-      'MFA_ENCRYPTION_KEY must be at least 32 characters for security',
+    'string.min': 'MFA_ENCRYPTION_KEY must be at least 32 characters for security',
     'any.required': 'MFA_ENCRYPTION_KEY is required',
   }),
+
+  // Email & SMTP
+  SMTP_HOST: Joi.string().allow('').default(''),
+  SMTP_PORT: Joi.number().allow('').default(587),
+  SMTP_SECURE: Joi.boolean().default(false),
+  SMTP_USER: Joi.string().allow('').default(''),
+  SMTP_PASS: Joi.string().allow('').default(''),
+  EMAIL_FROM: Joi.string().default('Aegis Identity Security <security@aegis.swatantracodes.in>'),
+  FRONTEND_URL: Joi.string().uri().default('http://localhost:5173'),
 
   // Rate Limiting
   RATE_LIMIT_WINDOW_MS: Joi.number().default(900000),
@@ -73,7 +78,7 @@ const { error, value: envVars } = envSchema.validate(process.env, {
 });
 
 if (error) {
-  console.error('\n❌ Environment validation failed:\n');
+  console.error('\nEnvironment validation failed:\n');
   error.details.forEach((detail) => {
     console.error(`  → ${detail.message}`);
   });
@@ -111,6 +116,15 @@ const config = {
   mfa: {
     encryptionKey: envVars.MFA_ENCRYPTION_KEY,
   },
+  email: {
+    smtpHost: envVars.SMTP_HOST,
+    smtpPort: envVars.SMTP_PORT,
+    smtpSecure: envVars.SMTP_SECURE,
+    smtpUser: envVars.SMTP_USER,
+    smtpPass: envVars.SMTP_PASS,
+    from: envVars.EMAIL_FROM,
+    frontendUrl: envVars.FRONTEND_URL,
+  },
   rateLimit: {
     windowMs: envVars.RATE_LIMIT_WINDOW_MS,
     maxRequests: envVars.RATE_LIMIT_MAX_REQUESTS,
@@ -127,6 +141,7 @@ Object.freeze(config.db);
 Object.freeze(config.redis);
 Object.freeze(config.jwt);
 Object.freeze(config.mfa);
+Object.freeze(config.email);
 Object.freeze(config.rateLimit);
 Object.freeze(config.logging);
 
