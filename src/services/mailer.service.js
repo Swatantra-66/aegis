@@ -32,7 +32,15 @@ class MailerService {
 
       logger.info(`SMTP Mailer initialized successfully for host [${smtpHost}:${smtpPort}]`);
     } else {
-      logger.warn('SMTP credentials not configured. Mailer running in development/fallback mode.');
+      if (config.env === 'production') {
+        logger.error(
+          'CRITICAL: SMTP credentials not configured in production environment. Mail delivery will fail.'
+        );
+      } else {
+        logger.warn(
+          'SMTP credentials not configured. Mailer running in development/fallback mode.'
+        );
+      }
     }
   }
 
@@ -221,7 +229,12 @@ If you did not request this, you can safely ignore this message.
         throw err;
       }
     } else {
-      // Development Fallback: Log clearly
+      // Disable fallback outside development and test
+      if (config.env !== 'development' && config.env !== 'test') {
+        throw new Error('SMTP credentials are not configured for production environment.');
+      }
+
+      // Development/Test Fallback: Log clearly
       logger.warn(`[DEV EMAIL FALLBACK] Verification link for ${toEmail}: ${verificationUrl}`);
       return { messageId: 'dev-fallback-message-id' };
     }
