@@ -132,17 +132,13 @@ const resetPassword = async (req, res) => {
  * POST /api/v1/auth/send-verification-email
  */
 const sendVerificationEmail = async (req, res) => {
-  const verificationToken = await authService.sendVerificationEmail(req.user.id, {
+  await authService.sendVerificationEmail(req.user.id, {
     ip: req.ip,
     userAgent: req.get('user-agent'),
   });
 
-  const data =
-    process.env.NODE_ENV === 'development' ? { verification_token: verificationToken } : {};
-
   return apiResponse.success(res, {
     message: 'Verification email has been dispatched. Please check your inbox.',
-    data,
   });
 };
 

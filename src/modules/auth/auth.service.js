@@ -5,8 +5,10 @@ const {
   generateRandomToken,
   hashToken,
 } = require('../../utils/crypto');
+const config = require('../../config/index');
 const tokenService = require('../tokens/tokens.service');
 const auditService = require('../audit/audit.service');
+const mailerService = require('../../services/mailer.service');
 const securityPolicy = require('./securityPolicy');
 const AppError = require('../../utils/AppError');
 const {
@@ -411,9 +413,10 @@ const resetPassword = async (token, newPassword, reqMeta = {}) => {
  * @returns {Promise<string>} Verification token
  */
 const sendVerificationEmail = async (userId, reqMeta = {}) => {
-  const result = await db.query('SELECT id, email, is_email_verified FROM users WHERE id = $1', [
-    userId,
-  ]);
+  const result = await db.query(
+    'SELECT id, email, first_name, last_name, is_email_verified FROM users WHERE id = $1',
+    [userId]
+  );
   if (result.rows.length === 0) {
     throw AppError.notFound('User not found', 'USER_NOT_FOUND');
   }
@@ -434,6 +437,17 @@ const sendVerificationEmail = async (userId, reqMeta = {}) => {
      VALUES ($1, $2, $3, $4)`,
     [user.id, tokenHash, '11111111-1111-1111-1111-111111111111', expiresAt]
   );
+
+  const verificationUrl = `${config.email.frontendUrl}/verify-email?token=${verificationToken}`;
+  const userName = user.first_name
+    ? `${user.first_name} ${user.last_name || ''}`.trim()
+    : user.email.split('@')[0];
+
+  await mailerService.sendVerificationEmail({
+    toEmail: user.email,
+    userName,
+    verificationUrl,
+  });
 
   await auditService.log({
     actorId: user.id,

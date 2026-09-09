@@ -198,11 +198,34 @@ const mfaRateLimiter = createLimiter({
   prefix: 'mfa_verify',
 });
 
+/**
+ * Email verification dispatch limiter: 3 requests / 15 min per user or IP
+ */
+const emailVerificationLimiter = createLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  keyGenerator: (req) => req.user?.id || req.ip,
+  message: 'Too many verification requests, please try again in 15 minutes',
+  prefix: 'email_verify_req',
+});
+
+/**
+ * Email token verification limiter: 10 attempts / 15 min per IP
+ */
+const verifyEmailLimiter = createLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Too many verification attempts, please try again later',
+  prefix: 'email_verify_sub',
+});
+
 module.exports = {
   createLimiter,
   authLimiter,
   passwordResetLimiter,
   mfaRateLimiter,
+  emailVerificationLimiter,
+  verifyEmailLimiter,
   apiLimiter,
   adminLimiter,
 };

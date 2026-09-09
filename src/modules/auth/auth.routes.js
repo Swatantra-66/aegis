@@ -3,7 +3,12 @@ const authController = require('./auth.controller');
 const authValidator = require('./auth.validator');
 const authenticate = require('../../middleware/authenticate');
 const catchAsync = require('../../middleware/asyncWrapper');
-const { authLimiter, passwordResetLimiter } = require('../../middleware/rateLimiter');
+const {
+  authLimiter,
+  passwordResetLimiter,
+  emailVerificationLimiter,
+  verifyEmailLimiter,
+} = require('../../middleware/rateLimiter');
 
 const router = Router();
 
@@ -179,7 +184,7 @@ router.post(
 router.post(
   '/send-verification-email',
   authenticate,
-  passwordResetLimiter,
+  emailVerificationLimiter,
   catchAsync(authController.sendVerificationEmail)
 );
 
@@ -202,6 +207,6 @@ router.post(
  *       200: { description: Email verified successfully }
  *       400: { description: Invalid or expired token }
  */
-router.post('/verify-email', catchAsync(authController.verifyEmail));
+router.post('/verify-email', verifyEmailLimiter, catchAsync(authController.verifyEmail));
 
 module.exports = router;
