@@ -467,6 +467,35 @@ const sendVerificationEmail = async (userId, reqMeta = {}) => {
 };
 
 /**
+ * Server-side Lua script to atomically fetch and delete a key in a single Redis tick.
+ * Guarantees zero race conditions even on Redis versions without native GETDEL support.
+ */
+const ATOMIC_GETDEL_LUA = `
+  local val = redis.call('GET', KEYS[1])
+  if val then
+    redis.call('DEL', KEYS[1])
+  end
+  return val
+`;
+
+/**
+ * Atomically retrieve and delete a Redis key (single-use token consumption).
+ * @param {string} key
+ * @returns {Promise<string|null>}
+ */
+const atomicGetDel = async (key) => {
+  if (typeof redis.getdel === 'function') {
+    try {
+      return await redis.getdel(key);
+    } catch {
+      // Fallback to atomic Lua script if Redis server rejects GETDEL (e.g. Redis < 6.2)
+      return await redis.eval(ATOMIC_GETDEL_LUA, 1, key);
+    }
+  }
+  return await redis.eval(ATOMIC_GETDEL_LUA, 1, key);
+};
+
+/**
  * Verify email token and activate verified status.
  * @param {string} token
  * @param {Object} reqMeta
@@ -477,22 +506,7 @@ const verifyEmail = async (token, reqMeta = {}) => {
   const redisKey = `${REDIS_PREFIXES.EMAIL_VERIFICATION}${tokenHash}`;
 
   // Atomically retrieve and delete verification token (single-use consumption)
-  let tokenDataStr = null;
-  if (typeof redis.getdel === 'function') {
-    try {
-      tokenDataStr = await redis.getdel(redisKey);
-    } catch {
-      tokenDataStr = await redis.get(redisKey);
-      if (tokenDataStr) {
-        await redis.del(redisKey);
-      }
-    }
-  } else {
-    tokenDataStr = await redis.get(redisKey);
-    if (tokenDataStr) {
-      await redis.del(redisKey);
-    }
-  }
+  const tokenDataStr = await atomicGetDel(redisKey);
 
   if (!tokenDataStr) {
     throw AppError.badRequest('Invalid or expired verification token', 'AUTH_VERIFY_TOKEN_INVALID');

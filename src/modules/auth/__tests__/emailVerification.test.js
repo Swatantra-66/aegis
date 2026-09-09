@@ -16,6 +16,7 @@ jest.mock('../../../config/redis', () => ({
     getdel: jest.fn(),
     get: jest.fn(),
     del: jest.fn(),
+    eval: jest.fn(),
   },
 }));
 
@@ -156,11 +157,10 @@ describe('Email Verification Flow (Part 2 - Redis Ephemeral Store)', () => {
       );
     });
 
-    test('should fallback to GET + DEL if redis.getdel throws', async () => {
+    test('should execute atomic Lua script if redis.getdel is rejected', async () => {
       const payload = JSON.stringify({ userId: 'user-123', email: 'analyst@aegis.iam' });
-      redis.getdel.mockRejectedValueOnce(new Error('GETDEL not supported'));
-      redis.get.mockResolvedValueOnce(payload);
-      redis.del.mockResolvedValueOnce(1);
+      redis.getdel.mockRejectedValueOnce(new Error('unknown command GETDEL'));
+      redis.eval.mockResolvedValueOnce(payload);
 
       db.query
         .mockResolvedValueOnce({ rows: [] }) // UPDATE users
@@ -176,8 +176,51 @@ describe('Email Verification Flow (Part 2 - Redis Ephemeral Store)', () => {
 
       const result = await authService.verifyEmail('fallback-token');
       expect(result.user.is_email_verified).toBe(true);
-      expect(redis.get).toHaveBeenCalled();
-      expect(redis.del).toHaveBeenCalled();
+      expect(redis.eval).toHaveBeenCalledWith(
+        expect.stringContaining("redis.call('GET', KEYS[1])"),
+        1,
+        expect.stringContaining(
+          `${REDIS_PREFIXES.EMAIL_VERIFICATION}${hashToken('fallback-token')}`
+        )
+      );
+    });
+
+    test('concurrency: concurrent verification requests with same token should only succeed once', async () => {
+      let storedToken = JSON.stringify({ userId: 'user-123', email: 'analyst@aegis.iam' });
+
+      // Simulated atomic GETDEL behavior: only the first caller gets the token, second gets null
+      redis.getdel.mockImplementation(async () => {
+        const current = storedToken;
+        storedToken = null;
+        return current;
+      });
+
+      db.query
+        .mockResolvedValueOnce({ rows: [] }) // UPDATE users SET is_email_verified = true
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 'user-123',
+              email: 'analyst@aegis.iam',
+              is_email_verified: true,
+            },
+          ],
+        });
+
+      // Launch two concurrent verification attempts simultaneously
+      const results = await Promise.allSettled([
+        authService.verifyEmail('concurrent-token'),
+        authService.verifyEmail('concurrent-token'),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect(fulfilled[0].value.user.is_email_verified).toBe(true);
+      expect(rejected[0].reason.statusCode).toBe(400);
+      expect(rejected[0].reason.code).toBe('AUTH_VERIFY_TOKEN_INVALID');
     });
   });
 });
