@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { gsap } from 'gsap';
 import api, { getErrorMessage } from '../lib/api';
@@ -44,6 +44,8 @@ const ShieldCheckIcon = ({ size = 13, color = '#ffffff' }) => (
 const Profile = () => {
   const queryClient = useQueryClient();
   const { fetchUser } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const containerRef = useRef(null);
 
   const [firstName, setFirstName] = useState('');
@@ -51,7 +53,6 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [actionSuccess, setActionSuccess] = useState('');
   const [actionError, setActionError] = useState('');
-  const [devVerifyToken, setDevVerifyToken] = useState('');
 
   const { data: profileUser, isLoading } = useQuery({
     queryKey: ['me'],
@@ -60,6 +61,16 @@ const Profile = () => {
       return data.data.user;
     },
   });
+
+  useEffect(() => {
+    if (searchParams.get('verified') === 'true') {
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+      fetchUser();
+      setActionSuccess('Email address verified successfully. Identity badge upgraded to VERIFIED.');
+      setTimeout(() => setActionSuccess(''), 5000);
+      navigate('/profile', { replace: true });
+    }
+  }, [searchParams, queryClient, fetchUser, navigate]);
 
   useEffect(() => {
     if (profileUser) {
@@ -103,11 +114,8 @@ const Profile = () => {
       const { data } = await api.post('/auth/send-verification-email');
       return data;
     },
-    onSuccess: (data) => {
-      setActionSuccess('Verification link dispatched to email');
-      if (data.data?.verification_token) {
-        setDevVerifyToken(data.data.verification_token);
-      }
+    onSuccess: () => {
+      setActionSuccess('Verification email dispatched to your inbox.');
       setTimeout(() => setActionSuccess(''), 4500);
     },
     onError: (err) => setActionError(getErrorMessage(err)),
@@ -492,7 +500,7 @@ const Profile = () => {
                   IDENTITY VERIFICATION TIER
                 </span>
                 <span
-                  className="sirnik-tag"
+                  className="sirnik-tag font-mono"
                   style={{
                     fontSize: '0.62rem',
                     borderColor: profileUser?.is_email_verified ? 'rgba(255, 255, 255, 0.3)' : 'rgba(234, 179, 8, 0.4)',
@@ -531,28 +539,6 @@ const Profile = () => {
                   >
                     {sendVerificationMutation.isPending ? 'DISPATCHING...' : 'SEND VERIFICATION LINK'}
                   </button>
-
-                  {devVerifyToken && (
-                    <div
-                      className="mt-sm p-sm"
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        borderRadius: '2px',
-                        border: '1px solid var(--line-strong)',
-                      }}
-                    >
-                      <div className="font-mono text-xs text-muted mb-xs" style={{ fontSize: '0.64rem' }}>
-                        DEV VERIFICATION LINK:
-                      </div>
-                      <a
-                        href={`/verify-email?token=${devVerifyToken}`}
-                        className="font-mono text-xs"
-                        style={{ color: '#ffffff', textDecoration: 'underline', fontWeight: 600 }}
-                      >
-                        Click here to verify email now
-                      </a>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
