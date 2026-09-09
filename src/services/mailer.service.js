@@ -17,20 +17,37 @@ class MailerService {
     const { smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass } = config.email;
 
     if (smtpHost && smtpUser) {
-      this.transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: Number(smtpPort) || 587,
-        secure: Boolean(smtpSecure),
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-        pool: true,
-        maxConnections: 5,
-        maxMessages: 100,
-      });
+      const isGmail = smtpHost.toLowerCase().includes('gmail');
 
-      logger.info(`SMTP Mailer initialized successfully for host [${smtpHost}:${smtpPort}]`);
+      const transportConfig = isGmail
+        ? {
+            service: 'gmail',
+            auth: {
+              user: smtpUser,
+              pass: smtpPass,
+            },
+            connectionTimeout: 10000,
+            greetingTimeout: 10000,
+            socketTimeout: 15000,
+          }
+        : {
+            host: smtpHost,
+            port: Number(smtpPort) || 587,
+            secure: Boolean(smtpSecure),
+            auth: {
+              user: smtpUser,
+              pass: smtpPass,
+            },
+            connectionTimeout: 10000,
+            greetingTimeout: 10000,
+            socketTimeout: 15000,
+          };
+
+      this.transporter = nodemailer.createTransport(transportConfig);
+
+      logger.info(
+        `SMTP Mailer initialized successfully for ${isGmail ? 'Gmail Service' : `host [${smtpHost}:${smtpPort}]`}`
+      );
     } else {
       if (config.env === 'production') {
         logger.error(
