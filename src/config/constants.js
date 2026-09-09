@@ -75,6 +75,7 @@ const CONSTANTS = {
     TOKEN_BLACKLIST: 'bl:',
     RATE_LIMIT: 'rl:',
     SESSION: 'sess:',
+    EMAIL_VERIFICATION: 'iam:email-verify:',
   },
 
   // ── Pagination Defaults ────────────────────────────

@@ -1,12 +1,22 @@
 const db = require('../../../config/database');
+const { redis } = require('../../../config/redis');
 const mailerService = require('../../../services/mailer.service');
 const auditService = require('../../audit/audit.service');
 const authService = require('../auth.service');
 const { hashToken } = require('../../../utils/crypto');
-const { AUDIT_ACTIONS } = require('../../../config/constants');
+const { AUDIT_ACTIONS, REDIS_PREFIXES } = require('../../../config/constants');
 
 jest.mock('../../../config/database', () => ({
   query: jest.fn(),
+}));
+
+jest.mock('../../../config/redis', () => ({
+  redis: {
+    set: jest.fn(),
+    getdel: jest.fn(),
+    get: jest.fn(),
+    del: jest.fn(),
+  },
 }));
 
 jest.mock('../../../services/mailer.service', () => ({
@@ -18,7 +28,7 @@ jest.mock('../../audit/audit.service', () => ({
   log: jest.fn().mockResolvedValue({}),
 }));
 
-describe('Email Verification Flow (Part 2)', () => {
+describe('Email Verification Flow (Part 2 - Redis Ephemeral Store)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -44,20 +54,20 @@ describe('Email Verification Flow (Part 2)', () => {
       });
     });
 
-    test('should store hashed token, call mailer service, and log audit', async () => {
-      db.query
-        .mockResolvedValueOnce({
-          rows: [
-            {
-              id: 'user-123',
-              email: 'analyst@aegis.iam',
-              first_name: 'Alex',
-              last_name: 'Vance',
-              is_email_verified: false,
-            },
-          ],
-        }) // SELECT user
-        .mockResolvedValueOnce({ rows: [] }); // INSERT refresh_tokens
+    test('should store hashed token in Redis with 24h TTL, call mailer service, and log audit', async () => {
+      db.query.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'user-123',
+            email: 'analyst@aegis.iam',
+            first_name: 'Alex',
+            last_name: 'Vance',
+            is_email_verified: false,
+          },
+        ],
+      }); // SELECT user
+
+      redis.set.mockResolvedValueOnce('OK');
 
       const token = await authService.sendVerificationEmail('user-123', {
         ip: '127.0.0.1',
@@ -67,16 +77,11 @@ describe('Email Verification Flow (Part 2)', () => {
       expect(typeof token).toBe('string');
       expect(token.length).toBeGreaterThan(20);
 
-      // Verify DB insertion
-      expect(db.query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO refresh_tokens'),
-        expect.arrayContaining([
-          'user-123',
-          hashToken(token),
-          '11111111-1111-1111-1111-111111111111',
-          expect.any(Date),
-        ])
-      );
+      const expectedKey = `${REDIS_PREFIXES.EMAIL_VERIFICATION}${hashToken(token)}`;
+      const expectedPayload = JSON.stringify({ userId: 'user-123', email: 'analyst@aegis.iam' });
+
+      // Verify Redis storage with 24h TTL
+      expect(redis.set).toHaveBeenCalledWith(expectedKey, expectedPayload, 'EX', 86400);
 
       // Verify Mailer call
       expect(mailerService.sendVerificationEmail).toHaveBeenCalledWith(
@@ -99,8 +104,8 @@ describe('Email Verification Flow (Part 2)', () => {
   });
 
   describe('verifyEmail', () => {
-    test('should throw 400 if token is not found or revoked', async () => {
-      db.query.mockResolvedValueOnce({ rows: [] });
+    test('should throw 400 if token is not found or expired in Redis', async () => {
+      redis.getdel.mockResolvedValueOnce(null);
 
       await expect(authService.verifyEmail('invalid-token')).rejects.toMatchObject({
         statusCode: 400,
@@ -108,40 +113,12 @@ describe('Email Verification Flow (Part 2)', () => {
       });
     });
 
-    test('should throw 400 if token is expired', async () => {
-      const expiredDate = new Date(Date.now() - 3600000); // 1 hr ago
-      db.query.mockResolvedValueOnce({
-        rows: [
-          {
-            id: 'rt-1',
-            user_id: 'user-123',
-            expires_at: expiredDate,
-            revoked: false,
-          },
-        ],
-      });
+    test('should atomically consume token from Redis, update user is_email_verified in DB, and log audit', async () => {
+      const payload = JSON.stringify({ userId: 'user-123', email: 'analyst@aegis.iam' });
+      redis.getdel.mockResolvedValueOnce(payload);
 
-      await expect(authService.verifyEmail('expired-token')).rejects.toMatchObject({
-        statusCode: 400,
-        code: 'AUTH_VERIFY_TOKEN_EXPIRED',
-      });
-    });
-
-    test('should mark token revoked, update user is_email_verified to true, and log audit', async () => {
-      const futureDate = new Date(Date.now() + 3600000); // 1 hr ahead
       db.query
-        .mockResolvedValueOnce({
-          rows: [
-            {
-              id: 'rt-valid',
-              user_id: 'user-123',
-              expires_at: futureDate,
-              revoked: false,
-            },
-          ],
-        }) // SELECT token
         .mockResolvedValueOnce({ rows: [] }) // UPDATE users SET is_email_verified = true
-        .mockResolvedValueOnce({ rows: [] }) // UPDATE refresh_tokens SET revoked = true
         .mockResolvedValueOnce({
           rows: [
             {
@@ -160,14 +137,13 @@ describe('Email Verification Flow (Part 2)', () => {
       expect(result.user).toBeDefined();
       expect(result.user.is_email_verified).toBe(true);
 
-      // Verify UPDATE queries
+      const expectedKey = `${REDIS_PREFIXES.EMAIL_VERIFICATION}${hashToken('valid-raw-token')}`;
+      expect(redis.getdel).toHaveBeenCalledWith(expectedKey);
+
+      // Verify Postgres update
       expect(db.query).toHaveBeenCalledWith(
         'UPDATE users SET is_email_verified = true WHERE id = $1',
         ['user-123']
-      );
-      expect(db.query).toHaveBeenCalledWith(
-        'UPDATE refresh_tokens SET revoked = true WHERE id = $1',
-        ['rt-valid']
       );
 
       // Verify Audit log
@@ -178,6 +154,30 @@ describe('Email Verification Flow (Part 2)', () => {
           action: AUDIT_ACTIONS.EMAIL_VERIFIED,
         })
       );
+    });
+
+    test('should fallback to GET + DEL if redis.getdel throws', async () => {
+      const payload = JSON.stringify({ userId: 'user-123', email: 'analyst@aegis.iam' });
+      redis.getdel.mockRejectedValueOnce(new Error('GETDEL not supported'));
+      redis.get.mockResolvedValueOnce(payload);
+      redis.del.mockResolvedValueOnce(1);
+
+      db.query
+        .mockResolvedValueOnce({ rows: [] }) // UPDATE users
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 'user-123',
+              email: 'analyst@aegis.iam',
+              is_email_verified: true,
+            },
+          ],
+        });
+
+      const result = await authService.verifyEmail('fallback-token');
+      expect(result.user.is_email_verified).toBe(true);
+      expect(redis.get).toHaveBeenCalled();
+      expect(redis.del).toHaveBeenCalled();
     });
   });
 });

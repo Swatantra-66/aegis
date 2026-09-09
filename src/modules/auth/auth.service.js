@@ -11,11 +11,14 @@ const auditService = require('../audit/audit.service');
 const mailerService = require('../../services/mailer.service');
 const securityPolicy = require('./securityPolicy');
 const AppError = require('../../utils/AppError');
+const { redis } = require('../../config/redis');
 const {
   AUDIT_ACTIONS,
   MAX_FAILED_LOGIN_ATTEMPTS,
   ACCOUNT_LOCK_DURATION_MINUTES,
   ROLES,
+  REDIS_PREFIXES,
+  EMAIL_VERIFICATION_TOKEN_EXPIRY_HOURS,
 } = require('../../config/constants');
 
 /**
@@ -428,14 +431,15 @@ const sendVerificationEmail = async (userId, reqMeta = {}) => {
 
   const verificationToken = generateRandomToken();
   const tokenHash = hashToken(verificationToken);
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 24); // 24-hour lifetime
+  const ttlSeconds = (EMAIL_VERIFICATION_TOKEN_EXPIRY_HOURS || 24) * 3600;
+  const redisKey = `${REDIS_PREFIXES.EMAIL_VERIFICATION}${tokenHash}`;
 
-  // Store verification token in refresh_tokens table under dedicated family UUID
-  await db.query(
-    `INSERT INTO refresh_tokens (user_id, token_hash, family_id, expires_at)
-     VALUES ($1, $2, $3, $4)`,
-    [user.id, tokenHash, '11111111-1111-1111-1111-111111111111', expiresAt]
+  // Store verification token payload in ephemeral Redis store (24-hour TTL)
+  await redis.set(
+    redisKey,
+    JSON.stringify({ userId: user.id, email: user.email }),
+    'EX',
+    ttlSeconds
   );
 
   const verificationUrl = `${config.email.frontendUrl}/verify-email?token=${verificationToken}`;
@@ -470,48 +474,57 @@ const sendVerificationEmail = async (userId, reqMeta = {}) => {
  */
 const verifyEmail = async (token, reqMeta = {}) => {
   const tokenHash = hashToken(token);
+  const redisKey = `${REDIS_PREFIXES.EMAIL_VERIFICATION}${tokenHash}`;
 
-  const result = await db.query(
-    `SELECT id, user_id, expires_at, revoked FROM refresh_tokens
-     WHERE token_hash = $1 AND family_id = '11111111-1111-1111-1111-111111111111'`,
-    [tokenHash]
-  );
-
-  if (result.rows.length === 0 || result.rows[0].revoked) {
-    throw AppError.badRequest(
-      'Invalid or already used verification token',
-      'AUTH_VERIFY_TOKEN_INVALID'
-    );
+  // Atomically retrieve and delete verification token (single-use consumption)
+  let tokenDataStr = null;
+  if (typeof redis.getdel === 'function') {
+    try {
+      tokenDataStr = await redis.getdel(redisKey);
+    } catch {
+      tokenDataStr = await redis.get(redisKey);
+      if (tokenDataStr) {
+        await redis.del(redisKey);
+      }
+    }
+  } else {
+    tokenDataStr = await redis.get(redisKey);
+    if (tokenDataStr) {
+      await redis.del(redisKey);
+    }
   }
 
-  const tokenRecord = result.rows[0];
+  if (!tokenDataStr) {
+    throw AppError.badRequest('Invalid or expired verification token', 'AUTH_VERIFY_TOKEN_INVALID');
+  }
 
-  if (new Date(tokenRecord.expires_at) < new Date()) {
-    throw AppError.badRequest(
-      'Verification token has expired. Please request a new one.',
-      'AUTH_VERIFY_TOKEN_EXPIRED'
-    );
+  let tokenData;
+  try {
+    tokenData = JSON.parse(tokenDataStr);
+  } catch {
+    throw AppError.badRequest('Invalid verification token payload', 'AUTH_VERIFY_TOKEN_INVALID');
   }
 
   // Update user as email verified
-  await db.query('UPDATE users SET is_email_verified = true WHERE id = $1', [tokenRecord.user_id]);
-
-  // Mark token revoked
-  await db.query('UPDATE refresh_tokens SET revoked = true WHERE id = $1', [tokenRecord.id]);
+  await db.query('UPDATE users SET is_email_verified = true WHERE id = $1', [tokenData.userId]);
 
   const userResult = await db.query(
     'SELECT id, email, first_name, last_name, is_active, is_email_verified, mfa_enabled FROM users WHERE id = $1',
-    [tokenRecord.user_id]
+    [tokenData.userId]
   );
+
+  if (userResult.rows.length === 0) {
+    throw AppError.notFound('User not found', 'USER_NOT_FOUND');
+  }
 
   const user = userResult.rows[0];
 
   await auditService.log({
-    actorId: tokenRecord.user_id,
-    actorEmail: user?.email,
+    actorId: tokenData.userId,
+    actorEmail: user.email,
     action: AUDIT_ACTIONS.EMAIL_VERIFIED,
     resourceType: 'user',
-    resourceId: tokenRecord.user_id,
+    resourceId: tokenData.userId,
     ip: reqMeta.ip,
     userAgent: reqMeta.userAgent,
   });

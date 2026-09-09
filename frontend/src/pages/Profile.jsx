@@ -54,7 +54,7 @@ const Profile = () => {
   const [actionSuccess, setActionSuccess] = useState('');
   const [actionError, setActionError] = useState('');
 
-  const { data: profileUser, isLoading } = useQuery({
+  const { data: profileUser, isLoading, refetch } = useQuery({
     queryKey: ['me'],
     queryFn: async () => {
       const { data } = await api.get('/users/me');
@@ -64,13 +64,16 @@ const Profile = () => {
 
   useEffect(() => {
     if (searchParams.get('verified') === 'true') {
-      queryClient.invalidateQueries({ queryKey: ['me'] });
-      fetchUser();
-      setActionSuccess('Email address verified successfully. Identity badge upgraded to VERIFIED.');
-      setTimeout(() => setActionSuccess(''), 5000);
       navigate('/profile', { replace: true });
+      fetchUser();
+      refetch().then((res) => {
+        if (res.data?.is_email_verified) {
+          setActionSuccess('Email address verified successfully. Identity badge upgraded to VERIFIED.');
+          setTimeout(() => setActionSuccess(''), 5000);
+        }
+      });
     }
-  }, [searchParams, queryClient, fetchUser, navigate]);
+  }, [searchParams, fetchUser, refetch, navigate]);
 
   useEffect(() => {
     if (profileUser) {
