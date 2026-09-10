@@ -2,15 +2,16 @@ import React from 'react';
 
 // Line 1:
 const COLUMN_1_LOGOS = [
-  { name: "Docker", iconSrc: "/logos/docker.svg", isCustomColor: false, scale: 1.15 },
+  { name: "Docker", iconSrc: "/logos/docker.svg", isCustomColor: false, scale: 1.2 },
   { name: "Certbot", iconSrc: "/logos/certbot.svg", isCustomColor: true, scale: 1.25 },
   { name: "PostgreSQL", iconSrc: "/logos/postgresql.svg", isCustomColor: false, scale: 1.15 },
   { name: "Ubuntu Linux", iconSrc: "/logos/ubuntu.svg", isCustomColor: false, scale: 1.15 },
   { name: "Redis", iconSrc: "/logos/redis.svg", isCustomColor: false },
-  { name: "GitHub", iconSrc: "/logos/github.svg", isCustomColor: false, scale: 1.08 },
-  { name: "JWT", iconSrc: "/logos/jwt.svg", isCustomColor: false, scale: 1.2 },
+  { name: "GitHub", iconSrc: "/logos/github.svg", isCustomColor: false, scale: 1.1 },
+  { name: "JWT", iconSrc: "/logos/jwt.svg", isCustomColor: false, scale: 1.15 },
+  { name: "OAuth 2.0", iconSrc: "/logos/oauth.png", isCustomColor: true, scale: 1.3 },
   { name: "Jest", iconSrc: "/logos/jest.svg", isCustomColor: false, scale: 1.15 },
-  { name: "Joi", iconSrc: "/logos/joi.svg", isCustomColor: true, scale: 1.45 },
+  { name: "Joi", iconSrc: "/logos/joi.svg", isCustomColor: true, scale: 1.35 },
 ];
 
 // Line 2:
@@ -19,6 +20,7 @@ const COLUMN_2_LOGOS = [
   { name: "Node.js", iconSrc: "/logos/nodejs.svg", isCustomColor: false, scale: 1.15 },
   { name: "PM2", iconSrc: "/logos/pm2.svg", isCustomColor: false, scale: 1.15 },
   { name: "Express", iconSrc: "/logos/express.svg", isCustomColor: false, scale: 1.15 },
+  { name: "Nodemailer", iconSrc: "/logos/nodemailer.svg", isCustomColor: true, scale: 1.25 },
   { name: "Git", iconSrc: "/logos/git.svg", isCustomColor: false, scale: 1.15 },
   { name: "Nginx", iconSrc: "/logos/nginx.svg", isCustomColor: false, scale: 1.15 },
   { name: "Let's Encrypt", iconSrc: "/logos/letsencrypt.svg", isCustomColor: true, scale: 1.2 },
