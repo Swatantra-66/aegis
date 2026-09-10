@@ -175,7 +175,7 @@ const Footer = () => {
               </div>
               <div className="status-metric-row">
                 <span className="status-metric-label">UPTIME</span>
-                <span className="status-metric-val font-mono text-success">99.95%</span>
+                <span className="status-metric-val font-mono text-success">99.98%</span>
               </div>
               <div className="status-metric-row">
                 <span className="status-metric-label">IAAS</span>

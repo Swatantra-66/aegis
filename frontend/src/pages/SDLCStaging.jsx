@@ -1075,7 +1075,7 @@ const Phase5 = () => {
             </span>
           </div>
           <div className="font-mono" style={{ fontSize: '2rem', fontWeight: 800, color: '#ffffff', margin: '0.35rem 0' }}>
-            99.95%
+            99.98%
           </div>
           <div className="font-mono text-muted" style={{ fontSize: '0.66rem' }}>
             Node.js Express · VPS Port 3000
