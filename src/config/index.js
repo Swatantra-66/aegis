@@ -63,6 +63,12 @@ const envSchema = Joi.object({
   EMAIL_FROM: Joi.string().default('Aegis Identity Security <security@aegis.swatantracodes.in>'),
   FRONTEND_URL: Joi.string().uri().default('http://localhost:5173'),
 
+  // Google Gmail REST API (HTTPS Port 443 — DigitalOcean Compatible)
+  GMAIL_CLIENT_ID: Joi.string().empty(''),
+  GMAIL_CLIENT_SECRET: Joi.string().empty(''),
+  GMAIL_REFRESH_TOKEN: Joi.string().empty(''),
+  GMAIL_USER: Joi.string().empty(''),
+
   // Rate Limiting
   RATE_LIMIT_WINDOW_MS: Joi.number().default(900000),
   RATE_LIMIT_MAX_REQUESTS: Joi.number().default(100),
@@ -71,7 +77,9 @@ const envSchema = Joi.object({
   LOG_LEVEL: Joi.string()
     .valid('error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly')
     .default('debug'),
-}).unknown(); // Allow system vars (PATH, HOME, etc.)
+})
+  .and('GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN')
+  .unknown(); // Allow system vars (PATH, HOME, etc.)
 
 const { error, value: envVars } = envSchema.validate(process.env, {
   abortEarly: false, // Report ALL missing vars, not just the first
@@ -124,6 +132,10 @@ const config = {
     smtpPass: envVars.SMTP_PASS,
     from: envVars.EMAIL_FROM,
     frontendUrl: envVars.FRONTEND_URL,
+    gmailClientId: envVars.GMAIL_CLIENT_ID || '',
+    gmailClientSecret: envVars.GMAIL_CLIENT_SECRET || '',
+    gmailRefreshToken: envVars.GMAIL_REFRESH_TOKEN || '',
+    gmailUser: envVars.GMAIL_USER || '',
   },
   rateLimit: {
     windowMs: envVars.RATE_LIMIT_WINDOW_MS,

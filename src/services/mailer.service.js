@@ -10,13 +10,23 @@ const logger = require('../utils/logger');
 class MailerService {
   constructor() {
     this.transporter = null;
+    this.useGmailApi = false;
+    this.cachedAccessToken = null;
+    this.tokenExpiryTime = 0;
     this.init();
   }
 
   init() {
-    const { smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass } = config.email;
+    const { gmailClientId, gmailClientSecret, gmailRefreshToken, smtpHost, smtpUser, smtpPass } =
+      config.email;
 
-    if (smtpHost && smtpUser) {
+    if (gmailClientId && gmailClientSecret && gmailRefreshToken) {
+      this.useGmailApi = true;
+      logger.info(
+        'Google Gmail REST API initialized successfully (HTTPS Port 443 — DigitalOcean Compatible)'
+      );
+    } else if (smtpHost && smtpUser) {
+      this.useGmailApi = false;
       const isGmail = smtpHost.toLowerCase().includes('gmail');
 
       const transportConfig = isGmail
@@ -32,8 +42,8 @@ class MailerService {
           }
         : {
             host: smtpHost,
-            port: Number(smtpPort) || 587,
-            secure: Boolean(smtpSecure),
+            port: Number(config.email.smtpPort) || 587,
+            secure: Boolean(config.email.smtpSecure),
             auth: {
               user: smtpUser,
               pass: smtpPass,
@@ -46,19 +56,56 @@ class MailerService {
       this.transporter = nodemailer.createTransport(transportConfig);
 
       logger.info(
-        `SMTP Mailer initialized successfully for ${isGmail ? 'Gmail Service' : `host [${smtpHost}:${smtpPort}]`}`
+        `SMTP Mailer initialized successfully for ${isGmail ? 'Gmail Service' : `host [${smtpHost}:${config.email.smtpPort}]`}`
       );
     } else {
       if (config.env === 'production') {
         logger.error(
-          'CRITICAL: SMTP credentials not configured in production environment. Mail delivery will fail.'
+          'CRITICAL: Email credentials not configured in production environment. Mail delivery will fail.'
         );
       } else {
         logger.warn(
-          'SMTP credentials not configured. Mailer running in development/fallback mode.'
+          'Email credentials not configured. Mailer running in development/fallback mode.'
         );
       }
     }
+  }
+
+  /**
+   * Acquire a fresh OAuth2 access token for Google Gmail REST API.
+   * Caches token in memory until expiration.
+   * @returns {Promise<string>}
+   */
+  async getGmailAccessToken() {
+    if (this.cachedAccessToken && Date.now() < this.tokenExpiryTime) {
+      return this.cachedAccessToken;
+    }
+
+    const { gmailClientId, gmailClientSecret, gmailRefreshToken } = config.email;
+    const bodyParams = new URLSearchParams({
+      client_id: gmailClientId,
+      client_secret: gmailClientSecret,
+      refresh_token: gmailRefreshToken,
+      grant_type: 'refresh_token',
+    });
+
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: bodyParams.toString(),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      logger.error(`Google OAuth token refresh failed [${response.status}]: ${errText}`);
+      throw new Error(`Google OAuth token refresh failed [${response.status}]: ${errText}`);
+    }
+
+    const data = await response.json();
+    this.cachedAccessToken = data.access_token;
+    // Buffer expiration by 300 seconds (5 minutes)
+    this.tokenExpiryTime = Date.now() + Math.max(0, (data.expires_in - 300) * 1000);
+    return this.cachedAccessToken;
   }
 
   /**
@@ -229,7 +276,63 @@ This link is valid for 24 hours and can only be used once.
 If you did not request this, you can safely ignore this message.
     `.trim();
 
-    if (this.transporter) {
+    if (this.useGmailApi) {
+      try {
+        // Compile email using nodemailer streamTransport to preserve branded HTML, headers, preheaders & inline CID logo
+        const streamMailer = nodemailer.createTransport({
+          streamTransport: true,
+          newline: 'windows',
+        });
+
+        const compiled = await streamMailer.sendMail({
+          from: config.email.from,
+          to: toEmail,
+          subject,
+          text,
+          html,
+          attachments,
+        });
+
+        const chunks = [];
+        for await (const chunk of compiled.message) {
+          chunks.push(chunk);
+        }
+        const rfc2822Buffer = Buffer.concat(chunks);
+        const base64UrlMessage = rfc2822Buffer
+          .toString('base64')
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+
+        const accessToken = await this.getGmailAccessToken();
+        const sendResponse = await fetch(
+          'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ raw: base64UrlMessage }),
+          }
+        );
+
+        if (!sendResponse.ok) {
+          const errText = await sendResponse.text();
+          logger.error(`Gmail REST API send failed [${sendResponse.status}]: ${errText}`);
+          throw new Error(`Gmail REST API send failed [${sendResponse.status}]: ${errText}`);
+        }
+
+        const result = await sendResponse.json();
+        logger.info(
+          `Verification email dispatched via Gmail REST API to [${toEmail}] messageId: ${result.id}`
+        );
+        return { messageId: result.id };
+      } catch (err) {
+        logger.error(`Failed to send verification email via Gmail REST API: ${err.message}`);
+        throw err;
+      }
+    } else if (this.transporter) {
       try {
         const info = await this.transporter.sendMail({
           from: config.email.from,
@@ -246,14 +349,12 @@ If you did not request this, you can safely ignore this message.
         throw err;
       }
     } else {
-      // Disable fallback outside development and test
-      if (config.env !== 'development' && config.env !== 'test') {
-        throw new Error('SMTP credentials are not configured for production environment.');
+      if (config.env === 'development' || config.env === 'test') {
+        logger.warn(`[DEV EMAIL FALLBACK] Verification email simulated for ${toEmail}`);
+        return { messageId: 'dev-fallback-message-id' };
       }
 
-      // Development/Test Fallback: Log clearly
-      logger.warn(`[DEV EMAIL FALLBACK] Verification link for ${toEmail}: ${verificationUrl}`);
-      return { messageId: 'dev-fallback-message-id' };
+      throw new Error('Email transport is not configured for this environment');
     }
   }
 }
