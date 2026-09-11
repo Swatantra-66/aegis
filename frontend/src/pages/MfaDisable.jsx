@@ -144,7 +144,16 @@ const MfaDisable = () => {
                 <label className="aegis-field-label" style={{ textAlign: 'center', display: 'block', marginBottom: '0.65rem' }}>
                   Verification Code
                 </label>
-                <div className="aegis-mfa-digits-wrap" onPaste={handlePaste} style={{ margin: '0', justifyContent: 'center', gap: '8px' }}>
+                <div
+                  className="aegis-mfa-digits-wrap"
+                  onPaste={handlePaste}
+                  style={{
+                    margin: '0 auto',
+                    maxWidth: '388px',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
                   {digits.map((digit, index) => (
                     <input
                       key={index}
@@ -163,26 +172,60 @@ const MfaDisable = () => {
                 </div>
               </div>
 
-              {/* Destructive Action Button */}
-              <button
-                type="button"
-                className="aegis-primary-btn"
+              {/* Action Buttons: 4 columns for Disable, 2 columns for Cancel — perfectly parallel to 6 OTP inputs */}
+              <div
                 style={{
-                  background: '#dc2626',
-                  borderColor: '#dc2626',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(6, 1fr)',
+                  gap: '8px',
+                  maxWidth: '388px',
+                  margin: '0.4rem auto 0 auto',
+                  width: '100%',
                 }}
-                onClick={() => handleDisable()}
-                disabled={isLoading || digits.some((d) => !d)}
               >
-                {isLoading ? (
-                  <span className="aegis-btn-loading-content">
-                    <span className="aegis-inline-spinner" />
-                    Deactivating 2FA...
-                  </span>
-                ) : (
-                  'Confirm & Disable 2FA'
-                )}
-              </button>
+                <button
+                  type="button"
+                  className="aegis-primary-btn"
+                  style={{
+                    gridColumn: 'span 4',
+                    width: '100%',
+                    marginTop: 0,
+                    padding: '0.85rem 0.6rem',
+                    fontSize: '0.91rem',
+                    background: '#dc2626',
+                    borderColor: '#dc2626',
+                    boxShadow: '0 2px 4px rgba(220, 38, 38, 0.2)',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onClick={() => handleDisable()}
+                  disabled={isLoading || digits.some((d) => !d)}
+                >
+                  {isLoading ? (
+                    <span className="aegis-btn-loading-content">
+                      <span className="aegis-inline-spinner" />
+                      Deactivating...
+                    </span>
+                  ) : (
+                    'Confirm & Disable 2FA'
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/profile')}
+                  disabled={isLoading}
+                  className="aegis-cancel-btn"
+                  style={{
+                    gridColumn: 'span 2',
+                    width: '100%',
+                    marginTop: 0,
+                    padding: '0.85rem 0.6rem',
+                    fontSize: '0.91rem',
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
             </>
           )}
         </div>

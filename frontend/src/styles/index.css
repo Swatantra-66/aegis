@@ -4198,6 +4198,50 @@ p {
   }
 }
 
+/* Secondary / Cancel Action Button */
+.aegis-cancel-btn {
+  width: auto;
+  padding: 0.9rem 1.35rem;
+  background: #0f172a;
+  color: #ffffff;
+  border: 1px solid #0f172a;
+  border-radius: 10px;
+  font-size: 0.975rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.aegis-cancel-btn:hover {
+  background: #1e293b;
+  border-color: #1e293b;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+}
+
+.aegis-cancel-btn:active {
+  transform: translateY(0);
+}
+
+.aegis-cancel-btn:focus-visible {
+  outline: 2px solid #0f172a;
+  outline-offset: 2px;
+}
+
+.aegis-cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* Divider */
 .aegis-divider-row {
   display: flex;
