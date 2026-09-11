@@ -2,7 +2,6 @@ const db = require('../../../config/database');
 const { redis } = require('../../../config/redis');
 const mailerService = require('../../../services/mailer.service');
 const auditService = require('../../audit/audit.service');
-const tokenService = require('../../tokens/tokens.service');
 const authService = require('../auth.service');
 const { AUDIT_ACTIONS, REDIS_PREFIXES } = require('../../../config/constants');
 
