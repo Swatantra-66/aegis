@@ -298,6 +298,7 @@ If you did not request this, you can safely ignore this message.
    */
   async sendAccountExistsEmail({ toEmail, userName, loginUrl, resetUrl }) {
     const safeName = this.escapeHtml(userName || 'there');
+    const safeToEmail = this.escapeHtml(toEmail);
     const safeLoginUrl = this.escapeHtml(loginUrl);
     const safeResetUrl = this.escapeHtml(resetUrl);
 
@@ -345,7 +346,7 @@ If you did not request this, you can safely ignore this message.
           <tr>
             <td style="padding-bottom: 24px; color: #d4d4d8; font-size: 14px; line-height: 1.6;">
               <p style="margin: 0 0 12px 0;">Hi ${safeName},</p>
-              <p style="margin: 0 0 12px 0;">Someone recently entered your email address (<strong>${toEmail}</strong>) on the Aegis sign-up page.</p>
+              <p style="margin: 0 0 12px 0;">Someone recently entered your email address (<strong>${safeToEmail}</strong>) on the Aegis sign-up page.</p>
               <p style="margin: 0;">If you already have an account with us, you can sign in directly or reset your password if you have forgotten it:</p>
             </td>
           </tr>

@@ -611,12 +611,18 @@ const initiateSignup = async ({ email }, reqMeta = {}) => {
     logger.debug(`[SIGNUP DEV LINK] ${normalizedEmail} -> ${verificationUrl}`);
   }
 
-  // Dispatch email with verification link
-  await mailerService.sendVerificationEmail({
-    toEmail: normalizedEmail,
-    userName: safeName,
-    verificationUrl,
-  });
+  // Dispatch email with verification link.
+  // Failures must not change the response shape, otherwise mail outages leak
+  // whether the address is already registered.
+  try {
+    await mailerService.sendVerificationEmail({
+      toEmail: normalizedEmail,
+      userName: safeName,
+      verificationUrl,
+    });
+  } catch (mailErr) {
+    logger.error(`Failed to dispatch signup verification email: ${mailErr.message}`);
+  }
 
   await auditService.log({
     actorEmail: normalizedEmail,
