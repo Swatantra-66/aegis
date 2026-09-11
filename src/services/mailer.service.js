@@ -276,9 +276,139 @@ This link is valid for 24 hours and can only be used once.
 If you did not request this, you can safely ignore this message.
     `.trim();
 
+    return this._dispatchMail({
+      toEmail,
+      subject,
+      text,
+      html,
+      attachments,
+      logLabel: 'Verification',
+    });
+  }
+
+  /**
+   * Send notification to user that an account already exists with their email.
+   * Prevents email enumeration while informing the legitimate owner.
+   * @param {Object} options
+   * @param {string} options.toEmail
+   * @param {string} [options.userName]
+   * @param {string} options.loginUrl
+   * @param {string} options.resetUrl
+   * @returns {Promise<Object>}
+   */
+  async sendAccountExistsEmail({ toEmail, userName, loginUrl, resetUrl }) {
+    const safeName = this.escapeHtml(userName || 'there');
+    const safeLoginUrl = this.escapeHtml(loginUrl);
+    const safeResetUrl = this.escapeHtml(resetUrl);
+
+    const subject = 'Security Notice: Account already registered — AEGIS';
+
+    const logoCandidatePath = path.resolve(__dirname, '../assets/aegis-logo.png');
+    const fallbackLogoPath = path.resolve(__dirname, '../../frontend/public/aegis-logo-new.png');
+    const logoPath = fs.existsSync(logoCandidatePath) ? logoCandidatePath : fallbackLogoPath;
+    const hasLogo = fs.existsSync(logoPath);
+    const attachments = hasLogo
+      ? [
+          {
+            filename: 'aegis-logo.png',
+            path: logoPath,
+            cid: 'aegislogo',
+          },
+        ]
+      : [];
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Notice</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #000000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #ffffff;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #000000; min-height: 100vh; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 520px; background-color: #0c0c0e; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 36px 32px;">
+          <tr>
+            <td style="padding-bottom: 24px;">
+              ${hasLogo ? '<img src="cid:aegislogo" alt="AEGIS" width="40" height="40" style="display: block; border-radius: 8px;" />' : '<span style="font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: 0.08em;">AEGIS</span>'}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom: 16px;">
+              <h1 style="margin: 0; font-size: 20px; font-weight: 700; color: #ffffff;">
+                Account already registered
+              </h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom: 24px; color: #d4d4d8; font-size: 14px; line-height: 1.6;">
+              <p style="margin: 0 0 12px 0;">Hi ${safeName},</p>
+              <p style="margin: 0 0 12px 0;">Someone recently entered your email address (<strong>${toEmail}</strong>) on the Aegis sign-up page.</p>
+              <p style="margin: 0;">If you already have an account with us, you can sign in directly or reset your password if you have forgotten it:</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-bottom: 28px;">
+              <table role="presentation" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <a href="${safeLoginUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 28px; background-color: #ffffff; color: #000000; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 6px;">
+                      Sign In to AEGIS
+                    </a>
+                  </td>
+                  <td style="padding-left: 12px;">
+                    <a href="${safeResetUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 20px; background-color: rgba(255, 255, 255, 0.08); color: #ffffff; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15);">
+                      Reset Password
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 12px; color: #71717a; line-height: 1.5;">
+              <p style="margin: 0;">If you didn't initiate this request, you can safely ignore this email. Your account remains fully secure.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim();
+
+    const text = `
+AEGIS — Security Notice: Account Already Registered
+
+Hi ${safeName},
+
+Someone recently entered your email address (${toEmail}) on the Aegis sign-up page.
+If you already have an account, sign in at: ${loginUrl}
+If you forgot your password, reset it at: ${resetUrl}
+
+If you didn't initiate this request, you can safely ignore this email.
+    `.trim();
+
+    return this._dispatchMail({
+      toEmail,
+      subject,
+      text,
+      html,
+      attachments,
+      logLabel: 'Account Exists',
+    });
+  }
+
+  /**
+   * Internal transport dispatcher for Gmail REST API, SMTP, or Dev Fallback.
+   * @private
+   */
+  async _dispatchMail({ toEmail, subject, text, html, attachments, logLabel = 'Email' }) {
     if (this.useGmailApi) {
       try {
-        // Compile email using nodemailer streamTransport to preserve branded HTML, headers, preheaders & inline CID logo
         const streamMailer = nodemailer.createTransport({
           streamTransport: true,
           newline: 'windows',
@@ -325,11 +455,13 @@ If you did not request this, you can safely ignore this message.
 
         const result = await sendResponse.json();
         logger.info(
-          `Verification email dispatched via Gmail REST API to [${toEmail}] messageId: ${result.id}`
+          `${logLabel} email dispatched via Gmail REST API to [${toEmail}] messageId: ${result.id}`
         );
         return { messageId: result.id };
       } catch (err) {
-        logger.error(`Failed to send verification email via Gmail REST API: ${err.message}`);
+        logger.error(
+          `Failed to send ${logLabel.toLowerCase()} email via Gmail REST API: ${err.message}`
+        );
         throw err;
       }
     } else if (this.transporter) {
@@ -342,15 +474,15 @@ If you did not request this, you can safely ignore this message.
           html,
           attachments,
         });
-        logger.info(`Verification email dispatched to [${toEmail}] messageId: ${info.messageId}`);
+        logger.info(`${logLabel} email dispatched to [${toEmail}] messageId: ${info.messageId}`);
         return info;
       } catch (err) {
-        logger.error(`Failed to send verification email via SMTP: ${err.message}`);
+        logger.error(`Failed to send ${logLabel.toLowerCase()} email via SMTP: ${err.message}`);
         throw err;
       }
     } else {
       if (config.env === 'development' || config.env === 'test') {
-        logger.warn(`[DEV EMAIL FALLBACK] Verification email simulated for ${toEmail}`);
+        logger.warn(`[DEV EMAIL FALLBACK] ${logLabel} email simulated for ${toEmail}`);
         return { messageId: 'dev-fallback-message-id' };
       }
 

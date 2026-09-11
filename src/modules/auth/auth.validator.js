@@ -73,6 +73,51 @@ const resetPassword = Joi.object({
     }),
 });
 
+const initiateSignup = Joi.object({
+  email: Joi.string().email().required().lowercase().trim().messages({
+    'string.email': 'Please provide a valid email address',
+    'any.required': 'Email is required',
+  }),
+});
+
+const validateSignupToken = Joi.object({
+  token: Joi.string().required().messages({
+    'any.required': 'Verification token is required',
+  }),
+});
+
+const completeSignup = Joi.object({
+  email: Joi.string().email().required().lowercase().trim().messages({
+    'string.email': 'Please provide a valid email address',
+    'any.required': 'Email is required',
+  }),
+  registrationTicket: Joi.string().optional().messages({
+    'string.base': 'Registration ticket must be a string',
+  }),
+  registration_ticket: Joi.string().optional().messages({
+    'string.base': 'Registration ticket must be a string',
+  }),
+  name: Joi.string().max(100).trim().required().messages({
+    'any.required': 'Full name is required',
+  }),
+  password: Joi.string()
+    .min(PASSWORD_MIN_LENGTH)
+    .max(128)
+    .required()
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])/)
+    .messages({
+      'string.min': `Password must be at least ${PASSWORD_MIN_LENGTH} characters`,
+      'string.max': 'Password must not exceed 128 characters',
+      'string.pattern.base':
+        'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)',
+      'any.required': 'Password is required',
+    }),
+})
+  .or('registrationTicket', 'registration_ticket')
+  .messages({
+    'object.missing': 'Registration ticket is required',
+  });
+
 /**
  * Middleware factory: validate request body against a Joi schema.
  * @param {Joi.ObjectSchema} schema
@@ -103,5 +148,8 @@ module.exports = {
   refreshToken,
   forgotPassword,
   resetPassword,
+  initiateSignup,
+  validateSignupToken,
+  completeSignup,
   validate,
 };

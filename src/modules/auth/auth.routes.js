@@ -209,4 +209,28 @@ router.post(
  */
 router.post('/verify-email', verifyEmailLimiter, catchAsync(authController.verifyEmail));
 
+/**
+ * Multi-Step Signup Endpoints
+ */
+router.post(
+  '/signup/initiate',
+  emailVerificationLimiter,
+  authValidator.validate(authValidator.initiateSignup),
+  catchAsync(authController.initiateSignup)
+);
+
+router.post(
+  '/signup/validate-token',
+  verifyEmailLimiter,
+  authValidator.validate(authValidator.validateSignupToken),
+  catchAsync(authController.validateSignupToken)
+);
+
+router.post(
+  '/signup/complete',
+  authLimiter,
+  authValidator.validate(authValidator.completeSignup),
+  catchAsync(authController.completeSignup)
+);
+
 module.exports = router;

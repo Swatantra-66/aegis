@@ -11,6 +11,7 @@ const auditService = require('../audit/audit.service');
 const mailerService = require('../../services/mailer.service');
 const securityPolicy = require('./securityPolicy');
 const AppError = require('../../utils/AppError');
+const logger = require('../../utils/logger');
 const { redis } = require('../../config/redis');
 const {
   AUDIT_ACTIONS,
@@ -19,6 +20,8 @@ const {
   ROLES,
   REDIS_PREFIXES,
   EMAIL_VERIFICATION_TOKEN_EXPIRY_HOURS,
+  SIGNUP_TOKEN_EXPIRY_HOURS,
+  SIGNUP_TICKET_EXPIRY_MINUTES,
 } = require('../../config/constants');
 
 /**
@@ -546,6 +549,296 @@ const verifyEmail = async (token, reqMeta = {}) => {
   return { user };
 };
 
+/**
+ * Initiate multi-step signup by verifying email is available and dispatching verification link.
+ * @param {Object} params - { email }
+ * @param {Object} reqMeta - { ip, userAgent }
+ * @returns {Promise<{ email: string, dispatched: boolean }>}
+ */
+const initiateSignup = async ({ email }, reqMeta = {}) => {
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // Check if email already registered
+  const existing = await db.query('SELECT id, first_name FROM users WHERE email = $1', [
+    normalizedEmail,
+  ]);
+  if (existing.rows.length > 0) {
+    // Security & Anti-Enumeration: Return neutral response while informing legitimate account owner via email
+    const existingUser = existing.rows[0];
+    const safeName = existingUser.first_name || normalizedEmail.split('@')[0];
+    const loginUrl = `${config.email.frontendUrl}/login`;
+    const resetUrl = `${config.email.frontendUrl}/forgot-password`;
+
+    try {
+      if (typeof mailerService.sendAccountExistsEmail === 'function') {
+        await mailerService.sendAccountExistsEmail({
+          toEmail: normalizedEmail,
+          userName: safeName,
+          loginUrl,
+          resetUrl,
+        });
+      }
+    } catch (mailErr) {
+      logger.error(
+        `Failed to dispatch account exists notice to ${normalizedEmail}: ${mailErr.message}`
+      );
+    }
+
+    await auditService.log({
+      actorEmail: normalizedEmail,
+      action: AUDIT_ACTIONS.EMAIL_VERIFICATION_REQUESTED,
+      resourceType: 'signup',
+      ip: reqMeta.ip,
+      userAgent: reqMeta.userAgent,
+    });
+
+    return { email: normalizedEmail, dispatched: true };
+  }
+
+  // Generate cryptographic verification token
+  const signupToken = generateRandomToken();
+  const tokenHash = hashToken(signupToken);
+  const ttlSeconds = (SIGNUP_TOKEN_EXPIRY_HOURS || 24) * 3600;
+  const redisKey = `${REDIS_PREFIXES.SIGNUP_TOKEN}${tokenHash}`;
+
+  // Store in Redis with TTL
+  await redis.set(redisKey, JSON.stringify({ email: normalizedEmail }), 'EX', ttlSeconds);
+
+  const verificationUrl = `${config.email.frontendUrl}/register?token=${signupToken}`;
+  const safeName = normalizedEmail.split('@')[0];
+
+  if (config.env === 'development') {
+    logger.debug(`[SIGNUP DEV LINK] ${normalizedEmail} -> ${verificationUrl}`);
+  }
+
+  // Dispatch email with verification link
+  await mailerService.sendVerificationEmail({
+    toEmail: normalizedEmail,
+    userName: safeName,
+    verificationUrl,
+  });
+
+  await auditService.log({
+    actorEmail: normalizedEmail,
+    action: AUDIT_ACTIONS.EMAIL_VERIFICATION_REQUESTED,
+    resourceType: 'signup',
+    ip: reqMeta.ip,
+    userAgent: reqMeta.userAgent,
+  });
+
+  return { email: normalizedEmail, dispatched: true };
+};
+
+/**
+ * Validate signup token from email link and generate a short-lived registration ticket.
+ * @param {string} token
+ * @returns {Promise<{ email: string, registrationTicket: string }>}
+ */
+const validateSignupToken = async (token) => {
+  const tokenHash = hashToken(token);
+  const redisKey = `${REDIS_PREFIXES.SIGNUP_TOKEN}${tokenHash}`;
+
+  // Single-use atomic consumption of token
+  const tokenDataStr = await atomicGetDel(redisKey);
+
+  if (!tokenDataStr) {
+    throw AppError.badRequest(
+      'Invalid or expired verification link. Please request a new one.',
+      'SIGNUP_TOKEN_INVALID'
+    );
+  }
+
+  let tokenData;
+  try {
+    tokenData = JSON.parse(tokenDataStr);
+  } catch {
+    throw AppError.badRequest('Invalid verification token payload', 'SIGNUP_TOKEN_INVALID');
+  }
+
+  if (!tokenData || typeof tokenData.email !== 'string') {
+    throw AppError.badRequest('Invalid verification token payload', 'SIGNUP_TOKEN_INVALID');
+  }
+
+  const { email } = tokenData;
+
+  // Generate a registration ticket valid for 30 minutes to complete Step 3
+  const registrationTicket = generateRandomToken();
+  const ticketHash = hashToken(registrationTicket);
+  const ticketTtl = (SIGNUP_TICKET_EXPIRY_MINUTES || 30) * 60;
+  const ticketKey = `${REDIS_PREFIXES.SIGNUP_TICKET}${ticketHash}`;
+
+  await redis.set(ticketKey, JSON.stringify({ email, verified: true }), 'EX', ticketTtl);
+
+  return { email, registrationTicket };
+};
+
+/**
+ * Complete signup (Step 3): create user with verified email and log them in.
+ * @param {Object} params - { email, registrationTicket, name, password }
+ * @param {Object} reqMeta - { ip, userAgent }
+ * @returns {Promise<Object>} { user, accessToken, refreshToken }
+ */
+const completeSignup = async (payload, reqMeta = {}) => {
+  const { email, name, password } = payload;
+  const rawTicket = payload.registrationTicket || payload.registration_ticket;
+
+  if (!rawTicket || typeof rawTicket !== 'string') {
+    throw AppError.badRequest('Registration ticket is required', 'REGISTRATION_TICKET_INVALID');
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const ticketHash = hashToken(rawTicket);
+  const ticketKey = `${REDIS_PREFIXES.SIGNUP_TICKET}${ticketHash}`;
+
+  // Single-use atomic consumption of registration ticket
+  const ticketDataStr = await atomicGetDel(ticketKey);
+  if (!ticketDataStr) {
+    throw AppError.badRequest(
+      'Registration session has expired or is invalid. Please start over by entering your email.',
+      'REGISTRATION_TICKET_INVALID'
+    );
+  }
+
+  let ticketData;
+  try {
+    ticketData = JSON.parse(ticketDataStr);
+  } catch {
+    throw AppError.badRequest(
+      'Invalid registration session payload',
+      'REGISTRATION_TICKET_INVALID'
+    );
+  }
+
+  if (!ticketData || typeof ticketData.email !== 'string') {
+    throw AppError.badRequest(
+      'Invalid registration session payload',
+      'REGISTRATION_TICKET_INVALID'
+    );
+  }
+
+  if (ticketData.email.toLowerCase() !== normalizedEmail) {
+    try {
+      const ticketTtl = (SIGNUP_TICKET_EXPIRY_MINUTES || 30) * 60;
+      await redis.set(ticketKey, ticketDataStr, 'EX', ticketTtl);
+    } catch (_) {}
+    throw AppError.badRequest('Email address does not match verified session', 'EMAIL_MISMATCH');
+  }
+
+  // Parse first and last name
+  const parts = name.trim().split(/\s+/);
+  const first_name = parts[0] || '';
+  const last_name = parts.slice(1).join(' ') || '';
+
+  let client;
+  let user;
+
+  try {
+    // Hash password using Argon2id (Enterprise Standard)
+    const password_hash = await hashPassword(password);
+
+    if (typeof db.getClient === 'function') {
+      client = await db.getClient();
+      await client.query('BEGIN');
+    }
+
+    const executor = client || db;
+
+    // Insert user directly with is_email_verified = true
+    const result = await executor.query(
+      `INSERT INTO users (email, password_hash, first_name, last_name, is_email_verified)
+       VALUES ($1, $2, $3, $4, true)
+       RETURNING id, email, first_name, last_name, is_active, is_email_verified, mfa_enabled, created_at`,
+      [normalizedEmail, password_hash, first_name || null, last_name || null]
+    );
+
+    user = result.rows[0];
+
+    // Assign default 'user' role
+    const roleResult = await executor.query('SELECT id FROM roles WHERE name = $1', [ROLES.USER]);
+    if (roleResult.rows.length > 0) {
+      await executor.query(
+        'INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [user.id, roleResult.rows[0].id]
+      );
+    }
+
+    if (client) {
+      await client.query('COMMIT');
+    }
+  } catch (err) {
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_) {}
+    }
+
+    // Preserve retryability if user creation failed before commit
+    // (do not restore on permanent duplicate email constraint)
+    if (err.code !== '23505') {
+      try {
+        const ticketTtl = (SIGNUP_TICKET_EXPIRY_MINUTES || 30) * 60;
+        await redis.set(ticketKey, ticketDataStr, 'EX', ticketTtl);
+      } catch (restoreErr) {
+        logger.error('Failed to restore registration ticket state after failure:', restoreErr);
+      }
+    }
+
+    if (err.code === '23505') {
+      throw AppError.conflict('An account with this email already exists', 'EMAIL_ALREADY_EXISTS');
+    }
+    throw err;
+  } finally {
+    if (client && typeof client.release === 'function') {
+      client.release();
+    }
+  }
+
+  // Retrieve user roles and permissions
+  const { roles, permissions } = await getUserRolesAndPermissions(user.id);
+
+  // Issue session tokens (direct auto-login)
+  const accessTokenData = tokenService.generateAccessToken(user, roles, permissions);
+  const refreshTokenData = await tokenService.generateRefreshToken(user.id, null, 1);
+
+  // Audit logs
+  await auditService.log({
+    actorId: user.id,
+    actorEmail: user.email,
+    action: AUDIT_ACTIONS.USER_REGISTERED,
+    resourceType: 'user',
+    resourceId: user.id,
+    newData: { email: user.email, first_name, last_name, is_email_verified: true },
+    ip: reqMeta.ip,
+    userAgent: reqMeta.userAgent,
+  });
+
+  await auditService.log({
+    actorId: user.id,
+    actorEmail: user.email,
+    action: AUDIT_ACTIONS.EMAIL_VERIFIED,
+    resourceType: 'user',
+    resourceId: user.id,
+    ip: reqMeta.ip,
+    userAgent: reqMeta.userAgent,
+  });
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      is_email_verified: user.is_email_verified,
+      mfa_enabled: user.mfa_enabled,
+      roles,
+    },
+    accessToken: accessTokenData.token,
+    refreshToken: refreshTokenData.token,
+    access_token: accessTokenData.token,
+    refresh_token: refreshTokenData.token,
+  };
+};
+
 // ── Helper Functions ────────────────────────────────
 
 /**
@@ -585,5 +878,8 @@ module.exports = {
   resetPassword,
   sendVerificationEmail,
   verifyEmail,
+  initiateSignup,
+  validateSignupToken,
+  completeSignup,
   getUserRolesAndPermissions,
 };

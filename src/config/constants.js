@@ -8,6 +8,8 @@ const CONSTANTS = {
   REFRESH_TOKEN_EXPIRY_DAYS: 7,
   PASSWORD_RESET_TOKEN_EXPIRY_HOURS: 1,
   EMAIL_VERIFICATION_TOKEN_EXPIRY_HOURS: 24,
+  SIGNUP_TOKEN_EXPIRY_HOURS: 24,
+  SIGNUP_TICKET_EXPIRY_MINUTES: 30,
 
   // ── Rate Limiting (per-route overrides) ────────────
   RATE_LIMITS: {
@@ -76,6 +78,8 @@ const CONSTANTS = {
     RATE_LIMIT: 'rl:',
     SESSION: 'sess:',
     EMAIL_VERIFICATION: 'iam:email-verify:',
+    SIGNUP_TOKEN: 'iam:signup-token:',
+    SIGNUP_TICKET: 'iam:signup-ticket:',
   },
 
   // ── Pagination Defaults ────────────────────────────

@@ -159,6 +159,51 @@ const verifyEmail = async (req, res) => {
   });
 };
 
+/**
+ * POST /api/v1/auth/signup/initiate
+ * Step 1: Submit company email and receive verification link.
+ */
+const initiateSignup = async (req, res) => {
+  const result = await authService.initiateSignup(req.body, {
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  return apiResponse.success(res, {
+    message: `Verification link has been dispatched to ${result.email}.`,
+    data: result,
+  });
+};
+
+/**
+ * POST /api/v1/auth/signup/validate-token
+ * Step 2: Validate token clicked from email link and generate registration ticket.
+ */
+const validateSignupToken = async (req, res) => {
+  const result = await authService.validateSignupToken(req.body.token);
+
+  return apiResponse.success(res, {
+    message: 'Verification token successfully validated.',
+    data: result,
+  });
+};
+
+/**
+ * POST /api/v1/auth/signup/complete
+ * Step 3: Provide Full Name and Password to create verified account.
+ */
+const completeSignup = async (req, res) => {
+  const result = await authService.completeSignup(req.body, {
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  return apiResponse.created(res, {
+    message: 'Account created successfully with verified status.',
+    data: result,
+  });
+};
+
 module.exports = {
   register,
   login,
@@ -168,4 +213,7 @@ module.exports = {
   resetPassword,
   sendVerificationEmail,
   verifyEmail,
+  initiateSignup,
+  validateSignupToken,
+  completeSignup,
 };
