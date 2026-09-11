@@ -46,7 +46,37 @@ const useAuthStore = create((set, get) => ({
   mfaPendingCredentials: null,
 
   /**
-   * Register — create new user identity and automatically log in.
+   * Set user session directly from access and refresh tokens.
+   */
+  setSession: ({ user, access_token, refresh_token, accessToken, refreshToken }) => {
+    const finalAccessToken = access_token || accessToken;
+    const finalRefreshToken = refresh_token || refreshToken;
+
+    if (!finalAccessToken || !finalRefreshToken) {
+      throw new Error('setSession requires access_token and refresh_token');
+    }
+
+    localStorage.setItem('access_token', finalAccessToken);
+    localStorage.setItem('refresh_token', finalRefreshToken);
+
+    const claims = parseJwt(finalAccessToken);
+
+    set({
+      user,
+      roles: claims.roles || user?.roles || [],
+      permissions: claims.permissions || [],
+      accessToken: finalAccessToken,
+      refreshToken: finalRefreshToken,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+      mfaRequired: false,
+      mfaPendingCredentials: null,
+    });
+  },
+
+  /**
+   * Register — create new user identity and automatically log in (legacy fallback).
    */
   register: async (userData) => {
     set({ isLoading: true, error: null });

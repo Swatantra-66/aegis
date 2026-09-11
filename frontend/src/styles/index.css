@@ -4079,6 +4079,13 @@ p {
   color: #374151;
 }
 
+.aegis-input-toggle-btn:focus-visible {
+  outline: 2px solid #28441f;
+  outline-offset: 2px;
+  border-radius: 4px;
+  color: #374151;
+}
+
 /* Options / Terms Row */
 .aegis-auth-options-row,
 .aegis-auth-terms-row {
@@ -4271,6 +4278,188 @@ p {
   opacity: 0.85;
 }
 
+/* Email Verification & Signup Polish */
+.aegis-verify-hero-badge {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1px solid rgba(40, 68, 31, 0.18);
+  box-shadow: 0 8px 24px -4px rgba(40, 68, 31, 0.12), 0 0 0 6px rgba(40, 68, 31, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #28441f;
+  margin: 0 auto 1.5rem;
+}
+
+.aegis-verify-beacon {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  animation: aegis-beacon-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes aegis-beacon-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.85;
+  }
+}
+
+.aegis-identity-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  text-align: left;
+}
+
+.aegis-identity-info {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.aegis-identity-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.aegis-identity-email {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aegis-identity-edit-btn {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.aegis-identity-edit-btn:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.aegis-identity-edit-btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  background: #eff6ff;
+}
+
+.aegis-guidance-card {
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  text-align: left;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.aegis-guidance-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  font-size: 0.83rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.aegis-guidance-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #28441f;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.aegis-countdown-btn {
+  width: 100%;
+  padding: 0.85rem 1.25rem;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  color: #64748b;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: not-allowed;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.aegis-ghost-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  transition: color 0.2s ease;
+}
+
+.aegis-ghost-btn:hover {
+  color: #0f172a;
+}
+
+.aegis-ghost-btn:focus-visible {
+  outline: 2px solid #28441f;
+  outline-offset: 2px;
+  border-radius: 6px;
+  color: #0f172a;
+}
+
 /* Modal for Terms & Policy */
 .aegis-modal-backdrop {
   position: fixed;
@@ -4359,6 +4548,13 @@ p {
 }
 
 .aegis-modal-close-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.aegis-modal-close-btn:focus-visible {
+  outline: 2px solid #28441f;
+  outline-offset: 2px;
   background: #f3f4f6;
   color: #111827;
 }
