@@ -469,7 +469,9 @@ If you didn't initiate this request, you can safely ignore this email.
       }
     } else {
       if (config.env === 'development' || config.env === 'test') {
-        logger.warn(`[DEV EMAIL FALLBACK] ${logLabel} email simulated for ${toEmail}`);
+        logger.warn(
+          `[DEV EMAIL FALLBACK] ${logLabel} email simulated. Configure SMTP or Gmail API in .env to send real emails.`
+        );
         return { messageId: 'dev-fallback-message-id' };
       }
 
