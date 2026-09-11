@@ -214,8 +214,11 @@ const Terms = () => {
               lost recovery seeds, or third-party DNS tampering outside platform ingress boundaries.
             </p>
             <p className="aegis-editorial-p">
-              These Terms are governed by and construed under international cryptographic standards and applicable
-              enterprise identity governance jurisdictions.
+              These Terms, and any dispute or claim arising out of or in connection with them or your access to the
+              Aegis Platform, shall be governed by and construed in accordance with the laws of India, without regard
+              to conflict of law principles. Any legal suit, action, or proceeding arising out of or related to these
+              Terms shall be instituted exclusively in the competent courts located in Bengaluru, Karnataka, India,
+              and each party irrevocably submits to the exclusive jurisdiction of such courts.
             </p>
           </section>
         </main>
