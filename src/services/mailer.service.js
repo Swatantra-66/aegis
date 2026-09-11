@@ -135,6 +135,7 @@ class MailerService {
    */
   async sendVerificationEmail({ toEmail, userName, verificationUrl }) {
     const safeName = this.escapeHtml(userName || 'there');
+    const plainName = userName || 'there';
     const safeUrl = this.escapeHtml(verificationUrl);
 
     const subject = 'Verify your email address — AEGIS';
@@ -266,7 +267,7 @@ class MailerService {
     const text = `
 AEGIS — Email Verification
 
-Hello ${safeName},
+Hello ${plainName},
 
 Please confirm your email address for your Aegis account (${toEmail}) by visiting:
 ${verificationUrl}
@@ -298,6 +299,7 @@ If you did not request this, you can safely ignore this message.
    */
   async sendAccountExistsEmail({ toEmail, userName, loginUrl, resetUrl }) {
     const safeName = this.escapeHtml(userName || 'there');
+    const plainName = userName || 'there';
     const safeToEmail = this.escapeHtml(toEmail);
     const safeLoginUrl = this.escapeHtml(loginUrl);
     const safeResetUrl = this.escapeHtml(resetUrl);
@@ -384,7 +386,7 @@ If you did not request this, you can safely ignore this message.
     const text = `
 AEGIS — Security Notice: Account Already Registered
 
-Hi ${safeName},
+Hi ${plainName},
 
 Someone recently entered your email address (${toEmail}) on the Aegis sign-up page.
 If you already have an account, sign in at: ${loginUrl}
