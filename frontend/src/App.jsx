@@ -15,6 +15,8 @@ import MfaVerify from './pages/MfaVerify';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
 
 // Protected Portal Application Pages
 import Dashboard from './pages/Dashboard';
@@ -104,6 +106,8 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
 
           {/* Protected Portal Application Routes */}
           <Route
