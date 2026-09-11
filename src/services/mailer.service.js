@@ -139,20 +139,8 @@ class MailerService {
     const safeUrl = this.escapeHtml(verificationUrl);
 
     const subject = 'Verify your email address — AEGIS';
-
-    const logoCandidatePath = path.resolve(__dirname, '../assets/aegis-logo.png');
-    const fallbackLogoPath = path.resolve(__dirname, '../../frontend/public/aegis-logo-new.png');
-    const logoPath = fs.existsSync(logoCandidatePath) ? logoCandidatePath : fallbackLogoPath;
-    const hasLogo = fs.existsSync(logoPath);
-    const attachments = hasLogo
-      ? [
-          {
-            filename: 'aegis-logo.png',
-            path: logoPath,
-            cid: 'aegislogo',
-          },
-        ]
-      : [];
+    const attachments = [];
+    const logoUrl = this._getControlledLogoUrl();
 
     const html = `
 <!DOCTYPE html>
@@ -176,20 +164,16 @@ class MailerService {
       <td align="center">
         <!-- Main Card -->
         <table role="presentation" width="100%" style="max-width: 480px; background-color: #0d0d0d; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; padding: 40px 36px; text-align: left;">
-          <!-- Real Brand Header: Icon + AEGIS -->
+          <!-- Real Brand Header: Controlled Logo + Authoritative AEGIS Typography -->
           <tr>
             <td style="padding-bottom: 32px;">
               <table role="presentation" cellspacing="0" cellpadding="0">
                 <tr>
-                  ${
-                    hasLogo
-                      ? `<td valign="middle" style="padding-right: 12px;">
-                          <img src="cid:aegislogo" alt="Aegis" width="30" height="30" style="display: block; width: 30px; height: 30px; border: 0;" />
-                        </td>`
-                      : ''
-                  }
+                  <td valign="middle" style="padding-right: 12px;">
+                    <img src="${logoUrl}" alt="Aegis" width="28" height="28" style="display: block; width: 28px; height: 28px; border: 0;" />
+                  </td>
                   <td valign="middle">
-                    <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 22px; font-weight: 800; letter-spacing: 0.08em; color: #ffffff; line-height: 1;">AEGIS</span>
+                    <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 21px; font-weight: 800; letter-spacing: 0.16em; color: #ffffff; line-height: 1; text-transform: uppercase; display: inline-block;">AEGIS</span>
                   </td>
                 </tr>
               </table>
@@ -305,20 +289,8 @@ If you did not request this, you can safely ignore this message.
     const safeResetUrl = this.escapeHtml(resetUrl);
 
     const subject = 'Security Notice: Account already registered — AEGIS';
-
-    const logoCandidatePath = path.resolve(__dirname, '../assets/aegis-logo.png');
-    const fallbackLogoPath = path.resolve(__dirname, '../../frontend/public/aegis-logo-new.png');
-    const logoPath = fs.existsSync(logoCandidatePath) ? logoCandidatePath : fallbackLogoPath;
-    const hasLogo = fs.existsSync(logoPath);
-    const attachments = hasLogo
-      ? [
-          {
-            filename: 'aegis-logo.png',
-            path: logoPath,
-            cid: 'aegislogo',
-          },
-        ]
-      : [];
+    const attachments = [];
+    const logoUrl = this._getControlledLogoUrl();
 
     const html = `
 <!DOCTYPE html>
@@ -335,7 +307,16 @@ If you did not request this, you can safely ignore this message.
         <table role="presentation" width="100%" style="max-width: 520px; background-color: #0c0c0e; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 36px 32px;">
           <tr>
             <td style="padding-bottom: 24px;">
-              ${hasLogo ? '<img src="cid:aegislogo" alt="AEGIS" width="40" height="40" style="display: block; border-radius: 8px;" />' : '<span style="font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: 0.08em;">AEGIS</span>'}
+              <table role="presentation" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td valign="middle" style="padding-right: 12px;">
+                    <img src="${logoUrl}" alt="Aegis" width="26" height="26" style="display: block; width: 26px; height: 26px; border: 0;" />
+                  </td>
+                  <td valign="middle">
+                    <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 20px; font-weight: 800; letter-spacing: 0.16em; color: #ffffff; line-height: 1; text-transform: uppercase; display: inline-block;">AEGIS</span>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <tr>
@@ -417,8 +398,10 @@ If you didn't initiate this request, you can safely ignore this email.
           newline: 'windows',
         });
 
+        const fromHeader = this._formatFromHeader();
+
         const compiled = await streamMailer.sendMail({
-          from: config.email.from,
+          from: fromHeader,
           to: toEmail,
           subject,
           text,
@@ -469,8 +452,9 @@ If you didn't initiate this request, you can safely ignore this email.
       }
     } else if (this.transporter) {
       try {
+        const fromHeader = this._formatFromHeader();
         const info = await this.transporter.sendMail({
-          from: config.email.from,
+          from: fromHeader,
           to: toEmail,
           subject,
           text,
@@ -491,6 +475,30 @@ If you didn't initiate this request, you can safely ignore this email.
 
       throw new Error('Email transport is not configured for this environment');
     }
+  }
+
+  /**
+   * Returns the brand logo URL served from the controlled domain.
+   * Avoids third-party CDN tracking / IP leakage.
+   * @private
+   */
+  _getControlledLogoUrl() {
+    const controlledOrigin =
+      config.frontendUrl && !config.frontendUrl.includes('localhost')
+        ? config.frontendUrl.replace(/\/+$/, '')
+        : 'https://aegis.swatantracodes.in';
+    return `${controlledOrigin}/aegis-logo-new.png`;
+  }
+
+  /**
+   * Formats from address to guarantee the sender display label is strictly "AEGIS Security".
+   * @private
+   */
+  _formatFromHeader() {
+    const rawFrom = config.email.from || '';
+    const emailMatch = rawFrom.match(/<([^>]+)>/);
+    const emailAddress = emailMatch ? emailMatch[1] : rawFrom || 'aegisiamsecurity@gmail.com';
+    return `"AEGIS Security" <${emailAddress}>`;
   }
 }
 

@@ -60,7 +60,7 @@ const envSchema = Joi.object({
   SMTP_SECURE: Joi.boolean().default(false),
   SMTP_USER: Joi.string().allow('').default(''),
   SMTP_PASS: Joi.string().allow('').default(''),
-  EMAIL_FROM: Joi.string().default('Aegis Identity Security <security@aegis.swatantracodes.in>'),
+  EMAIL_FROM: Joi.string().default('AEGIS Security <aegisiamsecurity@gmail.com>'),
   FRONTEND_URL: Joi.string().uri().default('http://localhost:5173'),
 
   // Google Gmail REST API (HTTPS Port 443 — DigitalOcean Compatible)
