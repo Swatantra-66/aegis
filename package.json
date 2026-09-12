@@ -14,7 +14,9 @@
     "prepare": "husky",
     "migrate": "node src/db/migrate.js",
     "seed": "node src/db/seeds/run.js",
-    "health:check": "node scripts/health-check.js"
+    "health:check": "node scripts/health-check.js",
+    "banner": "node scripts/banner.js",
+    "setup:banner": "node scripts/install-banner-hook.js"
   },
   "keywords": [
     "iam",
