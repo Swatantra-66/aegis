@@ -31,26 +31,50 @@ const RESERVE_MAIL_IDEMPOTENCY_LUA = `
     return { 'ACQUIRED', '' }
   end
 
-  local data = cjson.decode(existing)
-  if data.status == 'sent' then
-    return { 'ALREADY_SENT', cjson.encode(data.result) }
-  elseif data.status == 'pending' then
-    if data.ownerId == ARGV[1] then
-      return { 'ACQUIRED', '' }
+  local ok, data = pcall(cjson.decode, existing)
+  if ok and type(data) == 'table' then
+    if data.status == 'sent' then
+      if type(data.result) == 'table' then
+        return { 'ALREADY_SENT', cjson.encode(data.result) }
+      else
+        -- Recognizable sent record with missing/malformed result:
+        -- Repair metadata in-place so future calls see valid result, but fail closed without re-dispatching
+        data.result = { status = 'sent', repaired = true }
+        redis.call('SET', KEYS[1], cjson.encode(data), 'KEEPTTL')
+        return { 'PROTECTED_ERROR', 'malformed_sent' }
+      end
+    elseif data.status == 'pending' then
+      local createdAtNum = tonumber(data.createdAt)
+      if not createdAtNum or type(data.ownerId) ~= 'string' or data.ownerId == '' then
+        -- Recognizable pending record is malformed:
+        -- Repair metadata with conservative timestamp and placeholder ownerId without granting ownership
+        data.createdAt = tonumber(ARGV[3])
+        if type(data.ownerId) ~= 'string' or data.ownerId == '' then
+          data.ownerId = 'pending-worker'
+        end
+        redis.call('SET', KEYS[1], cjson.encode(data), 'KEEPTTL')
+        return { 'PROTECTED_ERROR', 'malformed_pending' }
+      end
+
+      if data.ownerId == ARGV[1] then
+        return { 'ACQUIRED', '' }
+      end
+
+      local age = tonumber(ARGV[3]) - createdAtNum
+      if age > tonumber(ARGV[4]) then
+        data.ownerId = ARGV[1]
+        data.createdAt = tonumber(ARGV[3])
+        data.recovered = true
+        redis.call('SET', KEYS[1], cjson.encode(data), 'EX', tonumber(ARGV[2]))
+        return { 'RECOVERED', '' }
+      else
+        return { 'IN_PROGRESS', '' }
+      end
     end
-    local age = tonumber(ARGV[3]) - (data.createdAt or 0)
-    if age > tonumber(ARGV[4]) then
-      data.ownerId = ARGV[1]
-      data.createdAt = tonumber(ARGV[3])
-      data.recovered = true
-      redis.call('SET', KEYS[1], cjson.encode(data), 'EX', tonumber(ARGV[2]))
-      return { 'RECOVERED', '' }
-    else
-      return { 'IN_PROGRESS', '' }
-    end
-  else
-    return { 'UNKNOWN', '' }
   end
+
+  -- Completely unparseable or unrecognized payload: fail closed with protected error without overwriting
+  return { 'PROTECTED_ERROR', 'corrupted_payload' }
 `;
 
 /**
@@ -76,8 +100,19 @@ const FINALIZE_MAIL_IDEMPOTENCY_LUA = `
     return 1
   end
 
-  local data = cjson.decode(existing)
-  if data.status == 'sent' then
+  local ok, data = pcall(cjson.decode, existing)
+  if not ok or type(data) ~= 'table' then
+    local record = {
+      status = 'sent',
+      ownerId = ARGV[1],
+      result = cjson.decode(ARGV[2]),
+      sentAt = tonumber(ARGV[4])
+    }
+    redis.call('SET', KEYS[1], cjson.encode(record), 'EX', tonumber(ARGV[3]))
+    return 1
+  end
+
+  if data.status == 'sent' and type(data.result) == 'table' then
     return 1
   end
 
@@ -102,8 +137,8 @@ const RELEASE_MAIL_IDEMPOTENCY_LUA = `
   -- RELEASE_MAIL_IDEMPOTENCY_LUA
   local existing = redis.call('GET', KEYS[1])
   if existing then
-    local data = cjson.decode(existing)
-    if data.status == 'pending' and data.ownerId == ARGV[1] then
+    local ok, data = pcall(cjson.decode, existing)
+    if ok and type(data) == 'table' and data.status == 'pending' and data.ownerId == ARGV[1] then
       redis.call('DEL', KEYS[1])
       return 1
     end
@@ -674,11 +709,17 @@ If you did not request a password reset, you can safely ignore this message. You
       const pendingTtlSeconds = 120; // 2 minutes visibility lease
       const staleThresholdMs = 45000; // 45 seconds crash recovery threshold
 
-      try {
-        let attempts = 0;
-        while (attempts < 6) {
-          const nowMs = Date.now();
-          const reservation = await redis.eval(
+      const pollIntervalMs = process.env.NODE_ENV === 'test' ? 10 : 500;
+
+      let attempts = 0;
+      let acquired = false;
+      let lastRedisError = null;
+
+      while (attempts < 6) {
+        const nowMs = Date.now();
+        let reservation;
+        try {
+          reservation = await redis.eval(
             RESERVE_MAIL_IDEMPOTENCY_LUA,
             1,
             reservationKey,
@@ -687,40 +728,61 @@ If you did not request a password reset, you can safely ignore this message. You
             nowMs,
             staleThresholdMs
           );
-
-          if (reservation && reservation[0] === 'ALREADY_SENT') {
-            logger.info(`Idempotent mailer skip: [${idempotencyKey}] already dispatched`);
-            return JSON.parse(reservation[1]);
-          }
-
-          if (reservation && (reservation[0] === 'ACQUIRED' || reservation[0] === 'RECOVERED')) {
-            if (reservation[0] === 'RECOVERED') {
-              logger.warn(
-                `Recovered stale mail reservation for [${idempotencyKey}] from crashed worker`
-              );
-            }
-            break; // Successfully reserved ownership
-          }
-
-          if (reservation && reservation[0] === 'IN_PROGRESS') {
-            // Another worker is actively dispatching right now; wait and poll
-            await new Promise((resolve) => setTimeout(resolve, 500));
-            attempts++;
-          } else {
-            break;
-          }
+          lastRedisError = null;
+        } catch (redisErr) {
+          lastRedisError = redisErr;
+          logger.warn(
+            `Mailer idempotency reservation error for [${idempotencyKey}]: ${redisErr.message}`
+          );
+          attempts++;
+          await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+          continue;
         }
 
-        if (attempts >= 6) {
-          throw new Error(`Email delivery currently in progress for [${idempotencyKey}]`);
+        if (reservation && reservation[0] === 'ALREADY_SENT') {
+          logger.info(`Idempotent mailer skip: [${idempotencyKey}] already dispatched`);
+          return JSON.parse(reservation[1]);
         }
-      } catch (reserveErr) {
-        if (reserveErr.message.includes('currently in progress')) {
-          throw reserveErr;
+
+        if (reservation && (reservation[0] === 'ACQUIRED' || reservation[0] === 'RECOVERED')) {
+          if (reservation[0] === 'RECOVERED') {
+            logger.warn(
+              `Recovered stale mail reservation for [${idempotencyKey}] from crashed worker`
+            );
+          }
+          acquired = true;
+          break; // Successfully reserved ownership
         }
-        logger.warn(
-          `Mailer idempotency reservation error for [${idempotencyKey}]: ${reserveErr.message}`
-        );
+
+        if (reservation && reservation[0] === 'PROTECTED_ERROR') {
+          logger.warn(
+            `Mail reservation for [${idempotencyKey}] is in protected malformed state [${reservation[1]}]. Fail-closed: preserving record without dispatching.`
+          );
+          throw new Error(
+            `Email delivery blocked by protected reservation state for [${idempotencyKey}]: ${reservation[1]}`
+          );
+        }
+
+        if (reservation && reservation[0] === 'IN_PROGRESS') {
+          // Another worker is actively dispatching right now; wait and poll
+          attempts++;
+          await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+        } else {
+          logger.warn(
+            `Unexpected mail reservation state for [${idempotencyKey}]: ${reservation && reservation[0]}`
+          );
+          attempts++;
+          await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+        }
+      }
+
+      if (!acquired) {
+        if (lastRedisError) {
+          throw new Error(
+            `Email delivery blocked: failed to acquire idempotency reservation for [${idempotencyKey}] after ${attempts} attempts: ${lastRedisError.message}`
+          );
+        }
+        throw new Error(`Email delivery currently in progress for [${idempotencyKey}]`);
       }
     }
 

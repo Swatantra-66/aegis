@@ -13,6 +13,7 @@ jest.mock('../../config/redis', () => ({
 describe('MailerService (Atomic Idempotency Reservation, Recovery & Deduplication)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mailerService.useGmailApi = false;
     mailerService.transporter = {
       sendMail: jest.fn().mockResolvedValue({ messageId: 'mock-smtp-message-id' }),
     };
@@ -118,5 +119,110 @@ describe('MailerService (Atomic Idempotency Reservation, Recovery & Deduplicatio
     } finally {
       mailerService.transporter = originalTransporter;
     }
+  });
+
+  test('fails closed on malformed sent record without deleting or dispatching', async () => {
+    // Lua script repairs metadata in Redis and returns PROTECTED_ERROR
+    redis.eval.mockResolvedValueOnce(['PROTECTED_ERROR', 'malformed_sent']);
+
+    await expect(
+      mailerService.sendPasswordResetEmail({
+        toEmail: 'user@aegis.iam',
+        userName: 'Alice',
+        resetUrl: 'https://aegis.iam/reset?token=abc',
+        idempotencyKey: 'idem-malformed-sent',
+      })
+    ).rejects.toThrow('Email delivery blocked by protected reservation state');
+
+    expect(redis.del).not.toHaveBeenCalled();
+    expect(redis.eval).toHaveBeenCalledTimes(1);
+  });
+
+  test('fails closed on malformed pending record without deleting or dispatching', async () => {
+    // Lua script repairs metadata in Redis and returns PROTECTED_ERROR
+    redis.eval.mockResolvedValueOnce(['PROTECTED_ERROR', 'malformed_pending']);
+
+    await expect(
+      mailerService.sendPasswordResetEmail({
+        toEmail: 'user@aegis.iam',
+        userName: 'Alice',
+        resetUrl: 'https://aegis.iam/reset?token=abc',
+        idempotencyKey: 'idem-malformed-pending',
+      })
+    ).rejects.toThrow('Email delivery blocked by protected reservation state');
+
+    expect(redis.del).not.toHaveBeenCalled();
+    expect(redis.eval).toHaveBeenCalledTimes(1);
+  });
+
+  test('polls during in-progress state and succeeds when ownership is acquired', async () => {
+    // 1st attempt = IN_PROGRESS, 2nd attempt = ACQUIRED, 3rd = FINALIZE
+    redis.eval
+      .mockResolvedValueOnce(['IN_PROGRESS', ''])
+      .mockResolvedValueOnce(['ACQUIRED', ''])
+      .mockResolvedValueOnce(1);
+
+    const result = await mailerService.sendPasswordResetEmail({
+      toEmail: 'user@aegis.iam',
+      userName: 'Alice',
+      resetUrl: 'https://aegis.iam/reset?token=abc',
+      idempotencyKey: 'idem-poll-success',
+    });
+
+    expect(result).toBeDefined();
+    expect(result.messageId).toBe('mock-smtp-message-id');
+    expect(redis.del).not.toHaveBeenCalled();
+    expect(redis.eval).toHaveBeenCalledTimes(3);
+  });
+
+  test('fails closed when pending record matches ownerId but has malformed createdAt', async () => {
+    // Lua script returns PROTECTED_ERROR even if ownerId matches caller because createdAt is malformed
+    redis.eval.mockResolvedValueOnce(['PROTECTED_ERROR', 'malformed_pending']);
+
+    await expect(
+      mailerService.sendPasswordResetEmail({
+        toEmail: 'user@aegis.iam',
+        userName: 'Alice',
+        resetUrl: 'https://aegis.iam/reset?token=abc',
+        idempotencyKey: 'idem-same-owner-malformed-created-at',
+      })
+    ).rejects.toThrow('Email delivery blocked by protected reservation state');
+
+    expect(redis.del).not.toHaveBeenCalled();
+    expect(redis.eval).toHaveBeenCalledTimes(1);
+  });
+
+  test('retries on transient Redis reservation error and dispatches when acquired', async () => {
+    // 1st attempt = Redis connection error, 2nd attempt = ACQUIRED, 3rd = FINALIZE
+    redis.eval
+      .mockRejectedValueOnce(new Error('Redis connection blip'))
+      .mockResolvedValueOnce(['ACQUIRED', ''])
+      .mockResolvedValueOnce(1);
+
+    const result = await mailerService.sendPasswordResetEmail({
+      toEmail: 'user@aegis.iam',
+      userName: 'Alice',
+      resetUrl: 'https://aegis.iam/reset?token=abc',
+      idempotencyKey: 'idem-transient-redis-error',
+    });
+
+    expect(result).toBeDefined();
+    expect(result.messageId).toBe('mock-smtp-message-id');
+    expect(redis.eval).toHaveBeenCalledTimes(3);
+  });
+
+  test('fails closed without dispatching if all reservation attempts encounter Redis errors', async () => {
+    redis.eval.mockRejectedValue(new Error('Persistent Redis downtime'));
+
+    await expect(
+      mailerService.sendPasswordResetEmail({
+        toEmail: 'user@aegis.iam',
+        userName: 'Alice',
+        resetUrl: 'https://aegis.iam/reset?token=abc',
+        idempotencyKey: 'idem-persistent-redis-error',
+      })
+    ).rejects.toThrow('Email delivery blocked: failed to acquire idempotency reservation');
+
+    expect(mailerService.transporter.sendMail).not.toHaveBeenCalled();
   });
 });
