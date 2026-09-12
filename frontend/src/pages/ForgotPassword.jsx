@@ -8,13 +8,17 @@ const ForgotPassword = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [expiryMinutes, setExpiryMinutes] = useState(15);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     try {
-      await api.post('/auth/forgot-password', { email });
+      const res = await api.post('/auth/forgot-password', { email });
+      if (res?.data?.data?.expiryMinutes) {
+        setExpiryMinutes(res.data.data.expiryMinutes);
+      }
       setSuccess(true);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -29,36 +33,49 @@ const ForgotPassword = () => {
       <div className="aegis-auth-form-side">
         <div className="aegis-auth-form-card">
           {success ? (
-            <div className="aegis-form-header" style={{ textAlign: 'left' }}>
-              <div
+            <div className="aegis-form-header" style={{ textAlign: 'center', paddingTop: '0.5rem' }}>
+              <img
+                src="/gmail-icon.png"
+                alt="Gmail"
                 style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '12px',
-                  background: '#f0fdf4',
-                  border: '1px solid #bbf7d0',
-                  color: '#16a34a',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: '1.25rem',
+                  width: '44px',
+                  height: 'auto',
+                  display: 'block',
+                  margin: '0 auto 1.25rem',
                 }}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22 4 12 14.01 9 11.01" />
-                </svg>
-              </div>
+              />
 
               <h1 className="aegis-auth-heading">Check Your Inbox</h1>
-              <p className="aegis-auth-subheading" style={{ marginTop: '0.75rem', lineHeight: '1.6' }}>
-                If an account with <strong style={{ color: '#111827' }}>{email}</strong> exists in our directory, a cryptographically signed password recovery link has been dispatched to your inbox.
+              <p className="aegis-auth-subheading" style={{ marginTop: '0.6rem', lineHeight: '1.6' }}>
+                We sent a password recovery link to <strong style={{ color: '#111827' }}>{email}</strong>. The link expires in <strong style={{ color: '#111827' }}>{expiryMinutes} minutes</strong>.
               </p>
 
-              <div style={{ marginTop: '2.5rem' }}>
+              <div style={{ marginTop: '2rem' }}>
                 <Link to="/login" className="aegis-primary-btn" style={{ textDecoration: 'none' }}>
                   Return to Sign In
                 </Link>
+              </div>
+
+              <div className="aegis-auth-bottom-row" style={{ marginTop: '1.5rem' }}>
+                <span style={{ fontSize: '0.84rem', color: '#6b7280' }}>
+                  Didn't receive the email? Check spam or{' '}
+                  <button
+                    type="button"
+                    onClick={() => setSuccess(false)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#28441f',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      padding: 0,
+                      textDecoration: 'underline',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    try another email
+                  </button>
+                </span>
               </div>
             </div>
           ) : (
@@ -86,7 +103,6 @@ const ForgotPassword = () => {
                       id="recovery-email"
                       type="email"
                       className="aegis-field-input"
-                      placeholder="name@company.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -113,8 +129,8 @@ const ForgotPassword = () => {
               </form>
 
               <div className="aegis-auth-bottom-row" style={{ marginTop: '2.5rem' }}>
-                <Link to="/login" className="aegis-auth-switch-link" style={{ color: '#4b5563', fontWeight: 500 }}>
-                  ← Back to Sign In
+                <Link to="/login" className="aegis-auth-back-link">
+                  Back to Sign In
                 </Link>
               </div>
             </>

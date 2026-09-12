@@ -119,10 +119,9 @@ const MfaVerify = () => {
             <button
               type="button"
               onClick={handleBack}
-              className="aegis-auth-switch-link"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563', fontWeight: 500 }}
+              className="aegis-auth-back-link"
             >
-              ← Back to Sign In
+              Back to Sign In
             </button>
           </div>
         </div>
