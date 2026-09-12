@@ -26,31 +26,19 @@ const ResetPassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canSubmit) {
-      if (!isPasswordValid) {
-        setError('Password must satisfy all 4 security checks before resetting.');
+      if (!hasMinLength) {
+        setError('Password must be at least 8 characters long');
+      } else if (!hasNumber && !hasSymbol) {
+        setError('Password must contain numbers and special symbols (!@#$%^&*) along with letters');
+      } else if (!hasNumber) {
+        setError('Password must contain at least one number (0-9)');
+      } else if (!hasSymbol) {
+        setError('Password must contain at least one special symbol (!@#$%^&*)');
+      } else if (!hasMixedCase) {
+        setError('Password must contain both uppercase and lowercase letters');
       } else if (!isConfirmValid) {
         setError('Passwords do not match.');
       }
-      return;
-    }
-    if (!hasMinLength) {
-      setError('Password must be at least 8 characters long');
-      return;
-    }
-    if (!hasNumber && !hasSymbol) {
-      setError('Password must contain numbers and special symbols (!@#$%^&*) along with letters');
-      return;
-    }
-    if (!hasNumber) {
-      setError('Password must contain at least one number (0-9)');
-      return;
-    }
-    if (!hasSymbol) {
-      setError('Password must contain at least one special symbol (!@#$%^&*)');
-      return;
-    }
-    if (!hasMixedCase) {
-      setError('Password must contain both uppercase and lowercase letters');
       return;
     }
 
