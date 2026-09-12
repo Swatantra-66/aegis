@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const dotenv = require('dotenv');
 const path = require('path');
 const Joi = require('joi');
@@ -53,6 +54,9 @@ const envSchema = Joi.object({
     'string.min': 'MFA_ENCRYPTION_KEY must be at least 32 characters for security',
     'any.required': 'MFA_ENCRYPTION_KEY is required',
   }),
+
+  // Dedicated Password Reset Token Secret (optional, falls back to HMAC of MFA encryption key)
+  PASSWORD_RESET_TOKEN_SECRET: Joi.string().min(32).optional(),
 
   // Email & SMTP
   SMTP_HOST: Joi.string().allow('').default(''),
@@ -124,6 +128,12 @@ const config = {
   mfa: {
     encryptionKey: envVars.MFA_ENCRYPTION_KEY,
   },
+  passwordResetTokenSecret:
+    envVars.PASSWORD_RESET_TOKEN_SECRET ||
+    crypto
+      .createHash('sha256')
+      .update(`pwd-reset-secret:${envVars.MFA_ENCRYPTION_KEY}`)
+      .digest('hex'),
   email: {
     smtpHost: envVars.SMTP_HOST,
     smtpPort: envVars.SMTP_PORT,

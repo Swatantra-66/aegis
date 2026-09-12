@@ -370,9 +370,19 @@ const processForgotPasswordJob = async (email, reqMeta = {}, job = null) => {
   if (!alreadyDelivered) {
     const ttlSeconds = (PASSWORD_RESET_TOKEN_EXPIRY_MINUTES || 15) * 60;
 
-    // Deterministic per-job token: retries recompute the same value, nothing is persisted in plaintext.
+    // Dedicated secret, never the JWT signing key. Job id alone must not be sufficient.
+    const resetSecret =
+      config.passwordResetTokenSecret ||
+      crypto
+        .createHash('sha256')
+        .update(`pwd-reset-secret:${config.mfa?.encryptionKey || 'aegis-fallback'}`)
+        .digest('hex');
+
     const resetToken = job?.id
-      ? crypto.createHmac('sha256', config.jwt.secret).update(`pwd-reset:${job.id}`).digest('hex')
+      ? crypto
+          .createHmac('sha256', resetSecret)
+          .update(`pwd-reset:${job.id}:${user.id}:${user.password_hash}`)
+          .digest('hex')
       : generateRandomToken();
 
     const tokenHash = hashToken(resetToken);
