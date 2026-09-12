@@ -3,6 +3,113 @@ const fs = require('fs');
 const nodemailer = require('nodemailer');
 const config = require('../config/index');
 const logger = require('../utils/logger');
+const { redis } = require('../config/redis');
+const { generateRandomToken } = require('../utils/crypto');
+
+/**
+ * Atomically reserve mail delivery idempotency key before transport invocation.
+ * Enforces explicit 'pending' vs 'sent' states, prevents duplicate concurrent delivery,
+ * and recovers stale pending reservations abandoned by crashed workers.
+ *
+ * KEYS[1] = idempotencyKey (STRING)
+ * ARGV[1] = ownerId (STRING)
+ * ARGV[2] = pendingTtlSeconds (NUMBER)
+ * ARGV[3] = nowMs (NUMBER)
+ * ARGV[4] = stalePendingThresholdMs (NUMBER)
+ * Returns { action, payload }
+ */
+const RESERVE_MAIL_IDEMPOTENCY_LUA = `
+  -- RESERVE_MAIL_IDEMPOTENCY_LUA
+  local existing = redis.call('GET', KEYS[1])
+  if not existing then
+    local record = {
+      status = 'pending',
+      ownerId = ARGV[1],
+      createdAt = tonumber(ARGV[3])
+    }
+    redis.call('SET', KEYS[1], cjson.encode(record), 'EX', tonumber(ARGV[2]))
+    return { 'ACQUIRED', '' }
+  end
+
+  local data = cjson.decode(existing)
+  if data.status == 'sent' then
+    return { 'ALREADY_SENT', cjson.encode(data.result) }
+  elseif data.status == 'pending' then
+    if data.ownerId == ARGV[1] then
+      return { 'ACQUIRED', '' }
+    end
+    local age = tonumber(ARGV[3]) - (data.createdAt or 0)
+    if age > tonumber(ARGV[4]) then
+      data.ownerId = ARGV[1]
+      data.createdAt = tonumber(ARGV[3])
+      data.recovered = true
+      redis.call('SET', KEYS[1], cjson.encode(data), 'EX', tonumber(ARGV[2]))
+      return { 'RECOVERED', '' }
+    else
+      return { 'IN_PROGRESS', '' }
+    end
+  else
+    return { 'UNKNOWN', '' }
+  end
+`;
+
+/**
+ * Atomically transition mail reservation from pending to sent upon transport acceptance.
+ * Fenced by ownerId or recovery takeover.
+ * KEYS[1] = idempotencyKey (STRING)
+ * ARGV[1] = ownerId (STRING)
+ * ARGV[2] = resultJson (STRING)
+ * ARGV[3] = sentTtlSeconds (NUMBER)
+ * ARGV[4] = nowMs (NUMBER)
+ */
+const FINALIZE_MAIL_IDEMPOTENCY_LUA = `
+  -- FINALIZE_MAIL_IDEMPOTENCY_LUA
+  local existing = redis.call('GET', KEYS[1])
+  if not existing then
+    local record = {
+      status = 'sent',
+      ownerId = ARGV[1],
+      result = cjson.decode(ARGV[2]),
+      sentAt = tonumber(ARGV[4])
+    }
+    redis.call('SET', KEYS[1], cjson.encode(record), 'EX', tonumber(ARGV[3]))
+    return 1
+  end
+
+  local data = cjson.decode(existing)
+  if data.status == 'sent' then
+    return 1
+  end
+
+  if data.ownerId == ARGV[1] then
+    data.status = 'sent'
+    data.result = cjson.decode(ARGV[2])
+    data.sentAt = tonumber(ARGV[4])
+    redis.call('SET', KEYS[1], cjson.encode(data), 'EX', tonumber(ARGV[3]))
+    return 1
+  else
+    return 0
+  end
+`;
+
+/**
+ * Atomically release pending mail reservation on transport failure.
+ * Ensures subsequent retries do not wait for the reservation TTL to expire.
+ * KEYS[1] = idempotencyKey (STRING)
+ * ARGV[1] = ownerId (STRING)
+ */
+const RELEASE_MAIL_IDEMPOTENCY_LUA = `
+  -- RELEASE_MAIL_IDEMPOTENCY_LUA
+  local existing = redis.call('GET', KEYS[1])
+  if existing then
+    local data = cjson.decode(existing)
+    if data.status == 'pending' and data.ownerId == ARGV[1] then
+      redis.call('DEL', KEYS[1])
+      return 1
+    end
+  end
+  return 0
+`;
 
 /**
  * Mailer Service — Dispatches cryptographically secured transactional emails.
@@ -387,95 +494,365 @@ If you didn't initiate this request, you can safely ignore this email.
   }
 
   /**
+   * Send branded password reset email to user.
+   * @param {Object} options
+   * @param {string} options.toEmail
+   * @param {string} [options.userName]
+   * @param {string} options.resetUrl
+   * @param {number} [options.expiryMinutes=15]
+   * @param {string} [options.idempotencyKey]
+   * @returns {Promise<Object>}
+   */
+  async sendPasswordResetEmail({
+    toEmail,
+    userName,
+    resetUrl,
+    expiryMinutes = 15,
+    idempotencyKey = null,
+  }) {
+    const safeName = this.escapeHtml(userName || 'there');
+    const plainName = userName || 'there';
+    const safeUrl = this.escapeHtml(resetUrl);
+
+    const subject = 'Reset your password — AEGIS';
+    const attachments = [];
+    const logoUrl = this._getControlledLogoUrl();
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset your password — Aegis</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #000000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #ffffff;">
+  <!-- Hidden Preheader -->
+  <div style="display: none; font-size: 1px; color: #000000; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden; mso-hide: all;">
+    A password reset was requested for your Aegis account. This link expires in ${expiryMinutes} minutes.
+  </div>
+  <div style="display: none; max-height: 0px; overflow: hidden;">
+    &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #000000; padding: 48px 16px;">
+    <tr>
+      <td align="center">
+        <!-- Main Card -->
+        <table role="presentation" width="100%" style="max-width: 480px; background-color: #0d0d0d; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; padding: 40px 36px; text-align: left;">
+          <!-- Brand Header -->
+          <tr>
+            <td style="padding-bottom: 32px;">
+              <table role="presentation" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td valign="middle" style="padding-right: 12px;">
+                    <img src="${logoUrl}" alt="Aegis" width="28" height="28" style="display: block; width: 28px; height: 28px; border: 0;" />
+                  </td>
+                  <td valign="middle">
+                    <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 21px; font-weight: 800; letter-spacing: 0.16em; color: #ffffff; line-height: 1; text-transform: uppercase; display: inline-block;">AEGIS</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Heading -->
+          <tr>
+            <td style="padding-bottom: 20px;">
+              <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em; line-height: 1.3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                Reset your password
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding-bottom: 28px;">
+              <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: #d4d4d8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                Hi ${safeName},
+              </p>
+              <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #a1a1aa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                We received a request to reset the password for your Aegis account. Click the button below to choose a new password:
+              </p>
+            </td>
+          </tr>
+
+          <!-- CTA Button -->
+          <tr>
+            <td style="padding-bottom: 32px;">
+              <table role="presentation" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 14px 32px; background-color: #ffffff; color: #000000; font-size: 14px; font-weight: 700; text-decoration: none; border-radius: 6px; letter-spacing: 0.01em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      Reset Password
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Direct Link & Expiry Notice -->
+          <tr>
+            <td style="padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+              <p style="margin: 0 0 8px 0; font-size: 13px; color: #71717a; line-height: 1.5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                This password reset link will expire in <strong style="color: #a1a1aa;">${expiryMinutes} minutes</strong>.
+              </p>
+              <p style="margin: 0 0 16px 0; font-size: 13px; color: #71717a; line-height: 1.5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #52525b; line-height: 1.5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                Button not working? Copy and paste this link into your browser:<br />
+                <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" style="color: #a1a1aa; text-decoration: underline; word-break: break-all;">${safeUrl}</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding-top: 32px; text-align: left;">
+              <p style="margin: 0; font-size: 12px; color: #3f3f46; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                &copy; 2026 Aegis Security Inc. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim();
+
+    const text = `
+AEGIS — Password Reset
+
+Hello ${plainName},
+
+We received a request to reset the password for your Aegis account (${toEmail}).
+
+Reset your password by visiting:
+${resetUrl}
+
+This link is valid for ${expiryMinutes} minutes and can only be used once.
+
+If you did not request a password reset, you can safely ignore this message. Your password will remain unchanged.
+    `.trim();
+
+    return this._dispatchMail({
+      toEmail,
+      subject,
+      text,
+      html,
+      attachments,
+      logLabel: 'Password Reset',
+      idempotencyKey,
+    });
+  }
+
+  /**
    * Internal transport dispatcher for Gmail REST API, SMTP, or Dev Fallback.
+   * Supports delivery idempotency via Redis caching and RFC 2822 Message-ID headers.
    * @private
    */
-  async _dispatchMail({ toEmail, subject, text, html, attachments, logLabel = 'Email' }) {
-    if (this.useGmailApi) {
+  async _dispatchMail({
+    toEmail,
+    subject,
+    text,
+    html,
+    attachments,
+    logLabel = 'Email',
+    idempotencyKey = null,
+  }) {
+    let reservationKey = null;
+    let reservationOwnerId = null;
+
+    // 1. Atomic Idempotency Reservation before transport call
+    if (idempotencyKey) {
+      reservationKey = `iam:mailer:idempotency:${idempotencyKey}`;
+      reservationOwnerId = generateRandomToken(16);
+      const pendingTtlSeconds = 120; // 2 minutes visibility lease
+      const staleThresholdMs = 45000; // 45 seconds crash recovery threshold
+
       try {
-        const streamMailer = nodemailer.createTransport({
-          streamTransport: true,
-          newline: 'windows',
-        });
+        let attempts = 0;
+        while (attempts < 6) {
+          const nowMs = Date.now();
+          const reservation = await redis.eval(
+            RESERVE_MAIL_IDEMPOTENCY_LUA,
+            1,
+            reservationKey,
+            reservationOwnerId,
+            pendingTtlSeconds,
+            nowMs,
+            staleThresholdMs
+          );
 
-        const fromHeader = this._formatFromHeader();
-
-        const compiled = await streamMailer.sendMail({
-          from: fromHeader,
-          to: toEmail,
-          subject,
-          text,
-          html,
-          attachments,
-        });
-
-        const chunks = [];
-        for await (const chunk of compiled.message) {
-          chunks.push(chunk);
-        }
-        const rfc2822Buffer = Buffer.concat(chunks);
-        const base64UrlMessage = rfc2822Buffer
-          .toString('base64')
-          .replace(/\+/g, '-')
-          .replace(/\//g, '_')
-          .replace(/=+$/, '');
-
-        const accessToken = await this.getGmailAccessToken();
-        const sendResponse = await fetch(
-          'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ raw: base64UrlMessage }),
+          if (reservation && reservation[0] === 'ALREADY_SENT') {
+            logger.info(`Idempotent mailer skip: [${idempotencyKey}] already dispatched`);
+            return JSON.parse(reservation[1]);
           }
-        );
 
-        if (!sendResponse.ok) {
-          const errText = await sendResponse.text();
-          logger.error(`Gmail REST API send failed [${sendResponse.status}]: ${errText}`);
-          throw new Error(`Gmail REST API send failed [${sendResponse.status}]: ${errText}`);
+          if (reservation && (reservation[0] === 'ACQUIRED' || reservation[0] === 'RECOVERED')) {
+            if (reservation[0] === 'RECOVERED') {
+              logger.warn(
+                `Recovered stale mail reservation for [${idempotencyKey}] from crashed worker`
+              );
+            }
+            break; // Successfully reserved ownership
+          }
+
+          if (reservation && reservation[0] === 'IN_PROGRESS') {
+            // Another worker is actively dispatching right now; wait and poll
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            attempts++;
+          } else {
+            break;
+          }
         }
 
-        const result = await sendResponse.json();
-        logger.info(
-          `${logLabel} email dispatched via Gmail REST API to [${toEmail}] messageId: ${result.id}`
-        );
-        return { messageId: result.id };
-      } catch (err) {
-        logger.error(
-          `Failed to send ${logLabel.toLowerCase()} email via Gmail REST API: ${err.message}`
-        );
-        throw err;
-      }
-    } else if (this.transporter) {
-      try {
-        const fromHeader = this._formatFromHeader();
-        const info = await this.transporter.sendMail({
-          from: fromHeader,
-          to: toEmail,
-          subject,
-          text,
-          html,
-          attachments,
-        });
-        logger.info(`${logLabel} email dispatched to [${toEmail}] messageId: ${info.messageId}`);
-        return info;
-      } catch (err) {
-        logger.error(`Failed to send ${logLabel.toLowerCase()} email via SMTP: ${err.message}`);
-        throw err;
-      }
-    } else {
-      if (config.env === 'development' || config.env === 'test') {
+        if (attempts >= 6) {
+          throw new Error(`Email delivery currently in progress for [${idempotencyKey}]`);
+        }
+      } catch (reserveErr) {
+        if (reserveErr.message.includes('currently in progress')) {
+          throw reserveErr;
+        }
         logger.warn(
-          `[DEV EMAIL FALLBACK] ${logLabel} email simulated. Configure SMTP or Gmail API in .env to send real emails.`
+          `Mailer idempotency reservation error for [${idempotencyKey}]: ${reserveErr.message}`
         );
-        return { messageId: 'dev-fallback-message-id' };
+      }
+    }
+
+    const messageIdHeader = idempotencyKey ? `<${idempotencyKey}@aegis.security>` : undefined;
+    const customHeaders = idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey } : undefined;
+
+    let dispatchResult;
+
+    try {
+      if (this.useGmailApi) {
+        try {
+          const streamMailer = nodemailer.createTransport({
+            streamTransport: true,
+            newline: 'windows',
+          });
+
+          const fromHeader = this._formatFromHeader();
+
+          const compiled = await streamMailer.sendMail({
+            from: fromHeader,
+            to: toEmail,
+            subject,
+            text,
+            html,
+            attachments,
+            messageId: messageIdHeader,
+            headers: customHeaders,
+          });
+
+          const chunks = [];
+          for await (const chunk of compiled.message) {
+            chunks.push(chunk);
+          }
+          const rfc2822Buffer = Buffer.concat(chunks);
+          const base64UrlMessage = rfc2822Buffer
+            .toString('base64')
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '');
+
+          const accessToken = await this.getGmailAccessToken();
+          const sendResponse = await fetch(
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ raw: base64UrlMessage }),
+            }
+          );
+
+          if (!sendResponse.ok) {
+            const errText = await sendResponse.text();
+            logger.error(`Gmail REST API send failed [${sendResponse.status}]: ${errText}`);
+            throw new Error(`Gmail REST API send failed [${sendResponse.status}]: ${errText}`);
+          }
+
+          const result = await sendResponse.json();
+          logger.info(
+            `${logLabel} email dispatched via Gmail REST API to [${toEmail}] messageId: ${result.id}`
+          );
+          dispatchResult = { messageId: result.id };
+        } catch (err) {
+          logger.error(
+            `Failed to send ${logLabel.toLowerCase()} email via Gmail REST API: ${err.message}`
+          );
+          throw err;
+        }
+      } else if (this.transporter) {
+        try {
+          const fromHeader = this._formatFromHeader();
+          const info = await this.transporter.sendMail({
+            from: fromHeader,
+            to: toEmail,
+            subject,
+            text,
+            html,
+            attachments,
+            messageId: messageIdHeader,
+            headers: customHeaders,
+          });
+          logger.info(`${logLabel} email dispatched to [${toEmail}] messageId: ${info.messageId}`);
+          dispatchResult = info;
+        } catch (err) {
+          logger.error(`Failed to send ${logLabel.toLowerCase()} email via SMTP: ${err.message}`);
+          throw err;
+        }
+      } else {
+        if (config.env === 'development' || config.env === 'test') {
+          logger.warn(
+            `[DEV EMAIL FALLBACK] ${logLabel} email simulated. Configure SMTP or Gmail API in .env to send real emails.`
+          );
+          dispatchResult = { messageId: `dev-fallback-${idempotencyKey || 'msg-id'}` };
+        } else {
+          throw new Error('Email transport is not configured for this environment');
+        }
       }
 
-      throw new Error('Email transport is not configured for this environment');
+      // 2. Transport accepted: transition reservation from pending to sent
+      if (reservationKey && reservationOwnerId && dispatchResult) {
+        try {
+          await redis.eval(
+            FINALIZE_MAIL_IDEMPOTENCY_LUA,
+            1,
+            reservationKey,
+            reservationOwnerId,
+            JSON.stringify(dispatchResult),
+            604800, // 7 days retention
+            Date.now()
+          );
+        } catch (finalizeErr) {
+          logger.warn(
+            `Failed to finalize mailer idempotency for [${idempotencyKey}]: ${finalizeErr.message}`
+          );
+        }
+      }
+
+      return dispatchResult;
+    } catch (transportErr) {
+      // 3. Transport failed: release pending reservation so retries do not wait
+      if (reservationKey && reservationOwnerId) {
+        try {
+          await redis.eval(RELEASE_MAIL_IDEMPOTENCY_LUA, 1, reservationKey, reservationOwnerId);
+        } catch (releaseErr) {
+          logger.warn(
+            `Failed to release mailer reservation for [${idempotencyKey}]: ${releaseErr.message}`
+          );
+        }
+      }
+      throw transportErr;
     }
   }
 

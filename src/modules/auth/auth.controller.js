@@ -1,5 +1,6 @@
 const authService = require('./auth.service');
 const apiResponse = require('../../utils/apiResponse');
+const { PASSWORD_RESET_TOKEN_EXPIRY_MINUTES } = require('../../config/constants');
 
 /**
  * Auth Controller — thin HTTP layer.
@@ -98,17 +99,16 @@ const logout = async (req, res) => {
  * POST /api/v1/auth/forgot-password
  */
 const forgotPassword = async (req, res) => {
-  const resetToken = await authService.forgotPassword(req.body.email, {
+  await authService.forgotPassword(req.body.email, {
     ip: req.ip,
     userAgent: req.get('user-agent'),
   });
 
-  // In production, the token would be emailed, not returned
-  const data = process.env.NODE_ENV === 'development' ? { reset_token: resetToken } : {};
-
   return apiResponse.success(res, {
     message: 'If an account with that email exists, a password reset link has been sent',
-    data,
+    data: {
+      expiryMinutes: PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
+    },
   });
 };
 

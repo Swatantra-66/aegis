@@ -9,6 +9,7 @@ const config = require('../../config/index');
 const tokenService = require('../tokens/tokens.service');
 const auditService = require('../audit/audit.service');
 const mailerService = require('../../services/mailer.service');
+const queueService = require('../../services/queue.service');
 const securityPolicy = require('./securityPolicy');
 const AppError = require('../../utils/AppError');
 const logger = require('../../utils/logger');
@@ -22,6 +23,7 @@ const {
   EMAIL_VERIFICATION_TOKEN_EXPIRY_HOURS,
   SIGNUP_TOKEN_EXPIRY_HOURS,
   SIGNUP_TICKET_EXPIRY_MINUTES,
+  PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
 } = require('../../config/constants');
 
 /**
@@ -323,93 +325,307 @@ const logout = async (accessTokenJti, refreshToken, reqMeta = {}) => {
 };
 
 /**
- * Initiate password reset — generate token and store in database.
- * Always returns success to prevent user enumeration.
+ * Durable worker for password reset dispatch.
+ * Executes user lookup, token generation, Redis persistence, and email dispatch.
+ * Delivery errors are not suppressed so that durable queue can retry upon failure.
+ * Checkpoint prevents duplicate email delivery if subsequent audit step fails.
  *
  * @param {string} email
  * @param {Object} reqMeta
- * @returns {Promise<string>} Reset token (in dev only; in prod would email)
+ * @param {Object} [job]
  */
-const forgotPassword = async (email, reqMeta = {}) => {
-  const result = await db.query('SELECT id, email FROM users WHERE email = $1', [email]);
+const processForgotPasswordJob = async (email, reqMeta = {}, job = null) => {
+  const result = await db.query(
+    'SELECT id, email, first_name, last_name, password_hash FROM users WHERE email = $1',
+    [email]
+  );
 
-  // Always return success (prevent user enumeration)
+  // Uniformly terminate if account does not exist (no email dispatched, no timing signal leaked)
   if (result.rows.length === 0) {
-    return null;
+    return { status: 'ignored', reason: 'user_not_found' };
   }
 
   const user = result.rows[0];
-  const resetToken = generateRandomToken();
-  const tokenHash = hashToken(resetToken);
-  const expiresAt = new Date();
-  expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15-minute lifetime
+  const idempotencyKey = job?.id ? `pwd_reset_${job.id}` : null;
 
-  // Store reset token in refresh_tokens table under dedicated family UUID
-  await db.query(
-    `INSERT INTO refresh_tokens (user_id, token_hash, family_id, expires_at)
-     VALUES ($1, $2, $3, $4)`,
-    [user.id, tokenHash, '00000000-0000-0000-0000-000000000000', expiresAt]
-  );
+  // Check structured delivery state: do NOT use bare checkpoint existence as proof of delivery
+  let alreadyDelivered = false;
+  if (job?.checkpoint && job.checkpoint.emailDelivered === true) {
+    alreadyDelivered = true;
+  } else if (job?.id) {
+    try {
+      const jobDataStr = await redis.get(`iam:jobs:${job.id}`);
+      if (jobDataStr) {
+        const jobData = JSON.parse(jobDataStr);
+        if (jobData?.checkpoint?.emailDelivered === true) {
+          alreadyDelivered = true;
+        }
+      }
+    } catch {
+      // Ignore cache check errors
+    }
+  }
 
-  await auditService.log({
-    actorId: user.id,
-    actorEmail: user.email,
-    action: AUDIT_ACTIONS.PASSWORD_RESET_REQUESTED,
-    resourceType: 'user',
-    resourceId: user.id,
-    ip: reqMeta.ip,
-    userAgent: reqMeta.userAgent,
-  });
+  if (!alreadyDelivered) {
+    const ttlSeconds = (PASSWORD_RESET_TOKEN_EXPIRY_MINUTES || 15) * 60;
 
-  return resetToken; // In production, this would be emailed, not returned
+    // Reuse existing generated token for this job if retrying, preventing token proliferation
+    let resetToken = null;
+    if (job?.id) {
+      try {
+        resetToken = await redis.get(`iam:jobs:${job.id}:token`);
+      } catch {
+        resetToken = null;
+      }
+    }
+    if (!resetToken) {
+      resetToken = generateRandomToken();
+      if (job?.id) {
+        try {
+          await redis.set(`iam:jobs:${job.id}:token`, resetToken, 'EX', ttlSeconds);
+        } catch (cacheErr) {
+          logger.warn(`Failed to cache reset token for job [${job.id}]: ${cacheErr.message}`);
+        }
+      }
+    }
+
+    const tokenHash = hashToken(resetToken);
+    const redisKey = `${REDIS_PREFIXES.PASSWORD_RESET}${tokenHash}`;
+
+    // Store reset token payload in ephemeral Redis store with fencing token
+    await redis.set(
+      redisKey,
+      JSON.stringify({
+        userId: user.id,
+        email: user.email,
+        fencingToken: user.password_hash,
+      }),
+      'EX',
+      ttlSeconds
+    );
+
+    const resetUrl = `${config.email.frontendUrl}/reset-password?token=${resetToken}`;
+    const userName = user.first_name
+      ? `${user.first_name} ${user.last_name || ''}`.trim()
+      : user.email.split('@')[0];
+
+    // Log only user identifier - NEVER log the raw bearer reset token or resetUrl
+    logger.info(`Password reset dispatched for user ID [${user.id}]`);
+
+    // Dispatch branded password reset email with single-source expiry minutes and durable idempotencyKey
+    // Let retryable delivery failures throw so durable queue worker can retry
+    await mailerService.sendPasswordResetEmail({
+      toEmail: user.email,
+      userName,
+      resetUrl,
+      expiryMinutes: PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
+      idempotencyKey,
+    });
+
+    // Record delivery checkpoint strictly through queueService.checkpoint with claimToken fencing
+    if (job?.id && typeof queueService.checkpoint === 'function') {
+      await queueService.checkpoint(job.id, { emailDelivered: true }, job.claimToken);
+    }
+  }
+
+  // Process audit log independently; failures are logged but do not retry email delivery
+  try {
+    await auditService.log({
+      actorId: user.id,
+      actorEmail: user.email,
+      action: AUDIT_ACTIONS.PASSWORD_RESET_REQUESTED,
+      resourceType: 'user',
+      resourceId: user.id,
+      ip: reqMeta.ip,
+      userAgent: reqMeta.userAgent,
+    });
+  } catch (auditErr) {
+    logger.error(
+      `Audit logging failed for password reset request [${user.id}]: ${auditErr.message}`
+    );
+  }
+
+  return { status: 'delivered', userId: user.id };
+};
+
+// Register worker with durable queue service
+queueService.registerWorker('password-reset', async (payload, job) => {
+  return await processForgotPasswordJob(payload.email, payload.reqMeta, job);
+});
+
+/**
+ * Initiate password reset — enqueues an idempotent durable background job.
+ * Submits work to durable Redis queue uniformly for all requests,
+ * eliminating timing side channels while ensuring durability and retryability across server restarts.
+ *
+ * @param {string} email
+ * @param {Object} reqMeta
+ * @returns {Promise<void>}
+ */
+const forgotPassword = async (email, reqMeta = {}) => {
+  await queueService.enqueue('password-reset', { email, reqMeta });
+  return null;
 };
 
 /**
- * Complete password reset.
+ * Complete password reset using an atomic claim-and-finalize protocol.
+ * The token is claimed with a recoverable lease during password hashing and DB transaction.
+ * Token is finalized (deleted) ONLY after all database operations succeed.
+ *
  * @param {string} token - Reset token
  * @param {string} newPassword
  * @param {Object} reqMeta
  */
 const resetPassword = async (token, newPassword, reqMeta = {}) => {
   const tokenHash = hashToken(token);
+  const redisKey = `${REDIS_PREFIXES.PASSWORD_RESET}${tokenHash}`;
+  const claimKey = `${redisKey}:claim`;
+  const claimTtlSeconds = 60; // 60-second processing lease
+  const claimId = generateRandomToken(16);
 
-  const result = await db.query(
-    `SELECT id, user_id, expires_at, revoked FROM refresh_tokens
-     WHERE token_hash = $1 AND family_id = '00000000-0000-0000-0000-000000000000'`,
-    [tokenHash]
-  );
+  // Phase 1: Atomic claim with unique claimId
+  const tokenDataStr = await atomicClaimToken(redisKey, claimKey, claimId, claimTtlSeconds);
 
-  if (result.rows.length === 0 || result.rows[0].revoked) {
+  if (!tokenDataStr) {
     throw AppError.badRequest('Invalid or expired reset token', 'AUTH_RESET_TOKEN_INVALID');
   }
 
-  const tokenRecord = result.rows[0];
-
-  if (new Date(tokenRecord.expires_at) < new Date()) {
-    throw AppError.badRequest('Reset token has expired', 'AUTH_RESET_TOKEN_EXPIRED');
+  if (tokenDataStr === 'CLAIMED') {
+    throw AppError.badRequest(
+      'Password reset is currently being processed. Please retry shortly.',
+      'AUTH_RESET_IN_PROGRESS'
+    );
   }
 
-  // Hash new password and update
-  const password_hash = await hashPassword(newPassword);
-  await db.query(
-    'UPDATE users SET password_hash = $1, failed_login_attempts = 0, locked_until = NULL WHERE id = $2',
-    [password_hash, tokenRecord.user_id]
-  );
+  let tokenData;
+  try {
+    tokenData = JSON.parse(tokenDataStr);
+  } catch {
+    await atomicReleaseClaim(claimKey, claimId).catch(() => {});
+    throw AppError.badRequest('Invalid reset token payload', 'AUTH_RESET_TOKEN_INVALID');
+  }
 
-  // Revoke the reset token
-  await db.query('UPDATE refresh_tokens SET revoked = true WHERE id = $1', [tokenRecord.id]);
+  if (!tokenData || !tokenData.userId) {
+    await atomicReleaseClaim(claimKey, claimId).catch(() => {});
+    throw AppError.badRequest('Invalid reset token payload', 'AUTH_RESET_TOKEN_INVALID');
+  }
 
-  // Revoke all existing refresh tokens (force re-login everywhere)
-  await tokenService.revokeAllUserTokens(tokenRecord.user_id);
+  let claimLost = false;
 
-  await auditService.log({
-    actorId: tokenRecord.user_id,
-    action: AUDIT_ACTIONS.PASSWORD_RESET_COMPLETED,
-    resourceType: 'user',
-    resourceId: tokenRecord.user_id,
-    ip: reqMeta.ip,
-    userAgent: reqMeta.userAgent,
-  });
+  // Renew lease periodically while Argon2id hashing and DB transaction execute
+  const renewInterval = setInterval(async () => {
+    try {
+      const renewed = await redis.eval(
+        ATOMIC_RENEW_LEASE_LUA,
+        1,
+        claimKey,
+        claimId,
+        claimTtlSeconds
+      );
+      if (renewed !== 1) {
+        claimLost = true;
+      }
+    } catch {
+      claimLost = true;
+    }
+  }, 15000);
+
+  if (typeof renewInterval.unref === 'function') {
+    renewInterval.unref();
+  }
+
+  let isCommitted = false;
+
+  // Phase 2: Operations with conditional recovery
+  try {
+    // Hash new password with Argon2id (Rule: Argon2id ONLY)
+    const password_hash = await hashPassword(newPassword);
+
+    // Atomic database operations in transaction: password update + session revocation
+    const client = await db.getClient();
+    try {
+      await client.query('BEGIN');
+
+      // Enforce claim ownership right before database commit
+      if (claimLost) {
+        throw AppError.conflict(
+          'Password reset lease expired or was claimed by another session',
+          'AUTH_CLAIM_LOST'
+        );
+      }
+
+      const stillOwned = await atomicVerifyClaim(claimKey, claimId);
+      if (stillOwned !== 1) {
+        throw AppError.conflict(
+          'Password reset claim ownership lost prior to commit',
+          'AUTH_CLAIM_LOST'
+        );
+      }
+
+      // Optimistic concurrency fencing: update only if user password_hash has not changed
+      if (typeof tokenData.fencingToken !== 'string' || !tokenData.fencingToken) {
+        throw AppError.badRequest('Invalid reset token payload', 'AUTH_RESET_TOKEN_INVALID');
+      }
+
+      const updateResult = await client.query(
+        'UPDATE users SET password_hash = $1, failed_login_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = $2 AND password_hash = $3',
+        [password_hash, tokenData.userId, tokenData.fencingToken]
+      );
+
+      if (updateResult.rowCount === 0) {
+        throw AppError.conflict(
+          'Password has already been modified by another session',
+          'AUTH_PASSWORD_ALREADY_UPDATED'
+        );
+      }
+
+      await client.query(
+        'UPDATE refresh_tokens SET revoked = true WHERE user_id = $1 AND revoked = false',
+        [tokenData.userId]
+      );
+
+      await client.query('COMMIT');
+      isCommitted = true;
+    } catch (dbErr) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw dbErr;
+    } finally {
+      client.release();
+    }
+  } catch (opErr) {
+    // Only release the claim if the database was NOT committed!
+    // If commit succeeded, do NOT make the token retryable.
+    if (!isCommitted) {
+      await atomicReleaseClaim(claimKey, claimId).catch(() => {});
+    }
+    throw opErr;
+  } finally {
+    clearInterval(renewInterval);
+  }
+
+  // Phase 3: Finalize — permanently consume token and release claim upon full success
+  try {
+    await atomicFinalizeToken(redisKey, claimKey, claimId);
+  } catch (finalizeErr) {
+    logger.error(
+      `Post-commit token finalization encountered Redis error for user [${tokenData.userId}]: ${finalizeErr.message}`
+    );
+  }
+
+  try {
+    await auditService.log({
+      actorId: tokenData.userId,
+      action: AUDIT_ACTIONS.PASSWORD_RESET_COMPLETED,
+      resourceType: 'user',
+      resourceId: tokenData.userId,
+      ip: reqMeta.ip,
+      userAgent: reqMeta.userAgent,
+    });
+  } catch (auditErr) {
+    logger.error(
+      `Audit logging failed for completed password reset [${tokenData.userId}]: ${auditErr.message}`
+    );
+  }
 };
 
 /**
@@ -496,6 +712,121 @@ const atomicGetDel = async (key) => {
     }
   }
   return await redis.eval(ATOMIC_GETDEL_LUA, 1, key);
+};
+
+/**
+ * Server-side Lua script to atomically claim a reset token with a unique claim ownership identifier.
+ * Verifies existence of the token key (KEYS[1]) and atomically acquires a leased claim lock (KEYS[2]).
+ * ARGV[1] = claimId, ARGV[2] = claimTtlSeconds
+ * Returns:
+ * - nil: token does not exist or has expired
+ * - 'CLAIMED': token is valid but currently claimed by another concurrent request
+ * - string: token JSON payload upon successful claim
+ */
+const ATOMIC_CLAIM_TOKEN_LUA = `
+  local val = redis.call('GET', KEYS[1])
+  if not val then
+    return nil
+  end
+  local acquired = redis.call('SET', KEYS[2], ARGV[1], 'NX', 'EX', ARGV[2])
+  if not acquired then
+    return 'CLAIMED'
+  end
+  return val
+`;
+
+/**
+ * Server-side Lua script to renew a claim lease lock during processing.
+ * Renews EXPIRE only if KEYS[1] is currently held by ARGV[1] (claimId).
+ */
+const ATOMIC_RENEW_LEASE_LUA = `
+  if redis.call('GET', KEYS[1]) == ARGV[1] then
+    return redis.call('EXPIRE', KEYS[1], ARGV[2])
+  else
+    return 0
+  end
+`;
+
+/**
+ * Server-side Lua script to conditionally release a claim lock on transient pre-commit failure.
+ * Deletes KEYS[1] (claimKey) ONLY if its value matches ARGV[1] (claimId).
+ */
+const ATOMIC_RELEASE_CLAIM_LUA = `
+  if redis.call('GET', KEYS[1]) == ARGV[1] then
+    return redis.call('DEL', KEYS[1])
+  else
+    return 0
+  end
+`;
+
+/**
+ * Server-side Lua script to finalize a reset token post-commit.
+ * Deletes KEYS[1] (tokenKey) and KEYS[2] (claimKey) ONLY if KEYS[2] is held by ARGV[1] (claimId).
+ */
+const ATOMIC_FINALIZE_TOKEN_LUA = `
+  if redis.call('GET', KEYS[2]) == ARGV[1] then
+    redis.call('DEL', KEYS[1])
+    redis.call('DEL', KEYS[2])
+    return 1
+  else
+    return 0
+  end
+`;
+
+/**
+ * Server-side Lua script to verify claim ownership immediately before commit.
+ * Returns 1 if KEYS[1] (claimKey) is currently owned by ARGV[1] (claimId), 0 otherwise.
+ */
+const ATOMIC_VERIFY_CLAIM_LUA = `
+  if redis.call('GET', KEYS[1]) == ARGV[1] then
+    return 1
+  else
+    return 0
+  end
+`;
+
+/**
+ * Atomically claim a token key in Redis with a leased lock to prevent concurrent consumption
+ * while allowing recovery if downstream operations fail.
+ * @param {string} key - Token Redis key
+ * @param {string} claimKey - Lease lock Redis key
+ * @param {string} claimId - Unique claim ownership identifier
+ * @param {number} claimTtlSeconds - Lease TTL in seconds
+ * @returns {Promise<string|null>}
+ */
+const atomicClaimToken = async (key, claimKey, claimId, claimTtlSeconds = 60) => {
+  return await redis.eval(ATOMIC_CLAIM_TOKEN_LUA, 2, key, claimKey, claimId, claimTtlSeconds);
+};
+
+/**
+ * Verify active claim ownership immediately before database commit.
+ * @param {string} claimKey
+ * @param {string} claimId
+ * @returns {Promise<number>}
+ */
+const atomicVerifyClaim = async (claimKey, claimId) => {
+  return await redis.eval(ATOMIC_VERIFY_CLAIM_LUA, 1, claimKey, claimId);
+};
+
+/**
+ * Conditionally release a claim lock only if still owned by claimId.
+ * @param {string} claimKey
+ * @param {string} claimId
+ * @returns {Promise<number>}
+ */
+const atomicReleaseClaim = async (claimKey, claimId) => {
+  return await redis.eval(ATOMIC_RELEASE_CLAIM_LUA, 1, claimKey, claimId);
+};
+
+/**
+ * Finalize token post-commit: deletes token key and conditionally releases claim.
+ * @param {string} key
+ * @param {string} claimKey
+ * @param {string} claimId
+ * @returns {Promise<number>}
+ */
+const atomicFinalizeToken = async (key, claimKey, claimId) => {
+  return await redis.eval(ATOMIC_FINALIZE_TOKEN_LUA, 2, key, claimKey, claimId);
 };
 
 /**
@@ -881,6 +1212,7 @@ module.exports = {
   refresh,
   logout,
   forgotPassword,
+  processForgotPasswordJob,
   resetPassword,
   sendVerificationEmail,
   verifyEmail,

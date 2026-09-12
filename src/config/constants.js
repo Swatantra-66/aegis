@@ -3,15 +3,15 @@
  * Centralized here so changes propagate everywhere without code edits.
  */
 const CONSTANTS = {
-  // ── Token Lifetimes ────────────────────────────────
+  // ── Token Lifetimes
   ACCESS_TOKEN_EXPIRY: '15m',
   REFRESH_TOKEN_EXPIRY_DAYS: 7,
-  PASSWORD_RESET_TOKEN_EXPIRY_HOURS: 1,
   EMAIL_VERIFICATION_TOKEN_EXPIRY_HOURS: 24,
   SIGNUP_TOKEN_EXPIRY_HOURS: 24,
   SIGNUP_TICKET_EXPIRY_MINUTES: 30,
+  PASSWORD_RESET_TOKEN_EXPIRY_MINUTES: 15,
 
-  // ── Rate Limiting (per-route overrides) ────────────
+  // ── Rate Limiting (per-route overrides)
   RATE_LIMITS: {
     AUTH: {
       windowMs: 15 * 60 * 1000, // 15 minutes
@@ -31,19 +31,19 @@ const CONSTANTS = {
     },
   },
 
-  // ── Account Security ───────────────────────────────
+  // ── Account Security
   MAX_FAILED_LOGIN_ATTEMPTS: 5,
   ACCOUNT_LOCK_DURATION_MINUTES: 30,
   PASSWORD_MIN_LENGTH: 8,
 
-  // ── RBAC Default Roles ─────────────────────────────
+  // ── RBAC Default Roles
   ROLES: {
     SUPER_ADMIN: 'super_admin',
     ADMIN: 'admin',
     USER: 'user',
   },
 
-  // ── Audit Actions ──────────────────────────────────
+  // ── Audit Actions
   AUDIT_ACTIONS: {
     USER_REGISTERED: 'USER_REGISTERED',
     USER_LOGIN: 'USER_LOGIN',
@@ -72,7 +72,7 @@ const CONSTANTS = {
     TOKEN_REFRESHED: 'TOKEN_REFRESHED',
   },
 
-  // ── Redis Key Prefixes ─────────────────────────────
+  // ── Redis Key Prefixes
   REDIS_PREFIXES: {
     TOKEN_BLACKLIST: 'bl:',
     RATE_LIMIT: 'rl:',
@@ -80,9 +80,10 @@ const CONSTANTS = {
     EMAIL_VERIFICATION: 'iam:email-verify:',
     SIGNUP_TOKEN: 'iam:signup-token:',
     SIGNUP_TICKET: 'iam:signup-ticket:',
+    PASSWORD_RESET: 'iam:password-reset:',
   },
 
-  // ── Pagination Defaults ────────────────────────────
+  // ── Pagination Defaults
   PAGINATION: {
     DEFAULT_PAGE: 1,
     DEFAULT_LIMIT: 20,
