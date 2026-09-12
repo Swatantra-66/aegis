@@ -76,7 +76,7 @@ curl -s http://127.0.0.1:3000/health | jq .
 | Command | Purpose & Usage | Expected Healthy State |
 | :--- | :--- | :--- |
 | `sudo systemctl status postgresql --no-pager` | Verifies PostgreSQL master service daemon state. | `Active: active (exited)` or `active (running)` with status 0/SUCCESS. |
-| `sudo -i -u postgres psql -d iam_portal -c "\dt"` | Lists all tables in the `iam_portal` database and verifies table ownership. | Displays all **12 core tables** owned by `aegisadmin`. |
+| `sudo -i -u postgres psql -d iam_portal -c "\dt"` | Lists all tables in the `iam_portal` database and verifies table ownership. | Displays all **core tables** owned by `admin`. |
 | `sudo -i -u postgres psql -d iam_portal -c "SELECT COUNT(*) FROM users;"` | Verifies SQL read connectivity and returns total registered user accounts. | Returns integer count of users. |
 | `sudo -i -u postgres psql -d iam_portal -c "SELECT COUNT(*) FROM audit_logs;"` | Verifies tamper-evident audit trail table entries. | Returns total logged security events. |
 | `sudo -i -u postgres psql -d iam_portal -c "SELECT id, name FROM migrations;"` | Verifies that database schema migrations were applied sequentially. | Lists all applied migration batch records. |
