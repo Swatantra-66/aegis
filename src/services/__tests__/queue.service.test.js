@@ -37,6 +37,46 @@ describe('QueueService (Atomic Operations, Leases, Fencing & Checkpoints)', () =
       expect(typeof jobId).toBe('string');
       expect(redis.pipeline).toHaveBeenCalled();
     });
+
+    test('deduplicates caller-supplied jobId using SET NX and skips lpush if already exists', async () => {
+      redis.set.mockResolvedValueOnce(null); // Key already exists
+
+      const jobId = await queueService.enqueue(
+        'test-queue',
+        { foo: 'bar' },
+        { jobId: 'idempotent-job-1' }
+      );
+
+      expect(jobId).toBe('idempotent-job-1');
+      expect(redis.set).toHaveBeenCalledWith(
+        'iam:jobs:idempotent-job-1',
+        expect.any(String),
+        'EX',
+        86400,
+        'NX'
+      );
+      expect(redis.lpush).not.toHaveBeenCalled();
+    });
+
+    test('enqueues caller-supplied jobId if it does not yet exist', async () => {
+      redis.set.mockResolvedValueOnce('OK'); // Key acquired
+
+      const jobId = await queueService.enqueue(
+        'test-queue',
+        { foo: 'bar' },
+        { jobId: 'new-job-1' }
+      );
+
+      expect(jobId).toBe('new-job-1');
+      expect(redis.set).toHaveBeenCalledWith(
+        'iam:jobs:new-job-1',
+        expect.any(String),
+        'EX',
+        86400,
+        'NX'
+      );
+      expect(redis.lpush).toHaveBeenCalledWith('iam:queue:test-queue', 'new-job-1');
+    });
   });
 
   describe('atomic claim without fallback', () => {
@@ -194,6 +234,16 @@ describe('QueueService (Atomic Operations, Leases, Fencing & Checkpoints)', () =
       );
     });
 
+    test('checkpoint writes the full merged checkpoint string returned from Lua script', async () => {
+      const mergedJson = JSON.stringify({ emailDelivered: true, attachmentsProcessed: 2 });
+      redis.eval.mockResolvedValueOnce(mergedJson);
+      redis.set.mockResolvedValueOnce('OK');
+
+      await queueService.checkpoint('job-1', { attachmentsProcessed: 2 }, 'claim-tok-123');
+
+      expect(redis.set).toHaveBeenCalledWith('iam:jobs:job-1:checkpoint', mergedJson, 'EX', 86400);
+    });
+
     test('checkpoint does NOT write dedicated checkpoint key if claimToken fence fails (res === -1)', async () => {
       redis.eval.mockResolvedValueOnce(-1); // Fence rejected
 
@@ -242,6 +292,30 @@ describe('QueueService (Atomic Operations, Leases, Fencing & Checkpoints)', () =
       const evaluatedScripts = redis.eval.mock.calls.map(([script]) => script);
       expect(evaluatedScripts.some((script) => script.includes('DELAY_RETRY'))).toBe(false);
       expect(evaluatedScripts.some((script) => script.includes('DLQ'))).toBe(false);
+    });
+
+    test('processNext catches failure transition error without throwing or stalling drain', async () => {
+      const mockJob = {
+        id: 'job-fail-trans',
+        queue: 'test-trans-err',
+        payload: { task: 2 },
+        attempts: 1,
+        maxAttempts: 3,
+        status: 'processing',
+        checkpoint: {},
+      };
+
+      redis.eval
+        .mockResolvedValueOnce(0) // migrateDelayedJobs
+        .mockResolvedValueOnce(['job-fail-trans', JSON.stringify(mockJob)]) // pop
+        .mockRejectedValueOnce(new Error('Redis connection lost during delayRetryJob')); // delayRetryJob fails
+
+      const mockHandler = jest.fn().mockRejectedValue(new Error('Handler crashed'));
+      queueService.registerWorker('test-trans-err', mockHandler);
+
+      // Must resolve without throwing
+      await expect(queueService.processNext('test-trans-err')).resolves.not.toThrow();
+      expect(mockHandler).toHaveBeenCalled();
     });
   });
 });

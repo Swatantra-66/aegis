@@ -218,8 +218,9 @@ const CHECKPOINT_JOB_LUA = `
     job.checkpoint[k] = v
   end
   job.updatedAt = ARGV[4]
+  local mergedJson = cjson.encode(job.checkpoint)
   redis.call('SET', KEYS[1], cjson.encode(job), 'KEEPTTL')
-  return 1
+  return mergedJson
 `;
 
 /**
@@ -260,6 +261,7 @@ class QueueService {
    * @returns {Promise<string>} jobId
    */
   async enqueue(queueName, payload, options = {}) {
+    const isCustomJobId = Boolean(options.jobId);
     const jobId = options.jobId || generateRandomToken(16);
     const maxAttempts = options.maxAttempts || 3;
     const queueKey = `iam:queue:${queueName}`;
@@ -277,11 +279,21 @@ class QueueService {
       updatedAt: new Date().toISOString(),
     };
 
-    // Atomic execution: write job metadata and push to queue in one Redis tick
-    const pipeline = redis.pipeline ? redis.pipeline() : redis.multi();
-    pipeline.set(jobKey, JSON.stringify(job), 'EX', 86400);
-    pipeline.lpush(queueKey, jobId);
-    await pipeline.exec();
+    if (isCustomJobId) {
+      // Idempotency guard: SET with NX to avoid overwriting metadata or re-queuing duplicate jobs
+      const acquired = await redis.set(jobKey, JSON.stringify(job), 'EX', 86400, 'NX');
+      if (!acquired) {
+        // Job already exists in system; return existing jobId without pushing to queue
+        return jobId;
+      }
+      await redis.lpush(queueKey, jobId);
+    } else {
+      // Atomic execution: write job metadata and push to queue in one Redis tick
+      const pipeline = redis.pipeline ? redis.pipeline() : redis.multi();
+      pipeline.set(jobKey, JSON.stringify(job), 'EX', 86400);
+      pipeline.lpush(queueKey, jobId);
+      await pipeline.exec();
+    }
 
     // Trigger immediate queue drain
     setImmediate(() => {
@@ -315,12 +327,11 @@ class QueueService {
         nowIso
       );
 
-      // 2. Store in dedicated checkpoint key only for the confirmed owner
-      if (res === 1) {
-        await redis.set(`iam:jobs:${jobId}:checkpoint`, JSON.stringify(updates), 'EX', 86400);
-      }
-
-      if (res === -1) {
+      // 2. Store merged checkpoint in dedicated checkpoint key only for the confirmed owner
+      if (typeof res === 'string' || res === 1) {
+        const checkpointData = typeof res === 'string' ? res : JSON.stringify(updates);
+        await redis.set(`iam:jobs:${jobId}:checkpoint`, checkpointData, 'EX', 86400);
+      } else if (res === -1) {
         logger.warn(`Checkpoint for job [${jobId}] rejected: claimToken mismatch`);
       }
     } catch (err) {
@@ -632,18 +643,24 @@ class QueueService {
             `Job [${jobId}] on queue [${queueName}] attempt ${job.attempts}/${job.maxAttempts} failed: ${handlerErr.message}`
           );
 
-          if (job.attempts < job.maxAttempts) {
-            // Exponential backoff: attempt 1: 2s, attempt 2: 4s, attempt 3: 8s (max 60s)
-            const delayMs = Math.min(1000 * Math.pow(2, job.attempts), 60000);
-            await this.delayRetryJob(queueName, jobId, claimToken, handlerErr.message, delayMs);
-            logger.info(
-              `Job [${jobId}] scheduled for retry in ${delayMs}ms (attempt ${job.attempts + 1}/${job.maxAttempts})`
-            );
-          } else {
-            // Max attempts reached — atomically move to Dead Letter Queue (DLQ)
-            await this.moveToDlq(queueName, jobId, claimToken, handlerErr.message);
+          try {
+            if (job.attempts < job.maxAttempts) {
+              // Exponential backoff: attempt 1: 2s, attempt 2: 4s, attempt 3: 8s (max 60s)
+              const delayMs = Math.min(1000 * Math.pow(2, job.attempts), 60000);
+              await this.delayRetryJob(queueName, jobId, claimToken, handlerErr.message, delayMs);
+              logger.info(
+                `Job [${jobId}] scheduled for retry in ${delayMs}ms (attempt ${job.attempts + 1}/${job.maxAttempts})`
+              );
+            } else {
+              // Max attempts reached — atomically move to Dead Letter Queue (DLQ)
+              await this.moveToDlq(queueName, jobId, claimToken, handlerErr.message);
+              logger.error(
+                `Job [${jobId}] moved to DLQ after ${job.attempts} attempts on [${queueName}]: ${handlerErr.message}`
+              );
+            }
+          } catch (transitionErr) {
             logger.error(
-              `Job [${jobId}] moved to DLQ after ${job.attempts} attempts on [${queueName}]: ${handlerErr.message}`
+              `Job [${jobId}] failure transition failed; lease expiry will reclaim it: ${transitionErr.message}`
             );
           }
         } finally {
