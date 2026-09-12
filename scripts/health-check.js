@@ -46,7 +46,9 @@ if (forceProd) {
 } else {
   // Check if systemctl has nginx active (indicates production Linux server)
   const res = runCommand('systemctl is-active nginx');
-  if (res === 'active') isProd = true;
+  if (res === 'active') {
+    isProd = true;
+  }
 }
 
 async function runHealthCheck() {
