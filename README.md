@@ -8,7 +8,7 @@
   <p><em>Production-grade, zero-trust IAM portal featuring JWT Bearer Authentication, granular RBAC, RFC 6238 TOTP MFA, distributed Redis rate limiting, and tamper-evident PostgreSQL audit logging.</em></p>
 
   <p>
-    <a href="https://github.com/Swatantra-66/aegis"><img src="https://img.shields.io/badge/tests-66%20passed%2C%200%20failed-brightgreen.svg?style=for-the-badge&logo=jest&logoColor=white" alt="Tests" /></a>
+    <a href="https://github.com/Swatantra-66/aegis"><img src="https://img.shields.io/badge/tests-129%20passed%2C%200%20failed-brightgreen.svg?style=for-the-badge&logo=jest&logoColor=white" alt="Tests" /></a>
     <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License" /></a>
     <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-18%2B-339933.svg?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js" /></a>
     <a href="https://github.com/Swatantra-66/aegis"><img src="https://img.shields.io/badge/Security-Argon2id%20%2B%20AES--256-7952CC.svg?style=for-the-badge" alt="Security" /></a>
@@ -112,6 +112,7 @@ src/
 │   ├── mfa/         # TOTP setup, verify, validate, disable
 │   ├── tokens/      # JWT issuance, blacklist, rotation
 │   └── audit/       # Tamper-evident logging, integrity verification
+├── services/        # Durable background queues (Lua atomicity) & mailer
 ├── middleware/       # authenticate, authorize, rateLimiter, errorHandler
 ├── utils/           # AppError, apiResponse, logger, crypto
 ├── db/              # Migrations & seeds
@@ -288,19 +289,24 @@ npx jest --testPathPattern=modules/auth
 npx jest --testPathPattern=modules/tokens
 ```
 
-### Test Suite Breakdown (66 / 66 Passing)
+### Test Suite Breakdown (129 / 129 Passing across 13 Suites)
 
 | Test Suite | Module / Scope | Tests Passed | Status |
 | :--- | :--- | :---: | :---: |
 | `tokens.test.js` | Argon2id hashing, SHA-256 tokens, AES-256-GCM encryption | **16** | ✅ PASS |
-| `users.test.js` | Global error handling & DB/JWT exceptions | **6** | ✅ PASS |
-| `auth.validator.test.js` | Joi input validation (Email, Password complexity, UUIDs) | **14** | ✅ PASS |
-| `roles.test.js` | RBAC authorization middleware (AND/OR hierarchy) | **6** | ✅ PASS |
-| `auth.unit.test.js` | Custom AppError factory status code mappings | **9** | ✅ PASS |
-| `apiResponse.test.js` | Standardized API response formatters & pagination metadata | **6** | ✅ PASS |
+| `passwordReset.test.js` | Password reset lifecycle, durable queues, claim leases & fencing | **10** | ✅ PASS |
+| `emailVerification.test.js` | Multi-step email verification, token TTL & consumption | **7** | ✅ PASS |
+| `signupFlow.test.js` | Multi-step signup tickets, race defenses & transaction isolation | **15** | ✅ PASS |
+| `auth.validator.test.js` | Joi input validation (Email, Password complexity, UUIDs, stripUnknown) | **16** | ✅ PASS |
+| `auth.unit.test.js` | Custom AppError factory status code mappings & defaults | **9** | ✅ PASS |
+| `apiResponse.test.js` | Standardized API response formatters & pagination metadata | **7** | ✅ PASS |
+| `queue.service.test.js` | Atomic Lua queue pipelines, worker claimToken fencing, DLQ & checkpoints | **17** | ✅ PASS |
+| `mailer.service.test.js` | Atomic mail reservations, idempotency deduplication & crash recovery | **11** | ✅ PASS |
+| `users.test.js` | Centralized error handler, DB unique constraints & JWT errors | **6** | ✅ PASS |
+| `roles.test.js` | RBAC authorization middleware (AND/OR hierarchy & role scoping) | **6** | ✅ PASS |
 | `mfa.test.js` | Async error handling middleware boundary | **3** | ✅ PASS |
-| `audit.test.js` | Tamper-evident SHA-256 hash chaining & anomaly detection | **3** | ✅ PASS |
-| **Total** | **8 Test Suites** | **66 / 66** | **100% PASS** |
+| `audit.test.js` | Tamper-evident SHA-256 hash chaining & anomaly detection | **6** | ✅ PASS |
+| **Total** | **13 Test Suites** | **129 / 129** | **100% PASS** |
 
 ## Production Deployment
 

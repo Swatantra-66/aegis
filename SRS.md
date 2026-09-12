@@ -347,8 +347,8 @@ The frontend is built with React 18, Vite, Lucide Icons, GSAP micro-animations, 
 - **Graceful Shutdown:** The server must intercept `SIGTERM` and `SIGINT` signals, stop accepting new requests, complete active in-flight requests, and cleanly close database and Redis pools.
 
 ### 5.4 Maintainability, Portability & Testability
-- **Code Modularity:** Follow Domain-Driven Design (DDD) organizing code into distinct feature modules (`auth`, `users`, `roles`, `mfa`, `tokens`, `audit`).
-- **Automated Test Coverage:** Maintain a comprehensive suite of $\ge 60$ automated unit and integration tests using Jest and Supertest with $> 85\%$ line coverage.
+- **Code Modularity:** Follow Domain-Driven Design (DDD) organizing code into distinct feature and service modules (`auth`, `users`, `roles`, `mfa`, `tokens`, `audit`, `services`).
+- **Automated Test Coverage:** Maintain a comprehensive suite of $\ge 125$ automated unit, integration, and resiliency tests across 13 suites using Jest and Supertest with high code coverage.
 - **Container Portability:** Provide a standard `docker-compose.yml` defining reproducible environments for the API server, PostgreSQL database, and Redis cache.
 
 ---
@@ -515,7 +515,7 @@ If an adversary mutates any field in Record 1, all subsequent checksums ($\text{
 | **`NFR-07`** | Redis Latency SLA ($< 2\text{ms}$) | `src/config/redis` | `tests/health.test.js` | **PASS (100%)** |
 
 ### 7.2 Acceptance & Validation Criteria
-1. **100% Passing Test Gate:** All 66+ test cases across auth, MFA, RBAC, tokens, audit, and security suites must pass without regressions.
+1. **100% Passing Test Gate:** All 129 test cases across 13 test suites (including durable queue resiliency, worker claimToken fencing, and mailer idempotency) must pass without regressions.
 2. **Zero Plaintext Credentials:** No unhashed passwords or unencrypted MFA secrets shall exist in database records or server logs.
 3. **Tamper Detection Demonstration:** Modifying any historical row in `audit_logs` must immediately flag `/api/v1/audit/verify` as compromised (`is_valid: false`).
 4. **Token Family Breach Invalidation:** Presenting a revoked refresh token must immediately revoke all sibling tokens in its family and terminate active Redis sessions.

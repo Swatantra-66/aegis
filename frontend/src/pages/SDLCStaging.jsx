@@ -259,111 +259,199 @@ const DB_SCHEMA = [
       { name: 'updated_at', type: 'TIMESTAMPTZ' },
     ],
   },
+  {
+    name: 'migrations',
+    desc: 'Database schema version tracking and idempotent migration runner ledger',
+    columns: [
+      { name: 'id', type: 'SERIAL', pk: true },
+      { name: 'name', type: 'VARCHAR(255) UNIQUE' },
+      { name: 'applied_at', type: 'TIMESTAMPTZ DEFAULT NOW()' },
+    ],
+  },
 ];
 
 const BACKEND_MODULES = [
-  { name: 'auth', desc: 'Authentication, registration, password lifecycle', files: ['auth.controller.js', 'auth.service.js', 'auth.routes.js', 'auth.validator.js'] },
-  { name: 'users', desc: 'Identity CRUD, profile updates & deactivation', files: ['users.controller.js', 'users.service.js', 'users.routes.js', 'users.validator.js'] },
-  { name: 'roles', desc: 'RBAC role creation, deletion & policy mapping', files: ['roles.controller.js', 'roles.service.js', 'roles.routes.js', 'roles.validator.js'] },
-  { name: 'tokens', desc: 'JWT token family rotation & Redis blacklisting', files: ['tokens.service.js', 'tokens.blacklist.js'] },
-  { name: 'mfa', desc: 'TOTP secret enrollment, verification & disable', files: ['mfa.controller.js', 'mfa.service.js', 'mfa.routes.js'] },
-  { name: 'audit', desc: 'Tamper-evident SHA-256 cryptographic ledger', files: ['audit.controller.js', 'audit.service.js', 'audit.routes.js'] },
+  { name: 'auth', desc: 'Authentication, registration, password lifecycle & multi-step tickets', files: ['auth.controller.js', 'auth.service.js', 'auth.routes.js', 'auth.validator.js', 'securityPolicy.js'] },
+  { name: 'users', desc: 'Identity CRUD, profile updates & account deactivation', files: ['users.controller.js', 'users.service.js', 'users.routes.js', 'users.validator.js'] },
+  { name: 'roles', desc: 'RBAC role creation, dynamic permission mapping & route guards', files: ['roles.controller.js', 'roles.service.js', 'roles.routes.js', 'roles.validator.js'] },
+  { name: 'tokens', desc: 'JWT token family rotation (RTR) & Redis JTI blacklisting', files: ['tokens.service.js', 'tokens.blacklist.js'] },
+  { name: 'mfa', desc: 'RFC 6238 TOTP enrollment, AES-256-GCM encrypted secrets & backup codes', files: ['mfa.controller.js', 'mfa.service.js', 'mfa.routes.js'] },
+  { name: 'audit', desc: 'Tamper-evident SHA-256 cryptographic hash-chained security ledger', files: ['audit.controller.js', 'audit.service.js', 'audit.routes.js'] },
+  { name: 'services', desc: 'Durable background job queues, Lua atomic state transitions & Gmail mailer', files: ['queue.service.js', 'mailer.service.js'] },
 ];
 
 const TEST_SUITES = [
   {
-    category: 'Unit',
+    category: 'Crypto & Security',
     tests: [
-      { name: 'Password hashing — Argon2id hash & verify', passed: true },
-      { name: 'JWT generation — access token payload structure', passed: true },
-      { name: 'JWT generation — refresh token expiry validation', passed: true },
-      { name: 'TOTP generation — secret creation & encoding', passed: true },
-      { name: 'TOTP verification — valid code acceptance', passed: true },
-      { name: 'TOTP verification — expired code rejection', passed: true },
-      { name: 'SHA-256 checksum — single entry hash computation', passed: true },
-      { name: 'SHA-256 checksum — chain linking verification', passed: true },
-      { name: 'Input validation — email format enforcement', passed: true },
-      { name: 'Input validation — password strength rules', passed: true },
-      { name: 'AES-256-GCM — MFA secret encrypt/decrypt round-trip', passed: true },
-      { name: 'Rate limiter — window counter increment', passed: true },
-      { name: 'AppError — custom HTTP exception formatting', passed: true },
-      { name: 'ApiResponse — standardized JSON payload response wrapper', passed: true },
-      { name: 'Crypto utility — secure random token generation', passed: true },
-      { name: 'Logger — structured JSON audit log formatting', passed: true },
-      { name: 'Constants — role & permission string definitions', passed: true },
-      { name: 'AsyncWrapper — exception forwarder middleware', passed: true },
+      { name: 'Argon2id password hashing with hardened work factors (m=64MB, t=3, p=4)', passed: true },
+      { name: 'Argon2id password verification against valid salt and hash', passed: true },
+      { name: 'Argon2id rejection of incorrect candidate passwords', passed: true },
+      { name: 'Unique cryptographic salt generation for identical passwords', passed: true },
+      { name: 'Invalid password hash format handling and error masking', passed: true },
+      { name: 'Deterministic SHA-256 audit checksum computation', passed: true },
+      { name: 'Audit checksum modification detection on single-bit alteration', passed: true },
+      { name: 'Sequential cryptographic hash-chaining across audit log entries', passed: true },
+      { name: 'Cryptographically secure pseudo-random token generation (hex)', passed: true },
+      { name: 'High-entropy collision prevention across parallel token requests', passed: true },
+      { name: 'Strict byte-length parameter enforcement for security tokens', passed: true },
+      { name: 'SHA-256 token hashing for rest-state database storage', passed: true },
+      { name: 'Unique token hashes across differing seeds and nonces', passed: true },
+      { name: 'AES-256-GCM authenticated encryption and decryption round-trip', passed: true },
+      { name: 'Random 12-byte initialization vectors (IV) for ciphertext uniqueness', passed: true },
+      { name: 'Authentication tag validation failure on tampered ciphertext', passed: true },
+      { name: 'Ciphertext serialization format enforcement (iv:authTag:ciphertext)', passed: true },
+      { name: 'Timing-safe secret equality comparison via crypto.timingSafeEqual', passed: true },
+      { name: 'Timing-safe rejection of unequal strings and non-string inputs', passed: true },
     ],
   },
   {
-    category: 'Integration',
+    category: 'Queues & Resiliency',
     tests: [
-      { name: 'Register → Login → Access Protected Route', passed: true },
-      { name: 'Login → MFA Challenge → TOTP Verify → Dashboard', passed: true },
-      { name: 'Token Refresh → New Access Token → Retry Request', passed: true },
-      { name: 'Login → Logout → Token Revoked in Redis', passed: true },
-      { name: 'Create Role → Assign Permission → Verify Access', passed: true },
-      { name: 'Assign Role to User → Verify Permission Inheritance', passed: true },
-      { name: 'Create User → Update Profile → Verify Changes', passed: true },
-      { name: 'Deactivate User → Login Attempt → Rejection', passed: true },
-      { name: 'Password Reset Request → Token → Reset → Login', passed: true },
-      { name: 'Audit Log Creation → Chain Integrity Verification', passed: true },
-      { name: 'MFA Setup → Enable → Login with TOTP → Disable', passed: true },
-      { name: 'Concurrent Refresh → Queue Processing → No Race', passed: true },
-      { name: 'Authorize Middleware — permission evaluation pipeline', passed: true },
-      { name: 'ErrorHandler Middleware — error code mapping', passed: true },
-      { name: 'Auth Validator — schema validation pipeline', passed: true },
-      { name: 'Redis Cache — token blocklist store & retrieval', passed: true },
-      { name: 'PostgreSQL Pool — transaction rollback handling', passed: true },
-      { name: 'Health Check — database ping & status aggregation', passed: true },
-      { name: 'Cors Guard — origin header verification', passed: true },
-      { name: 'Session Store — active session revocation', passed: true },
+      { name: 'Atomic queue enqueue with pipeline metadata & list insertion', passed: true },
+      { name: 'Atomic caller-supplied jobId assignment via Lua (SET NX + LPUSH)', passed: true },
+      { name: 'Idempotent job deduplication when caller jobId already exists', passed: true },
+      { name: 'Pipeline retry resilience on transient network interruption', passed: true },
+      { name: 'Safe queue abort on atomic claim failure without non-atomic RPOP', passed: true },
+      { name: 'Worker lease renewal heartbeat via Lua claimToken verification', passed: true },
+      { name: 'Job completion finalization fenced by claimToken ownership match', passed: true },
+      { name: 'Atomic delayed-retry queue state transition via Lua script', passed: true },
+      { name: 'Atomic Dead Letter Queue (DLQ) transition on attempt exhaustion', passed: true },
+      { name: 'Atomic reclamation of expired or abandoned worker leases', passed: true },
+      { name: 'Atomic job checkpoint state update & dedicated Redis persistence', passed: true },
+      { name: 'Merged checkpoint state preservation across worker retries', passed: true },
+      { name: 'Checkpoint rejection when claimToken fence ownership is lost', passed: true },
+      { name: 'Transient Redis error tolerance during worker lease renewal', passed: true },
+      { name: 'Worker processNext finalization isolation preventing false retries', passed: true },
+      { name: 'Batch-bounded delayed job queue migration under backpressure', passed: true },
+      { name: 'Mailer idempotency reservation check (ALREADY_SENT cache skip)', passed: true },
+      { name: 'Atomic mail reservation acquisition, transport execution & finalization', passed: true },
+      { name: 'Crashed worker stale pending mail reservation recovery & dispatch', passed: true },
+      { name: 'Pending mail reservation release on transport connection failure', passed: true },
+      { name: 'Fail-closed protection on malformed sent mail reservation state', passed: true },
+      { name: 'Fail-closed protection on malformed pending mail reservation state', passed: true },
+      { name: 'Polling and eventual ownership acquisition during in-progress locks', passed: true },
+      { name: 'Fail-closed protection on malformed createdAt timestamp state', passed: true },
+      { name: 'Automatic retry on transient Redis reservation failure', passed: true },
+      { name: 'Fail-closed abort when all mailer reservation retries exhaust', passed: true },
+      { name: 'Audit logging failure isolation during background queue execution', passed: true },
+      { name: 'Checkpoint bypass when delivery checkpoint already recorded', passed: true },
     ],
   },
   {
-    category: 'Security',
+    category: 'Auth Lifecycles',
     tests: [
-      { name: 'Expired JWT rejection — 401 Unauthorized', passed: true },
-      { name: 'Revoked refresh token — rotation violation detection', passed: true },
-      { name: 'Rate limit trip — 429 Too Many Requests after burst', passed: true },
-      { name: 'RBAC enforcement — unauthorized role access blocked', passed: true },
-      { name: 'SQL injection — parameterized query defense', passed: true },
-      { name: 'XSS prevention — sanitized input handling', passed: true },
-      { name: 'CORS violation — blocked cross-origin request', passed: true },
-      { name: 'Audit tampering — checksum mismatch detection', passed: true },
-      { name: 'Brute force — account lockout after failed attempts', passed: true },
-      { name: 'Token replay — blocklist enforcement in Redis', passed: true },
-      { name: 'MFA bypass attempt — rejected without valid TOTP', passed: true },
-      { name: 'Privilege escalation — role boundary enforcement', passed: true },
-      { name: 'Header injection — Helmet.js mitigation validation', passed: true },
-      { name: 'Session fixation — token rotation on refresh', passed: true },
-      { name: 'Timing attack — constant-time comparison for secrets', passed: true },
-      { name: 'Insecure direct reference — resource ownership check', passed: true },
-      { name: 'Missing auth header — 401 with proper error code', passed: true },
-      { name: 'Malformed JWT — graceful rejection without crash', passed: true },
-      { name: 'Password hash — timing-safe comparison', passed: true },
-      { name: 'Redis connection failure — graceful degradation', passed: true },
-      { name: 'Database connection pool — exhaustion handling', passed: true },
-      { name: 'Large payload — request size limit enforcement', passed: true },
-      { name: 'Path traversal — route parameter sanitization', passed: true },
-      { name: 'Logout invalidation — immediate token blocklisting', passed: true },
-      { name: 'Concurrent login — session limit enforcement', passed: true },
-      { name: 'API versioning — v1 namespace isolation', passed: true },
-      { name: 'Error disclosure — sanitized error messages in production', passed: true },
-      { name: 'Dependency audit — no known CVEs in production deps', passed: true },
+      { name: 'Signup Step 1: Email enumeration defense via neutral success response', passed: true },
+      { name: 'Signup Step 1: Ephemeral Redis token store & audit event dispatch', passed: true },
+      { name: 'Signup Step 2: Rejection of invalid or expired signup tokens', passed: true },
+      { name: 'Signup Step 2: Rejection of corrupted payload or missing email field', passed: true },
+      { name: 'Signup Step 2: Atomic consumption of signup token & ticket issuance', passed: true },
+      { name: 'Signup Step 3: Rejection of expired or missing registration ticket', passed: true },
+      { name: 'Signup Step 3: Registration ticket payload email integrity validation', passed: true },
+      { name: 'Signup Step 3: Submitted email vs registration ticket email mismatch check', passed: true },
+      { name: 'Signup Step 4: Postgres unique constraint race (23505) -> 409 Conflict', passed: true },
+      { name: 'Signup Step 4: Transaction abort & connection release on DB failure', passed: true },
+      { name: 'Signup Step 4: User persistence, role binding, tokens & audit event', passed: true },
+      { name: 'Email Verify: 404 response on unverified email address lookup', passed: true },
+      { name: 'Email Verify: 400 response on already-verified user account', passed: true },
+      { name: 'Email Verify: Hashed verification token in Redis with 24h TTL', passed: true },
+      { name: 'Email Verify: Rejection of invalid or expired verification token', passed: true },
+      { name: 'Email Verify: Atomic token consumption & DB is_email_verified update', passed: true },
+      { name: 'Email Verify: Atomic Lua script fallback when redis.getdel is unsupported', passed: true },
+      { name: 'Email Verify: Concurrency race — duplicate redemption rejected', passed: true },
+      { name: 'Password Reset: Idempotent job enqueue & immediate neutral return', passed: true },
+      { name: 'Password Reset: Graceful completion for nonexistent user ID', passed: true },
+      { name: 'Password Reset: Mail delivery error escalation for durable queue retry', passed: true },
+      { name: 'Password Reset: Audit logging failure isolation (no duplicate email)', passed: true },
+      { name: 'Password Reset: Rejection of non-existent or expired reset token', passed: true },
+      { name: 'Password Reset: Rejection when token is currently claimed by peer', passed: true },
+      { name: 'Password Reset: Rejection when payload lacks fencingToken ownership', passed: true },
+      { name: 'Password Reset: 409 Conflict rollback if claim ownership is lost', passed: true },
+      { name: 'Password Reset: 409 Conflict if DB fencing token has changed', passed: true },
+      { name: 'Password Reset: Conditional release of claim on transient DB error', passed: true },
+      { name: 'Password Reset: Atomic password update, token revocation & finalization', passed: true },
+      { name: 'Password Reset: Successful response even if post-commit audit fails', passed: true },
+      { name: 'Session Revocation: Immediate token blacklisting in Redis on logout', passed: true },
+      { name: 'Token Lifecycle: Refresh token rotation (RTR) with family breach detection', passed: true },
+    ],
+  },
+  {
+    category: 'Validation & Errors',
+    tests: [
+      { name: 'Register validation: Valid user registration payload acceptance', passed: true },
+      { name: 'Register validation: Malformed email syntax rejection', passed: true },
+      { name: 'Register validation: Rejection of weak password without uppercase letter', passed: true },
+      { name: 'Register validation: Rejection of weak password without special character', passed: true },
+      { name: 'Register validation: Rejection of password under minimum length (8 chars)', passed: true },
+      { name: 'Register validation: Automatic lowercase normalization & email trim', passed: true },
+      { name: 'Register validation: Optional first_name and last_name field acceptance', passed: true },
+      { name: 'Login validation: Standard email and password payload acceptance', passed: true },
+      { name: 'Login validation: MFA login payload with 6-digit TOTP code acceptance', passed: true },
+      { name: 'Login validation: Rejection of non-numeric MFA code characters', passed: true },
+      { name: 'Login validation: Rejection of MFA code with incorrect length', passed: true },
+      { name: 'RefreshToken validation: Valid UUID format acceptance', passed: true },
+      { name: 'RefreshToken validation: Rejection of malformed non-UUID strings', passed: true },
+      { name: 'Validator middleware: next() execution on valid request payload', passed: true },
+      { name: 'Validator middleware: next(error) delegation on validation failure', passed: true },
+      { name: 'Validator middleware: Strip unknown fields (stripUnknown defense)', passed: true },
+      { name: 'AppError factory: badRequest() generates 400 HTTP exception', passed: true },
+      { name: 'AppError factory: unauthorized() generates 401 HTTP exception', passed: true },
+      { name: 'AppError factory: forbidden() generates 403 HTTP exception', passed: true },
+      { name: 'AppError factory: notFound() generates 404 HTTP exception', passed: true },
+      { name: 'AppError factory: conflict() generates 409 HTTP exception', passed: true },
+      { name: 'AppError factory: tooManyRequests() generates 429 HTTP exception', passed: true },
+      { name: 'AppError factory: internal() generates 500 exception with isOperational=false', passed: true },
+      { name: 'ErrorHandler middleware: AppError formatting with exact status codes', passed: true },
+      { name: 'ErrorHandler middleware: Joi validation error mapping & detail extraction', passed: true },
+      { name: 'ErrorHandler middleware: PostgreSQL unique constraint (23505) mapping', passed: true },
+      { name: 'ErrorHandler middleware: JWT signature error mapping to 401 Unauthorized', passed: true },
+      { name: 'ErrorHandler middleware: JWT TokenExpiredError mapping with re-auth advice', passed: true },
+      { name: 'ErrorHandler middleware: Unknown internal error masking with sanitized 500', passed: true },
+      { name: 'ApiResponse formatter: Standardized success JSON structure {success, data}', passed: true },
+      { name: 'ApiResponse formatter: Paginated response with {meta: {page, limit, total}}', passed: true },
+    ],
+  },
+  {
+    category: 'Access Control & Infra',
+    tests: [
+      { name: 'Authorize middleware: Grant access when user holds all required permissions (AND)', passed: true },
+      { name: 'Authorize middleware: Deny 403 when user lacks any one required permission (AND)', passed: true },
+      { name: 'Authorize middleware: Deny 403 when user has zero assigned permissions', passed: true },
+      { name: 'Authorize middleware: Grant access when user holds any required permission (OR)', passed: true },
+      { name: 'Authorize middleware: Deny 403 when user holds none of the OR permissions', passed: true },
+      { name: 'Authorize middleware: Return 401 Unauthorized when req.user is absent', passed: true },
+      { name: 'Audit integrity: Sequential SHA-256 hash chaining of security events', passed: true },
+      { name: 'Audit integrity: Detection of modified historical payload (tamper alert)', passed: true },
+      { name: 'Audit integrity: Graceful chain calculation with null actor or resource', passed: true },
+      { name: 'catchAsync middleware: Execution and resolution of standard async handler', passed: true },
+      { name: 'catchAsync middleware: Promise rejection interception and forwarding to next()', passed: true },
+      { name: 'catchAsync middleware: Synchronous thrown error interception and forwarding', passed: true },
+      { name: 'Role boundary: Super admin role privilege verification and route clearance', passed: true },
+      { name: 'Role boundary: Admin user management permission validation and boundary scoping', passed: true },
+      { name: 'Role boundary: Standard user profile access scoping and isolation', passed: true },
+      { name: 'CORS policy: Enforcement of allowed origins, headers and pre-flight options', passed: true },
+      { name: 'Rate limiting: Redis sliding window request throttling and quota enforcement', passed: true },
+      { name: 'Helmet headers: CSP, HSTS, X-Content-Type-Options and frameguard injection', passed: true },
+      { name: 'Database pool: Graceful error recovery, connection recycling and health verification', passed: true },
     ],
   },
 ];
 
 const COVERAGE_DATA = [
   { file: 'config / constants.js', stmts: '100%', branch: '100%', funcs: '100%', lines: '100%', uncovered: '—' },
+  { file: 'config / index.js', stmts: '79.16%', branch: '83.33%', funcs: '—', lines: '79.16%', uncovered: '93-98' },
   { file: 'middleware / asyncWrapper.js', stmts: '100%', branch: '100%', funcs: '100%', lines: '100%', uncovered: '—' },
-  { file: 'middleware / authorize.js', stmts: '95.45%', branch: '75%', funcs: '100%', lines: '95.45%', uncovered: '51' },
+  { file: 'middleware / authorize.js', stmts: '68.75%', branch: '39.13%', funcs: '75.00%', lines: '66.66%', uncovered: '47, 75-90' },
   { file: 'middleware / errorHandler.js', stmts: '84.61%', branch: '84.61%', funcs: '100%', lines: '84.61%', uncovered: '40-42, 45-47' },
+  { file: 'modules/auth / auth.service.js', stmts: '72.49%', branch: '51.04%', funcs: '57.69%', lines: '72.62%', uncovered: '41-83, 95-240' },
   { file: 'modules/auth / auth.validator.js', stmts: '100%', branch: '100%', funcs: '100%', lines: '100%', uncovered: '—' },
+  { file: 'modules/tokens / tokens.service.js', stmts: '32.55%', branch: '—', funcs: '—', lines: '32.55%', uncovered: '20-33, 44-58' },
+  { file: 'services / queue.service.js', stmts: '79.37%', branch: '59.18%', funcs: '60.86%', lines: '79.37%', uncovered: '323-324, 360' },
+  { file: 'services / mailer.service.js', stmts: '59.06%', branch: '46.66%', funcs: '69.23%', lines: '58.92%', uncovered: '166-167, 204-250' },
+  { file: 'utils / crypto.js', stmts: '100%', branch: '90.00%', funcs: '100%', lines: '100%', uncovered: '56' },
   { file: 'utils / AppError.js', stmts: '100%', branch: '90.47%', funcs: '100%', lines: '100%', uncovered: '31, 43' },
   { file: 'utils / apiResponse.js', stmts: '100%', branch: '68.42%', funcs: '100%', lines: '100%', uncovered: '36-49, 67' },
-  { file: 'utils / crypto.js', stmts: '100%', branch: '83.33%', funcs: '100%', lines: '100%', uncovered: '51' },
-  { file: 'utils / logger.js', stmts: '83.33%', branch: '60%', funcs: '100%', lines: '83.33%', uncovered: '46-54' },
+  { file: 'utils / logger.js', stmts: '83.33%', branch: '60.00%', funcs: '100%', lines: '83.33%', uncovered: '46-54' },
 ];
 
 const ENV_CONFIG = [
@@ -395,9 +483,9 @@ const FLOW_NODES = [
 ];
 
 const REPO_STATS = [
-  { label: 'BACKEND MODULES', value: '6' },
-  { label: 'REST ENDPOINTS', value: '30' },
-  { label: 'DATABASE TABLES', value: '11' },
+  { label: 'BACKEND MODULES', value: '7' },
+  { label: 'REST ENDPOINTS', value: '32' },
+  { label: 'DATABASE TABLES', value: '12' },
   { label: 'FRONTEND PAGES', value: '15' },
 ];
 
@@ -819,7 +907,7 @@ const Phase3 = () => (
 
 //  Phase 4: Testing & Verification 
 const Phase4 = () => {
-  const [activeTab, setActiveTab] = useState('Unit');
+  const [activeTab, setActiveTab] = useState(TEST_SUITES[0]?.category || 'Crypto & Security');
   const currentSuite = TEST_SUITES.find((s) => s.category === activeTab) || TEST_SUITES[0];
 
   return (
@@ -855,7 +943,7 @@ const Phase4 = () => {
         <div className="flex items-center gap-lg">
           <div className="text-right">
             <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: 800, color: '#ffffff', lineHeight: 1 }}>
-              66/66
+              129/129
             </div>
             <span className="font-mono text-muted" style={{ fontSize: '0.64rem', letterSpacing: '0.06em' }}>
               TESTS PASSED (100%)
@@ -873,7 +961,7 @@ const Phase4 = () => {
               letterSpacing: '0.04em',
             }}
           >
-            8 SUITES · 4.644s
+            13 SUITES · 5.461s
           </span>
         </div>
       </div>
@@ -883,7 +971,7 @@ const Phase4 = () => {
         <span className="sirnik-page-number" style={{ margin: 0, fontSize: '0.68rem' }}>
           JEST CODE COVERAGE METRICS
         </span>
-        <span className="font-mono text-xs text-muted">[94.61% STMTS · 100% FUNCS]</span>
+        <span className="font-mono text-xs text-muted">[72.04% STMTS · 64.54% FUNCS · 129 TESTS]</span>
       </div>
 
       <div
@@ -921,10 +1009,10 @@ const Phase4 = () => {
             ))}
             <tr style={{ borderTop: '2px solid rgba(255, 255, 255, 0.2)', fontWeight: 700, borderBottom: 'none' }}>
               <td style={{ padding: '0.85rem 0.6rem', color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>OVERALL TOTALS</td>
-              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>94.61%</td>
-              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: 'rgba(255, 255, 255, 0.8)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>79.16%</td>
-              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>100%</td>
-              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>94.61%</td>
+              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>72.04%</td>
+              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: 'rgba(255, 255, 255, 0.8)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>52.98%</td>
+              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>64.54%</td>
+              <td style={{ padding: '0.85rem 0.6rem', textAlign: 'center', color: '#ffffff', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>72.04%</td>
               <td style={{ padding: '0.85rem 0.6rem', textAlign: 'right', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', borderBottom: 'none' }}>—</td>
             </tr>
           </tbody>
@@ -1265,10 +1353,10 @@ const Phase6 = () => {
           style={{
             padding: '1.5rem 1.75rem',
             border: `1px solid ${integrityResult.valid
-                ? 'rgba(0, 255, 102, 0.35)'
-                : integrityResult.firstInvalid
-                  ? 'rgba(239, 68, 68, 0.45)'
-                  : 'rgba(255, 90, 31, 0.45)'
+              ? 'rgba(0, 255, 102, 0.35)'
+              : integrityResult.firstInvalid
+                ? 'rgba(239, 68, 68, 0.45)'
+                : 'rgba(255, 90, 31, 0.45)'
               }`,
             background: integrityResult.valid
               ? '#060d08'
@@ -1279,10 +1367,10 @@ const Phase6 = () => {
             marginBottom: '2rem',
             borderRadius: '2px',
             boxShadow: `0 0 30px ${integrityResult.valid
-                ? 'rgba(0, 255, 102, 0.04)'
-                : integrityResult.firstInvalid
-                  ? 'rgba(239, 68, 68, 0.06)'
-                  : 'rgba(255, 90, 31, 0.05)'
+              ? 'rgba(0, 255, 102, 0.04)'
+              : integrityResult.firstInvalid
+                ? 'rgba(239, 68, 68, 0.06)'
+                : 'rgba(255, 90, 31, 0.05)'
               }`,
           }}
         >
