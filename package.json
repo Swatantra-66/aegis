@@ -13,7 +13,8 @@
     "format": "prettier --write \"src/**/*.js\"",
     "prepare": "husky",
     "migrate": "node src/db/migrate.js",
-    "seed": "node src/db/seeds/run.js"
+    "seed": "node src/db/seeds/run.js",
+    "health:check": "bash scripts/health-check.sh"
   },
   "keywords": [
     "iam",
