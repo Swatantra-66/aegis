@@ -1,48 +1,111 @@
 #!/usr/bin/env node
 /**
  * Aegis IAM Portal — Terminal Brand Banner
- * High-fidelity editorial box-art banner for project entry.
+ * High-fidelity editorial box-art banner matching OpenCode aesthetic.
+ * Big, elongated uppercase letterforms with interior shadow blocks.
  */
 
-const BOLD = '\x1b[1m';
-const WHITE = '\x1b[37m';
-const CYAN = '\x1b[36m';
-const GRAY = '\x1b[90m';
+// Colors matching OpenCode two-tone minimal pixel palette
+const W = '\x1b[38;2;235;235;235m'; // crisp bright white
+const G = '\x1b[38;2;165;165;165m'; // cool silver gray
+const S = '\x1b[38;2;70;70;70m';    // interior shadow charcoal
+const B = '\x1b[38;2;60;60;60m';    // hairline box border
+const T = '\x1b[38;2;180;180;180m'; // subtitle description text
+const M = '\x1b[38;2;135;135;135m'; // muted footer label text
 const NC = '\x1b[0m';
 
-// Banner box lines matching OpenCode editorial brutalist aesthetic (62 chars width)
-const borderTop    = `${GRAY}┌────────────────────────────────────────────────────────────┐${NC}`;
-const emptyLine    = `${GRAY}│${NC}                                                            ${GRAY}│${NC}`;
-const l1           = `${GRAY}│${NC}   ${BOLD}${WHITE}█████   ███████   ██████  ██  ██████${NC}                     ${GRAY}│${NC}`;
-const l2           = `${GRAY}│${NC}  ${BOLD}${WHITE}██   ██  ██       ██       ██  ██${NC}                         ${GRAY}│${NC}`;
-const l3           = `${GRAY}│${NC}  ${BOLD}${WHITE}███████  █████    ██   ███ ██  ██████${NC}                     ${GRAY}│${NC}`;
-const l4           = `${GRAY}│${NC}  ${BOLD}${WHITE}██   ██  ██       ██    ██ ██      ██${NC}                     ${GRAY}│${NC}`;
-const l5           = `${GRAY}│${NC}  ${BOLD}${WHITE}██   ██  ███████   ██████  ██  ██████${NC}                     ${GRAY}│${NC}`;
-const desc1        = `${GRAY}│${NC}                                                            ${GRAY}│${NC}`;
-const desc2        = `${GRAY}│${NC}  ${WHITE}The enterprise identity & cryptographic security engine${NC}   ${GRAY}│${NC}`;
-const desc3        = `${GRAY}│${NC}  ${WHITE}built for the terminal${NC}                                    ${GRAY}│${NC}`;
-const desc4        = `${GRAY}│${NC}                                                            ${GRAY}│${NC}`;
-const borderMid    = `${GRAY}├────────────────────────────┬───────────────────────────────┤${NC}`;
-const footer       = `${GRAY}│${NC}  ${GRAY}Version:${NC} ${BOLD}1.0.0${NC}            ${GRAY}│${NC}  ${CYAN}aegis.swatantracodes.in${NC}      ${GRAY}│${NC}`;
-const borderBottom = `${GRAY}└────────────────────────────┴───────────────────────────────┘${NC}`;
+// Elongated uppercase AEGIS letterforms with OpenCode interior cutout shadows
+// A: 12, E: 10, G: 12, I: 6, S: 12 (spacing: 2) -> Total 60 visible chars
+const A = [
+  '  ████████  ',
+  ' ██      ██ ',
+  ' ██' + S + '██████' + G + '██ ',
+  ' ██████████ ',
+  ' ██      ██ ',
+  ' ██      ██ ',
+  ' ██      ██ '
+];
 
-const output = [
+const E = [
+  '██████████',
+  '██        ',
+  '████████  ',
+  '██' + S + '██████  ',
+  '██        ',
+  '██        ',
+  '██████████'
+];
+
+const G_glyph = [
+  '  ████████  ',
+  ' ██      ██ ',
+  ' ██' + S + '██       ',
+  ' ██   █████ ',
+  ' ██      ██ ',
+  ' ██      ██ ',
+  '  ████████  '
+];
+
+const I = [
+  '██████',
+  '  ██  ',
+  '  ██  ',
+  '  ██  ',
+  '  ██  ',
+  '  ██  ',
+  '██████'
+];
+
+const S_glyph = [
+  '  ████████  ',
+  ' ██      ██ ',
+  ' ██' + S + '██       ',
+  '  ████████  ',
+  '    ' + S + '████' + W + ' ██ ',
+  '         ██ ',
+  '  ████████  '
+];
+
+// Combine two-tone rows (AE in silver-gray, GIS in bright white)
+const rows = [];
+for (let r = 0; r < 7; r++) {
+  rows.push(G + A[r] + '  ' + E[r] + NC + '  ' + W + G_glyph[r] + '  ' + I[r] + '  ' + S_glyph[r] + NC);
+}
+
+// 72-character box width framing
+const borderTop = B + '┌──────────────────────────────────────────────────────────────────────┐' + NC;
+const borderMid = B + '├──────────────────────────────────┬───────────────────────────────────┤' + NC;
+const borderBot = B + '└──────────────────────────────────┴───────────────────────────────────┘' + NC;
+const empty     = B + '│' + NC + '                                                                      ' + B + '│' + NC;
+
+const padLogo = (line) => B + '│' + NC + '     ' + line + '     ' + B + '│' + NC;
+
+const descLine1 = B + '│' + NC + '   ' + T + 'The enterprise identity & access management platform' + NC + '               ' + B + '│' + NC;
+const descLine2 = B + '│' + NC + '   ' + T + 'built for zero-trust cryptographic security' + NC + '                        ' + B + '│' + NC;
+
+const footLeft  = '   ' + M + 'Production:' + NC + ' ' + W + 'DigitalOcean' + NC + '       ';
+const footRight = '   ' + M + 'aegis.swatantracodes.in' + NC + '         ';
+const footer    = B + '│' + NC + footLeft + B + '│' + NC + footRight + B + '│' + NC;
+
+const box = [
   '',
   borderTop,
-  emptyLine,
-  l1,
-  l2,
-  l3,
-  l4,
-  l5,
-  desc1,
-  desc2,
-  desc3,
-  desc4,
+  empty,
+  padLogo(rows[0]),
+  padLogo(rows[1]),
+  padLogo(rows[2]),
+  padLogo(rows[3]),
+  padLogo(rows[4]),
+  padLogo(rows[5]),
+  padLogo(rows[6]),
+  empty,
+  descLine1,
+  descLine2,
+  empty,
   borderMid,
   footer,
-  borderBottom,
+  borderBot,
   ''
-].join('\n');
+];
 
-console.log(output);
+console.log(box.join('\n'));
