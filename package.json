@@ -14,7 +14,7 @@
     "prepare": "husky",
     "migrate": "node src/db/migrate.js",
     "seed": "node src/db/seeds/run.js",
-    "health:check": "bash scripts/health-check.sh"
+    "health:check": "node scripts/health-check.js"
   },
   "keywords": [
     "iam",

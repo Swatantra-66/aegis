@@ -114,15 +114,21 @@ sudo journalctl -u postgresql -f -n 50
 
 ## 4. Automated All-in-One Health Check Script
 
-The project provides an automated, maintained audit script at [`scripts/health-check.sh`](scripts/health-check.sh) that tests all 5 subsystems in sequence, returns colored output, accumulates failure counts, and exits with a proper exit code (`exit $FAILURES`) for CI/CD and automation.
+The project provides an automated, cross-platform diagnostic audit at [`scripts/health-check.js`](scripts/health-check.js) (with wrapper at [`scripts/health-check.sh`](scripts/health-check.sh)) that tests all 5 subsystems in sequence, returns colored terminal output, accumulates failure counts, and exits with a proper exit code (0 on success, >0 on failure) for CI/CD and production monitoring.
 
 ### Running the Audit:
 
 ```bash
-# Recommended: via npm script
+# Recommended: via npm script (cross-platform on Windows, macOS, Linux)
 npm run health:check
 
-# Or directly via the executable bash script:
+# Strict Production Server Mode (enforces active Nginx and PM2 daemon validation):
+npm run health:check -- --prod
+
+# Direct execution via Node:
+node scripts/health-check.js
+
+# Or directly via bash on Linux servers:
 chmod +x scripts/health-check.sh
 ./scripts/health-check.sh
 ```
