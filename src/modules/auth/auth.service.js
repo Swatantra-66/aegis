@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const db = require('../../config/database');
 const {
   hashPassword,
@@ -369,25 +370,10 @@ const processForgotPasswordJob = async (email, reqMeta = {}, job = null) => {
   if (!alreadyDelivered) {
     const ttlSeconds = (PASSWORD_RESET_TOKEN_EXPIRY_MINUTES || 15) * 60;
 
-    // Reuse existing generated token for this job if retrying, preventing token proliferation
-    let resetToken = null;
-    if (job?.id) {
-      try {
-        resetToken = await redis.get(`iam:jobs:${job.id}:token`);
-      } catch {
-        resetToken = null;
-      }
-    }
-    if (!resetToken) {
-      resetToken = generateRandomToken();
-      if (job?.id) {
-        try {
-          await redis.set(`iam:jobs:${job.id}:token`, resetToken, 'EX', ttlSeconds);
-        } catch (cacheErr) {
-          logger.warn(`Failed to cache reset token for job [${job.id}]: ${cacheErr.message}`);
-        }
-      }
-    }
+    // Deterministic per-job token: retries recompute the same value, nothing is persisted in plaintext.
+    const resetToken = job?.id
+      ? crypto.createHmac('sha256', config.jwt.secret).update(`pwd-reset:${job.id}`).digest('hex')
+      : generateRandomToken();
 
     const tokenHash = hashToken(resetToken);
     const redisKey = `${REDIS_PREFIXES.PASSWORD_RESET}${tokenHash}`;
