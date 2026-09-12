@@ -26,6 +26,7 @@
     <a href="./ROADMAP.md"><b>Roadmap</b></a> •
     <a href="./QUICKSTART.md"><b>Quick Start</b></a> •
     <a href="#production-deployment"><b>Deployment</b></a> •
+    <a href="./HEALTH_CHECK.md"><b>Health Check Runbook</b></a> •
     <a href="./CONTRIBUTING.md"><b>Contributing</b></a>
   </p>
 
@@ -309,6 +310,14 @@ Aegis IAM supports **two production deployment workflows** depending on your inf
 | :--- | :--- | :--- | :---: |
 | **Native Bare-Metal (Recommended)** | **PM2 + Nginx + Native Postgres & Redis** | DigitalOcean Droplets & Ubuntu VPS requiring minimal RAM & maximum performance. | [**DROPLET_DEPLOYMENT.md**](./DROPLET_DEPLOYMENT.md) |
 | **Containerized** | **Docker & Docker Compose** | Kubernetes clusters, multi-node cloud environments, and isolated container pipelines. | [**DOCKER_DEPLOYMENT.md**](./DOCKER_DEPLOYMENT.md) |
+
+## System Health & Operations
+
+Aegis includes an operational health-check runbook and automated CLI audit suite covering Node.js, Redis, PostgreSQL, Nginx, and PM2:
+
+- **Runbook Documentation**: [**`HEALTH_CHECK.md`**](./HEALTH_CHECK.md) — Comprehensive guide with diagnostic commands, expected outputs, real-time log monitoring, and troubleshooting steps.
+- **Automated Health Audit**: Run `npm run health:check` (or `./scripts/health-check.sh`) directly on the server to execute an automated 5-point verification across all subsystems.
+- **Deep Health Probe**: `GET /health` tests backend HTTP responsiveness, PostgreSQL connection pool, and Redis connectivity simultaneously.
 
 ## Pre-Commit Safeguards
 
