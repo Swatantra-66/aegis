@@ -1,7 +1,7 @@
 const { generateSecret, generateURI, verifySync } = require('otplib');
 const db = require('../../config/database');
 const config = require('../../config/index');
-const { encrypt, decrypt, generateRandomToken } = require('../../utils/crypto');
+const { encrypt, decrypt, generateRandomToken, timingSafeCompare } = require('../../utils/crypto');
 const auditService = require('../audit/audit.service');
 const AppError = require('../../utils/AppError');
 const { AUDIT_ACTIONS } = require('../../config/constants');
@@ -144,7 +144,15 @@ const validate = async (userId, code) => {
   // Check backup codes
   if (user.mfa_backup_codes) {
     const backupCodes = JSON.parse(decrypt(user.mfa_backup_codes, config.mfa.encryptionKey));
-    const codeIndex = backupCodes.indexOf(code.toUpperCase());
+    let codeIndex = -1;
+    const normalizedInput = String(code).trim().toUpperCase();
+
+    for (let i = 0; i < backupCodes.length; i++) {
+      if (timingSafeCompare(normalizedInput, backupCodes[i])) {
+        codeIndex = i;
+        break;
+      }
+    }
 
     if (codeIndex !== -1) {
       // Remove used backup code

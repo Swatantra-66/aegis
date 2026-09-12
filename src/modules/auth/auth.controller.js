@@ -83,11 +83,16 @@ const refresh = async (req, res) => {
 const logout = async (req, res) => {
   const { refresh_token } = req.body;
 
+  const remainingTtl = req.user?.exp
+    ? Math.max(1, req.user.exp - Math.floor(Date.now() / 1000))
+    : 900;
+
   await authService.logout(req.user?.jti, refresh_token, {
     userId: req.user?.id,
     userEmail: req.user?.email,
     ip: req.ip,
     userAgent: req.get('user-agent'),
+    remainingTtl,
   });
 
   return apiResponse.success(res, {

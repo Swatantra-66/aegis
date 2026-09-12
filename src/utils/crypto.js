@@ -48,7 +48,13 @@ const verifyPassword = async (hash, password) => {
  * @param {string} params.previousChecksum - Previous record's checksum (empty string for first record)
  * @returns {string} - SHA-256 hex digest
  */
-const generateAuditChecksum = ({ action, actorId, resourceId, timestamp, previousChecksum = '' }) => {
+const generateAuditChecksum = ({
+  action,
+  actorId,
+  resourceId,
+  timestamp,
+  previousChecksum = '',
+}) => {
   const payload = `${action}|${actorId || ''}|${resourceId || ''}|${timestamp}|${previousChecksum}`;
   return crypto.createHash('sha256').update(payload).digest('hex');
 };
@@ -85,7 +91,7 @@ const hashToken = (token) => {
  */
 const encrypt = (text, key) => {
   const keyBuffer = crypto.createHash('sha256').update(key).digest();
-  const iv = crypto.randomBytes(16);
+  const iv = crypto.randomBytes(12); // NIST SP 800-38D recommended 96-bit IV
   const cipher = crypto.createCipheriv('aes-256-gcm', keyBuffer, iv);
 
   let encrypted = cipher.update(text, 'utf8', 'hex');
@@ -116,6 +122,22 @@ const decrypt = (encryptedText, key) => {
   return decrypted;
 };
 
+/**
+ * Compare two secrets/tokens in constant time to prevent timing attacks.
+ * Uses SHA-256 pre-hashing to ensure fixed 32-byte buffers and avoid length-leakage.
+ * @param {string} a
+ * @param {string} b
+ * @returns {boolean}
+ */
+const timingSafeCompare = (a, b) => {
+  if (typeof a !== 'string' || typeof b !== 'string') {
+    return false;
+  }
+  const aHash = crypto.createHash('sha256').update(a).digest();
+  const bHash = crypto.createHash('sha256').update(b).digest();
+  return crypto.timingSafeEqual(aHash, bHash);
+};
+
 module.exports = {
   hashPassword,
   verifyPassword,
@@ -124,4 +146,5 @@ module.exports = {
   hashToken,
   encrypt,
   decrypt,
+  timingSafeCompare,
 };

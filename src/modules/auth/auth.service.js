@@ -302,9 +302,10 @@ const refresh = async (refreshToken) => {
 const logout = async (accessTokenJti, refreshToken, reqMeta = {}) => {
   const tokenBlacklist = require('../tokens/tokens.blacklist');
 
-  // Blacklist the access token (TTL = 15 min max)
+  // Blacklist the access token with exact remaining lifetime
   if (accessTokenJti) {
-    await tokenBlacklist.add(accessTokenJti, 900); // 15 minutes
+    const ttl = reqMeta.remainingTtl || 900;
+    await tokenBlacklist.add(accessTokenJti, ttl);
   }
 
   // Revoke the refresh token

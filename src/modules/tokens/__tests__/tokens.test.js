@@ -6,6 +6,7 @@ const {
   hashToken,
   encrypt,
   decrypt,
+  timingSafeCompare,
 } = require('../../../utils/crypto');
 
 describe('Crypto Utilities', () => {
@@ -182,6 +183,26 @@ describe('Crypto Utilities', () => {
       expect(parts[0]).toMatch(/^[0-9a-f]+$/); // IV hex
       expect(parts[1]).toMatch(/^[0-9a-f]+$/); // AuthTag hex
       expect(parts[2]).toMatch(/^[0-9a-f]+$/); // Ciphertext hex
+    });
+  });
+
+  describe('timingSafeCompare', () => {
+    test('returns true for identical strings', () => {
+      expect(timingSafeCompare('SECRET-TOKEN-123', 'SECRET-TOKEN-123')).toBe(true);
+    });
+
+    test('returns false for differing strings of same length', () => {
+      expect(timingSafeCompare('SECRET-TOKEN-123', 'SECRET-TOKEN-124')).toBe(false);
+    });
+
+    test('returns false for differing strings of different length', () => {
+      expect(timingSafeCompare('SHORT', 'LONGER-TOKEN')).toBe(false);
+    });
+
+    test('returns false for non-string inputs', () => {
+      expect(timingSafeCompare(null, 'TOKEN')).toBe(false);
+      expect(timingSafeCompare('TOKEN', undefined)).toBe(false);
+      expect(timingSafeCompare(12345, 12345)).toBe(false);
     });
   });
 });

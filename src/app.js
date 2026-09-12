@@ -26,9 +26,26 @@ app.set('trust proxy', 1);
 
 // Security Middleware
 app.use(helmet());
+const allowedOrigins = Array.from(
+  new Set(
+    [
+      config.app.url,
+      config.frontendUrl,
+      'http://localhost:5173',
+      'https://aegis.swatantracodes.in',
+    ].filter(Boolean)
+  )
+);
+
 app.use(
   cors({
-    origin: config.app.url,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(AppError.forbidden('Blocked by CORS policy', 'CORS_ERROR'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
