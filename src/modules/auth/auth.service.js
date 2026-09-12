@@ -378,13 +378,14 @@ const processForgotPasswordJob = async (email, reqMeta = {}, job = null) => {
     const tokenHash = hashToken(resetToken);
     const redisKey = `${REDIS_PREFIXES.PASSWORD_RESET}${tokenHash}`;
 
-    // Store reset token payload in ephemeral Redis store with fencing token
+    // Store reset token payload in ephemeral Redis store with non-reversible fencing token
+    const fencingToken = crypto.createHash('sha256').update(user.password_hash).digest('hex');
     await redis.set(
       redisKey,
       JSON.stringify({
         userId: user.id,
         email: user.email,
-        fencingToken: user.password_hash,
+        fencingToken,
       }),
       'EX',
       ttlSeconds
@@ -554,7 +555,7 @@ const resetPassword = async (token, newPassword, reqMeta = {}) => {
       }
 
       const updateResult = await client.query(
-        'UPDATE users SET password_hash = $1, failed_login_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = $2 AND password_hash = $3',
+        "UPDATE users SET password_hash = $1, failed_login_attempts = 0, locked_until = NULL, updated_at = NOW() WHERE id = $2 AND encode(digest(password_hash, 'sha256'), 'hex') = $3",
         [password_hash, tokenData.userId, tokenData.fencingToken]
       );
 
