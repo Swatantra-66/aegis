@@ -271,13 +271,13 @@ const DB_SCHEMA = [
 ];
 
 const BACKEND_MODULES = [
-  { name: 'auth', desc: 'Authentication, registration, password lifecycle & multi-step tickets', files: ['auth.controller.js', 'auth.service.js', 'auth.routes.js', 'auth.validator.js', 'securityPolicy.js'] },
-  { name: 'users', desc: 'Identity CRUD, profile updates & account deactivation', files: ['users.controller.js', 'users.service.js', 'users.routes.js', 'users.validator.js'] },
-  { name: 'roles', desc: 'RBAC role creation, dynamic permission mapping & route guards', files: ['roles.controller.js', 'roles.service.js', 'roles.routes.js', 'roles.validator.js'] },
-  { name: 'tokens', desc: 'JWT token family rotation (RTR) & Redis JTI blacklisting', files: ['tokens.service.js', 'tokens.blacklist.js'] },
-  { name: 'mfa', desc: 'RFC 6238 TOTP enrollment, AES-256-GCM encrypted secrets & backup codes', files: ['mfa.controller.js', 'mfa.service.js', 'mfa.routes.js'] },
-  { name: 'audit', desc: 'Tamper-evident SHA-256 cryptographic hash-chained security ledger', files: ['audit.controller.js', 'audit.service.js', 'audit.routes.js'] },
-  { name: 'services', desc: 'Durable background job queues, Lua atomic state transitions & Gmail mailer', files: ['queue.service.js', 'mailer.service.js'] },
+  { name: 'auth', path: 'src/modules/auth', desc: 'Authentication, registration, password lifecycle & multi-step tickets', files: ['auth.controller.js', 'auth.service.js', 'auth.routes.js', 'auth.validator.js', 'securityPolicy.js'] },
+  { name: 'users', path: 'src/modules/users', desc: 'Identity CRUD, profile updates & account deactivation', files: ['users.controller.js', 'users.service.js', 'users.routes.js', 'users.validator.js'] },
+  { name: 'roles', path: 'src/modules/roles', desc: 'RBAC role creation, dynamic permission mapping & route guards', files: ['roles.controller.js', 'roles.service.js', 'roles.routes.js', 'roles.validator.js'] },
+  { name: 'tokens', path: 'src/modules/tokens', desc: 'JWT token family rotation (RTR) & Redis JTI blacklisting', files: ['tokens.service.js', 'tokens.blacklist.js'] },
+  { name: 'mfa', path: 'src/modules/mfa', desc: 'RFC 6238 TOTP enrollment, AES-256-GCM encrypted secrets & backup codes', files: ['mfa.controller.js', 'mfa.service.js', 'mfa.routes.js'] },
+  { name: 'audit', path: 'src/modules/audit', desc: 'Tamper-evident SHA-256 cryptographic hash-chained security ledger', files: ['audit.controller.js', 'audit.service.js', 'audit.routes.js'] },
+  { name: 'services', path: 'src/services', desc: 'Durable background job queues, Lua atomic state transitions & Gmail mailer', files: ['queue.service.js', 'mailer.service.js'] },
 ];
 
 const TEST_SUITES = [
@@ -857,7 +857,7 @@ const Phase3 = () => (
     {/* Backend Modules Manifest */}
     <div className="flex justify-between items-center mb-md">
       <span className="sirnik-page-number" style={{ margin: 0, fontSize: '0.68rem' }}>
-        BACKEND CONTROLLER MODULES · src/modules/
+        BACKEND SUBSYSTEMS & MODULES · src/
       </span>
       <span className="font-mono text-xs text-muted">[{BACKEND_MODULES.length} DOMAIN MODULES]</span>
     </div>
@@ -875,7 +875,7 @@ const Phase3 = () => (
           }}
         >
           <div className="flex justify-between items-center mb-xs">
-            <span className="font-mono text-sm font-bold text-white">modules/{mod.name}</span>
+            <span className="font-mono text-sm font-bold text-white">{mod.path}</span>
             <span
               className="font-mono"
               style={{
