@@ -38,28 +38,8 @@ describe('QueueService (Atomic Operations, Leases, Fencing & Checkpoints)', () =
       expect(redis.pipeline).toHaveBeenCalled();
     });
 
-    test('deduplicates caller-supplied jobId using SET NX and skips lpush if already exists', async () => {
-      redis.set.mockResolvedValueOnce(null); // Key already exists
-
-      const jobId = await queueService.enqueue(
-        'test-queue',
-        { foo: 'bar' },
-        { jobId: 'idempotent-job-1' }
-      );
-
-      expect(jobId).toBe('idempotent-job-1');
-      expect(redis.set).toHaveBeenCalledWith(
-        'iam:jobs:idempotent-job-1',
-        expect.any(String),
-        'EX',
-        86400,
-        'NX'
-      );
-      expect(redis.lpush).not.toHaveBeenCalled();
-    });
-
-    test('enqueues caller-supplied jobId if it does not yet exist', async () => {
-      redis.set.mockResolvedValueOnce('OK'); // Key acquired
+    test('atomically enqueues caller-supplied jobId via Lua script (SET NX + LPUSH)', async () => {
+      redis.eval.mockResolvedValueOnce(1); // 1 = created and pushed
 
       const jobId = await queueService.enqueue(
         'test-queue',
@@ -68,14 +48,54 @@ describe('QueueService (Atomic Operations, Leases, Fencing & Checkpoints)', () =
       );
 
       expect(jobId).toBe('new-job-1');
-      expect(redis.set).toHaveBeenCalledWith(
+      expect(redis.eval).toHaveBeenCalledWith(
+        expect.stringContaining('ENQUEUE_IDEMPOTENT_JOB_LUA'),
+        2,
         'iam:jobs:new-job-1',
+        'iam:queue:test-queue',
+        'new-job-1',
         expect.any(String),
-        'EX',
-        86400,
-        'NX'
+        86400
       );
-      expect(redis.lpush).toHaveBeenCalledWith('iam:queue:test-queue', 'new-job-1');
+    });
+
+    test('deduplicates caller-supplied jobId when Lua script returns 0 (already exists)', async () => {
+      redis.eval.mockResolvedValueOnce(0); // 0 = already existed, skipped
+
+      const jobId = await queueService.enqueue(
+        'test-queue',
+        { foo: 'bar' },
+        { jobId: 'idempotent-job-1' }
+      );
+
+      expect(jobId).toBe('idempotent-job-1');
+      expect(redis.eval).toHaveBeenCalledWith(
+        expect.stringContaining('ENQUEUE_IDEMPOTENT_JOB_LUA'),
+        2,
+        'iam:jobs:idempotent-job-1',
+        'iam:queue:test-queue',
+        'idempotent-job-1',
+        expect.any(String),
+        86400
+      );
+    });
+
+    test('re-attempt succeeds if atomic enqueue initially failed (failed-push retry regression)', async () => {
+      // First attempt fails during eval
+      redis.eval.mockRejectedValueOnce(new Error('Redis connection drop'));
+      await expect(
+        queueService.enqueue('test-queue', { foo: 'bar' }, { jobId: 'retry-job-1' })
+      ).rejects.toThrow('Redis connection drop');
+
+      // Second attempt succeeds
+      redis.eval.mockResolvedValueOnce(1);
+      const jobId = await queueService.enqueue(
+        'test-queue',
+        { foo: 'bar' },
+        { jobId: 'retry-job-1' }
+      );
+
+      expect(jobId).toBe('retry-job-1');
     });
   });
 
@@ -212,7 +232,8 @@ describe('QueueService (Atomic Operations, Leases, Fencing & Checkpoints)', () =
 
   describe('atomic checkpointing', () => {
     test('checkpoint atomically merges updates and persists dedicated checkpoint key', async () => {
-      redis.eval.mockResolvedValueOnce(1);
+      const mergedJson = JSON.stringify({ emailDelivered: true });
+      redis.eval.mockResolvedValueOnce(mergedJson);
       redis.set.mockResolvedValueOnce('OK');
 
       await queueService.checkpoint('job-1', { emailDelivered: true }, 'claim-tok-123');
@@ -316,6 +337,21 @@ describe('QueueService (Atomic Operations, Leases, Fencing & Checkpoints)', () =
       // Must resolve without throwing
       await expect(queueService.processNext('test-trans-err')).resolves.not.toThrow();
       expect(mockHandler).toHaveBeenCalled();
+    });
+
+    test('bounds delayed-job migration to configured batch limit', async () => {
+      redis.eval.mockResolvedValueOnce(5);
+
+      await queueService.migrateDelayedJobs('test-bounded', 50);
+
+      expect(redis.eval).toHaveBeenCalledWith(
+        expect.stringContaining('MIGRATE_DELAYED_JOBS'),
+        2,
+        'iam:queue:test-bounded:delayed',
+        'iam:queue:test-bounded',
+        expect.any(Number),
+        50
+      );
     });
   });
 });

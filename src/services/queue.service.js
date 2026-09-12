@@ -4,11 +4,15 @@ const { generateRandomToken } = require('../utils/crypto');
 
 /**
  * Server-side Lua script to atomically migrate ready delayed jobs into the active queue.
+ * Bounds migration by batchLimit to prevent blocking the Redis event loop.
  * KEYS[1] = delayedKey (ZSET), KEYS[2] = queueKey (LIST)
  * ARGV[1] = currentTimestamp (milliseconds)
+ * ARGV[2] = batchLimit (number, default 100)
  */
 const MIGRATE_DELAYED_JOBS_LUA = `
-  local ready = redis.call('ZRANGEBYSCORE', KEYS[1], 0, ARGV[1])
+  -- MIGRATE_DELAYED_JOBS_LUA
+  local limit = tonumber(ARGV[2]) or 100
+  local ready = redis.call('ZRANGEBYSCORE', KEYS[1], 0, ARGV[1], 'LIMIT', 0, limit)
   for _, id in ipairs(ready) do
     redis.call('ZREM', KEYS[1], id)
     redis.call('LPUSH', KEYS[2], id)
@@ -92,7 +96,7 @@ const COMPLETE_JOB_LUA = `
   if ARGV[4] ~= '' then
     job.result = cjson.decode(ARGV[4])
   end
-  redis.call('SET', jobKey, cjson.encode(job), 'EX', 3600)
+  redis.call('SET', jobKey, cjson.encode(job), 'EX', 86400)
   redis.call('ZREM', KEYS[1], ARGV[1])
   return 1
 `;
@@ -202,7 +206,7 @@ const RECLAIM_EXPIRED_JOBS_LUA = `
  * Never mutates status, attempts, or claimToken. Fenced by claimToken if provided.
  * KEYS[1] = jobKey
  * ARGV[1] = jobId, ARGV[2] = claimToken, ARGV[3] = updatesJson, ARGV[4] = nowIso
- * Returns 1 if updated, 0 if job not found, -1 if claimToken fence violated
+ * Returns merged JSON string if updated, 0 if job not found, -1 if claimToken fence violated
  */
 const CHECKPOINT_JOB_LUA = `
   -- CHECKPOINT_JOB_LUA
@@ -221,6 +225,22 @@ const CHECKPOINT_JOB_LUA = `
   local mergedJson = cjson.encode(job.checkpoint)
   redis.call('SET', KEYS[1], cjson.encode(job), 'KEEPTTL')
   return mergedJson
+`;
+
+/**
+ * Server-side Lua script to atomically write job metadata with NX and enqueue.
+ * KEYS[1] = jobKey, KEYS[2] = queueKey
+ * ARGV[1] = jobId, ARGV[2] = jobJson, ARGV[3] = ttlSeconds
+ * Returns 1 if created and enqueued, 0 if job already existed
+ */
+const ENQUEUE_IDEMPOTENT_JOB_LUA = `
+  -- ENQUEUE_IDEMPOTENT_JOB_LUA
+  local acquired = redis.call('SET', KEYS[1], ARGV[2], 'EX', tonumber(ARGV[3]), 'NX')
+  if not acquired then
+    return 0
+  end
+  redis.call('LPUSH', KEYS[2], ARGV[1])
+  return 1
 `;
 
 /**
@@ -280,13 +300,16 @@ class QueueService {
     };
 
     if (isCustomJobId) {
-      // Idempotency guard: SET with NX to avoid overwriting metadata or re-queuing duplicate jobs
-      const acquired = await redis.set(jobKey, JSON.stringify(job), 'EX', 86400, 'NX');
-      if (!acquired) {
-        // Job already exists in system; return existing jobId without pushing to queue
-        return jobId;
-      }
-      await redis.lpush(queueKey, jobId);
+      // Atomic idempotency guard: write metadata with NX and LPUSH in one atomic Lua script
+      await redis.eval(
+        ENQUEUE_IDEMPOTENT_JOB_LUA,
+        2,
+        jobKey,
+        queueKey,
+        jobId,
+        JSON.stringify(job),
+        86400
+      );
     } else {
       // Atomic execution: write job metadata and push to queue in one Redis tick
       const pipeline = redis.pipeline ? redis.pipeline() : redis.multi();
@@ -328,9 +351,8 @@ class QueueService {
       );
 
       // 2. Store merged checkpoint in dedicated checkpoint key only for the confirmed owner
-      if (typeof res === 'string' || res === 1) {
-        const checkpointData = typeof res === 'string' ? res : JSON.stringify(updates);
-        await redis.set(`iam:jobs:${jobId}:checkpoint`, checkpointData, 'EX', 86400);
+      if (typeof res === 'string') {
+        await redis.set(`iam:jobs:${jobId}:checkpoint`, res, 'EX', 86400);
       } else if (res === -1) {
         logger.warn(`Checkpoint for job [${jobId}] rejected: claimToken mismatch`);
       }
@@ -373,15 +395,17 @@ class QueueService {
 
   /**
    * Atomically migrate ready delayed jobs to the active queue.
+   * Bounds migration by batch size to avoid blocking the Redis event loop.
    * @param {string} queueName
+   * @param {number} [batchSize=100]
    */
-  async migrateDelayedJobs(queueName) {
+  async migrateDelayedJobs(queueName, batchSize = 100) {
     const delayedKey = `iam:queue:${queueName}:delayed`;
     const queueKey = `iam:queue:${queueName}`;
     const now = Date.now();
 
     try {
-      await redis.eval(MIGRATE_DELAYED_JOBS_LUA, 2, delayedKey, queueKey, now);
+      await redis.eval(MIGRATE_DELAYED_JOBS_LUA, 2, delayedKey, queueKey, now, batchSize);
     } catch (err) {
       logger.error(`Failed migrating delayed jobs for [${queueName}]: ${err.message}`);
     }
