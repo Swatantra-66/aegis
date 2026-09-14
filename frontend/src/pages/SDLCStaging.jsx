@@ -30,6 +30,24 @@ const HIGH_LEVEL_MERMAID = `graph TD
     end
 `;
 
+const RTR_FLOW_MERMAID = `sequenceDiagram
+    autonumber
+    actor Client
+    participant Server as Aegis API
+    participant DB as PostgreSQL
+
+    Client->>Server: POST /api/v1/auth/refresh (RefreshToken_A)
+    Server->>DB: Lookup SHA-256(RefreshToken_A)
+    alt Token already used (Reuse Breach Detected)
+        Server->>DB: Invalidate ALL tokens in Family (revoked = true)
+        Server-->>Client: 401 Unauthorized (AUTH_REFRESH_INVALID)
+    else Token valid (Unexpired & Unrevoked)
+        Server->>DB: Mark RefreshToken_A as REVOKED
+        Server->>DB: Insert new RefreshToken_B (Same family_id)
+        Server-->>Client: 200 OK (New AccessToken + RefreshToken_B)
+    end
+`;
+
 const MermaidDiagram = ({ chart }) => {
   const containerRef = useRef(null);
 
@@ -49,6 +67,22 @@ const MermaidDiagram = ({ chart }) => {
         textColor: '#ffffff',
         fontFamily: 'Inter, system-ui, sans-serif',
         fontSize: '12px',
+        actorBkg: '#0d0d0d',
+        actorBorder: 'rgba(255, 255, 255, 0.25)',
+        actorTextColor: '#ffffff',
+        actorLineColor: 'rgba(255, 255, 255, 0.25)',
+        signalColor: '#00FF66',
+        signalTextColor: '#ffffff',
+        labelBoxBkgColor: '#0d0d0d',
+        labelBoxBorderColor: 'rgba(255, 255, 255, 0.25)',
+        labelTextColor: '#ffffff',
+        loopTextColor: '#ffffff',
+        noteBorderColor: 'rgba(255, 255, 255, 0.25)',
+        noteBkgColor: '#0d0d0d',
+        noteTextColor: '#ffffff',
+        activationBorderColor: '#00FF66',
+        activationBkgColor: 'rgba(0, 255, 102, 0.15)',
+        sequenceNumberColor: '#000000',
       },
     });
 
@@ -755,6 +789,83 @@ const Phase2 = () => (
         }}
       >
         <MermaidDiagram chart={HIGH_LEVEL_MERMAID} />
+      </div>
+    </div>
+
+    {/* Refresh Token Rotation (RTR) Cryptographic Lifecycle Card */}
+    <div
+      style={{
+        background: '#080808',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(12px)',
+        padding: '1.75rem 2rem',
+        borderRadius: '2px',
+        marginBottom: '2rem',
+      }}
+    >
+      <div className="flex justify-between items-center mb-md">
+        <div>
+          <span className="sirnik-page-number" style={{ margin: 0, fontSize: '0.68rem' }}>
+            CRYPTOGRAPHIC TOKEN LIFECYCLE
+          </span>
+          <h3 style={{ margin: '0.35rem 0 0', fontSize: '1.15rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
+            Refresh Token Rotation (RTR) Sequence Flow
+          </h3>
+        </div>
+        <span className="font-mono text-xs text-muted">[RFC 6749 / OAUTH 2.0 BCP · ZERO-TRUST ROTATION]</span>
+      </div>
+
+      <div
+        style={{
+          background: '#080808',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '2px',
+          padding: '1.5rem',
+          overflowX: 'auto',
+        }}
+      >
+        <MermaidDiagram chart={RTR_FLOW_MERMAID} />
+      </div>
+
+      <div
+        style={{
+          marginTop: '1.25rem',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '1rem',
+        }}
+      >
+        <div
+          style={{
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            padding: '1rem',
+            borderRadius: '2px',
+          }}
+        >
+          <div className="flex items-center gap-xs mb-xs">
+            <span className="font-mono text-xs font-bold text-white">PostgreSQL Family Lineage & Invalidation</span>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.74rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+            Refresh tokens are stored as SHA-256 digests in <code>refresh_tokens</code> with parent <code>family_id</code> tracking. When an already-revoked token is presented, Aegis immediately invalidates the entire token family, stopping token replay attacks.
+          </p>
+        </div>
+
+        <div
+          style={{
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            padding: '1rem',
+            borderRadius: '2px',
+          }}
+        >
+          <div className="flex items-center gap-xs mb-xs">
+            <span className="font-mono text-xs font-bold text-white">Redis JTI Blacklisting & Rate Limiting</span>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.74rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+            Redis handles in-memory token security: blacklisting access tokens upon user logout (<code>SETEX bl:&lt;jti&gt; &lt;ttl&gt; 1</code>) and managing sliding-window rate limit counters to throttle brute-force auth attempts.
+          </p>
+        </div>
       </div>
     </div>
 
