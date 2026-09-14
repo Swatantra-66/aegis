@@ -3,7 +3,7 @@ import React from 'react';
 // Line 1:
 const COLUMN_1_LOGOS = [
   { name: "Docker", iconSrc: "/logos/docker.svg", isCustomColor: false, scale: 1.2 },
-  { name: "Certbot", iconSrc: "/logos/certbot.svg", isCustomColor: true, scale: 1.25 },
+  { name: "Certbot", iconSrc: "/logos/certbot.svg", isCustomColor: true, scale: 1.3 },
   { name: "PostgreSQL", iconSrc: "/logos/postgresql.svg", isCustomColor: false, scale: 1.15 },
   { name: "Ubuntu Linux", iconSrc: "/logos/ubuntu.svg", isCustomColor: false, scale: 1.15 },
   { name: "Redis", iconSrc: "/logos/redis.svg", isCustomColor: false },
@@ -12,6 +12,7 @@ const COLUMN_1_LOGOS = [
   { name: "OAuth 2.0", iconSrc: "/logos/oauth.png", isCustomColor: true, scale: 1.3 },
   { name: "Jest", iconSrc: "/logos/jest.svg", isCustomColor: false, scale: 1.15 },
   { name: "Joi", iconSrc: "/logos/joi.svg", isCustomColor: true, scale: 1.35 },
+  { name: "Helmet", iconSrc: "/logos/helmet.png", isCustomColor: false, scale: 1.80 },
 ];
 
 // Line 2:
@@ -23,9 +24,10 @@ const COLUMN_2_LOGOS = [
   { name: "Nodemailer", iconSrc: "/logos/nodemailer.svg", isCustomColor: true, scale: 1.25 },
   { name: "Git", iconSrc: "/logos/git.svg", isCustomColor: false, scale: 1.15 },
   { name: "Nginx", iconSrc: "/logos/nginx.svg", isCustomColor: false, scale: 1.15 },
-  { name: "Let's Encrypt", iconSrc: "/logos/letsencrypt.svg", isCustomColor: true, scale: 1.2 },
+  { name: "Let's Encrypt", iconSrc: "/logos/letsencrypt.svg", isCustomColor: true, scale: 1.3 },
   { name: "DigitalOcean", iconSrc: "/logos/digitalocean.svg", isCustomColor: false },
-  { name: "Antigravity", iconSrc: "/logos/antigravity.svg", isCustomColor: true, scale: 1.4 },
+  { name: "Antigravity", iconSrc: "/logos/antigravity.svg", isCustomColor: true, scale: 1.45 },
+  { name: "Google Cloud Console", iconSrc: "/logos/googlecloud.png", isCustomColor: true, scale: 1.20 },
 ];
 
 export const LogoMarquee = () => {
