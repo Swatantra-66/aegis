@@ -5,20 +5,28 @@ import mermaid from 'mermaid';
 import api, { healthCheck } from '../lib/api';
 
 const HIGH_LEVEL_MERMAID = `graph TD
-    Client["Client / React Frontend\\n(Vite SPA)"] -->|HTTPS / REST API| Gateway["API Gateway / Express Server\\n(Helmet, Rate-Limiter, CORS)"]
+    Client["Client SPA\\n(React 19 · Vite · TanStack Query)"] -->|HTTPS / REST API| Nginx["Nginx Reverse Proxy\\n(TLS Termination · Static Assets · Gzip)"]
+    Nginx -->|Proxy Pass /api & /health| Gateway["API Gateway / Express Server\\n(Helmet · CORS · Body Parser)"]
     
-    subgraph Aegis_Core_Backend ["Aegis Core Backend"]
-        Gateway --> AuthMW["Auth & RBAC Middleware"]
-        AuthMW --> AuthMod["Auth Module\\n(Argon2, JWT, Tokens)"]
-        AuthMW --> MfaMod["MFA Module\\n(TOTP, AES-256)"]
-        AuthMW --> RolesMod["Roles & RBAC Module"]
-        AuthMW --> AuditMod["Audit Logging Module\\n(SHA-256 Hash Chain)"]
+    subgraph Aegis_Core_Backend ["Aegis Core Backend Engine"]
+        Gateway --> MW["Auth & Security Middleware\\n(JWT Verification · Rate Limiter · RBAC Guard)"]
+        MW --> AuthMod["Auth & Tokens Module\\n(Argon2id · RTR Token Families)"]
+        MW --> UsersMod["Users Module\\n(Identity CRUD · Profile)"]
+        MW --> MfaMod["MFA Module\\n(RFC 6238 TOTP · AES-256-GCM)"]
+        MW --> RolesMod["Roles & RBAC Module\\n(Dynamic Permission Matrix)"]
+        MW --> AuditMod["Audit Ledger Module\\n(SHA-256 Hash Chain)"]
+        AuthMod --> QueueSvc["Async Queue & Mailer\\n(Lua Atomicity · Leases · DLQ)"]
     end
 
     subgraph Data_Cache_Layer ["Data & Cache Layer"]
-        AuthMod -->|Session / Blacklist / Rate-Limit| Redis[("Redis 6+ (In-Memory)")]
-        AuthMod -->|Users, Roles, Permissions| Postgres[("PostgreSQL 14+ (Persistent Store)")]
-        AuditMod -->|Tamper-Evident Logs| Postgres
+        MW -.->|Rate Limit Buckets| Redis[("Redis 7+ In-Memory\\n• JTI Token Blacklist\\n• Sliding Window Rate Limits\\n• Queue State & Leases")]
+        AuthMod -->|JTI Revocation| Redis
+        QueueSvc -->|Worker Leases & Checkpoints| Redis
+
+        UsersMod -->|Identity Records| Postgres[("PostgreSQL 16+ Persistent Store\\n• Users & Encrypted MFA Secrets\\n• Roles & Permissions\\n• RTR Refresh Tokens\\n• Tamper-Evident Audit Logs")]
+        MfaMod -->|Encrypted TOTP Secrets| Postgres
+        RolesMod -->|Role Junctions| Postgres
+        AuditMod -->|Tamper-Evident Ledger| Postgres
     end
 `;
 
@@ -1343,7 +1351,7 @@ const Phase6 = () => {
             fontWeight: 700,
           }}
         >
-          {isVerifying ? 'VERIFYING CHAIN...' : 'VERIFY SHA-256 INTEGRITY →'}
+          {isVerifying ? 'VERIFYING CHAIN...' : 'VERIFY SHA-256 INTEGRITY'}
         </button>
       </div>
 
