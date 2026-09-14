@@ -40,7 +40,7 @@ graph TD
 ### Token Strategy
 - **Access Tokens:** Signed with JWT (`HS256` or `RS256`), 15-minute lifespan. Stored securely in memory by the client.
 - **Refresh Tokens:** Cryptographically random tokens stored in PostgreSQL with family-based rotation.
-- **Token Invalidation:** Revoked tokens are immediately added to a Redis-backed blacklist with an automatic TTL matching the token's remaining lifetime.
+- **Token Invalidation:** Revoked access tokens on logout are immediately stored in a Redis-backed blacklist by `jti` with an automatic TTL matching the token's remaining lifetime (`SETEX bl:<jti> <ttl> 1`). Refresh tokens are invalidated and tracked directly in PostgreSQL.
 
 ### Refresh Token Rotation (RTR) Flow
 
@@ -50,17 +50,15 @@ sequenceDiagram
     actor Client
     participant Server as Aegis API
     participant DB as PostgreSQL
-    participant Redis as Redis Cache
 
     Client->>Server: POST /api/v1/auth/refresh (RefreshToken_A)
-    Server->>DB: Lookup RefreshToken_A
-    alt Token already used (Reuse Detection)
-        Server->>DB: Invalidate ALL tokens in Token Family
-        Server->>Redis: Blacklist User Sessions
-        Server-->>Client: 401 Unauthorized (Breach detected)
-    else Token valid
+    Server->>DB: Lookup SHA-256(RefreshToken_A)
+    alt Token already used (Reuse Breach Detected)
+        Server->>DB: Invalidate ALL tokens in Family (revoked = true)
+        Server-->>Client: 401 Unauthorized (AUTH_REFRESH_INVALID)
+    else Token valid (Unexpired & Unrevoked)
         Server->>DB: Mark RefreshToken_A as REVOKED
-        Server->>DB: Insert new RefreshToken_B
+        Server->>DB: Insert new RefreshToken_B (Same family_id)
         Server-->>Client: 200 OK (New AccessToken + RefreshToken_B)
     end
 ```
@@ -109,5 +107,7 @@ graph LR
 | :--- | :--- | :--- |
 | **Password Hashing** | Argon2id | Resistant to GPU/ASIC brute-force attacks |
 | **MFA Secrets** | AES-256-GCM | Encrypted storage of TOTP seeds at rest |
-| **Session Control** | Redis `SETEX` | Instant token revocation & rate limiting |
+| **Access Token Revocation** | Redis `SETEX` (`bl:<jti>`) | Instant access-token JTI blacklisting on logout |
+| **Refresh Token Lineage** | PostgreSQL `refresh_tokens` | Authoritative single-use tracking & atomic family-wide revocation |
+| **Rate Limiting** | Redis (`rate-limit-redis`) | Distributed sliding-window brute-force & DDoS mitigation |
 | **Tamper Detection** | SHA-256 Chaining | Verifiable, tamper-evident audit trails |
