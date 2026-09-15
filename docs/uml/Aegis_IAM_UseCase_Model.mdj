@@ -8839,7 +8839,6 @@
           "_parent": {
             "$ref": "ELEM_UC_LOGOUT"
           },
-          "name": "Assoc_Logout_PostgreSQL",
           "end1": {
             "_type": "UMLAssociationEnd",
             "_id": "AEND_PG_LOGOUT_1",
