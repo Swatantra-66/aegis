@@ -74,7 +74,7 @@ The **Aegis IAM Portal** is a mission-critical cybersecurity system engineered t
 The formal UML project model is maintained at:  
 📁 [**`uml/Aegis_IAM_UseCase_Model.mdj`**](./uml/Aegis_IAM_UseCase_Model.mdj)
 
-![IAM Portal Use Case Diagram](./assets/IAM%20Portal%20use%20case%20diagram.jpg)
+![IAM Portal Use Case Diagram](./assets/usecase_diagram.jpg)
 
 ---
 
