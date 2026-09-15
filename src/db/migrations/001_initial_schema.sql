@@ -1,6 +1,4 @@
--- ============================================
 -- IAM Portal — Initial Schema Migration
--- ============================================
 
 -- Enable UUID generation
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -110,9 +108,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 
--- ============================================
 -- Phase 2 Tables (created now to avoid future migrations breaking things)
--- ============================================
 
 -- 9. SSO Identity Links
 CREATE TABLE IF NOT EXISTS sso_identities (
@@ -152,9 +148,8 @@ CREATE TABLE IF NOT EXISTS login_events (
 CREATE INDEX IF NOT EXISTS idx_login_events_user ON login_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_login_events_created ON login_events(created_at);
 
--- ============================================
 -- Updated_at trigger function
--- ============================================
+
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN

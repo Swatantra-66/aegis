@@ -1,15 +1,13 @@
--- ============================================
 -- IAM Portal — Default Roles, Permissions & Admin User
--- ============================================
 
--- ── Default Roles ────────────────────────────────
+-- Default Roles
 INSERT INTO roles (name, description, is_system_role) VALUES
   ('super_admin', 'Full system access. Cannot be deleted.', true),
   ('admin', 'Administrative access with user and role management.', true),
   ('user', 'Standard user with basic access.', true)
 ON CONFLICT (name) DO NOTHING;
 
--- ── Permissions ──────────────────────────────────
+-- Permissions
 INSERT INTO permissions (name, description, resource, action) VALUES
   -- User permissions
   ('user:read',     'View user profiles',           'user',   'read'),
@@ -28,7 +26,7 @@ INSERT INTO permissions (name, description, resource, action) VALUES
   ('mfa:manage',    'Manage MFA settings',          'mfa',    'manage')
 ON CONFLICT (name) DO NOTHING;
 
--- ── Role ↔ Permission Assignments ────────────────
+-- Role ↔ Permission Assignments
 
 -- super_admin gets ALL permissions
 INSERT INTO role_permissions (role_id, permission_id)
