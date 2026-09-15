@@ -78,10 +78,10 @@ const migrate = async () => {
         await client.query(sql);
         await client.query('INSERT INTO migrations (name) VALUES ($1)', [file]);
         await client.query('COMMIT');
-        logger.info(`✅ Migration applied: ${file}`);
+        logger.info(`Migration applied: ${file}`);
       } catch (err) {
         await client.query('ROLLBACK');
-        logger.error(`❌ Migration failed: ${file}`, { error: err.message });
+        logger.error(`Migration failed: ${file}`, { error: err.message });
         throw err;
       }
     }
