@@ -1,12 +1,12 @@
 # Software Requirements Specification (SRS)
 ## Aegis IAM — Enterprise Identity & Access Management Infrastructure
 
-**Document Identifier:** `SRS-AEGIS-IAM-V1.0`  
+**Document Identifier:** `AEGIS-IAM`  
 **Standard:** IEEE Std 830-1998 Compliant  
 **Project Name:** Aegis IAM (Identity & Access Management Portal)  
-**Status:** Approved / Release Ready (`v1.4.0`)  
-**Date of Submission:** 2026-08-25  
-**Author / Team:** Swatantra & Vishek
+**Status:** Final `v1.0`  
+**Date of Submission:** 2026-09-16  
+**Author / Team:** Swatantra Yadav & Vishek Tyagi
 
 ---
 
@@ -522,10 +522,4 @@ If an adversary mutates any field in Record 1, all subsequent checksums ($\text{
 
 ---
 
-**Document Approval & Sign-Off:**
-
-| Role | Name | Signature / Status | Date |
-| :--- | :--- | :--- | :--- |
-| **Project Lead & Author** | Swatantra | *Approved* | 2026-08-25 |
-| **System Architect** | Antigravity AI | *Verified & Formatted* | 2026-08-25 |
-| **Security Reviewer** | DevSecOps Lead | *Compliant with OWASP ASVS v4* | 2026-08-25 |
+| **Project Lead & Author** : Swatantra Yadav
