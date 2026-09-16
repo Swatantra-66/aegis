@@ -1,15 +1,5 @@
 # Security Policy
 
-## Supported Versions
-
-The following versions of Aegis IAM currently receive security updates:
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
-| < 1.0   | :x:                |
-
----
 
 ## Reporting a Vulnerability
 
@@ -17,7 +7,7 @@ We take the security of **Aegis IAM** seriously. If you discover a security vuln
 
 ### How to Report
 
-1. **Email:** Send details to [aegis.swatantracodes.in](mailto:maverickswatantra@gmail.com) with the subject `[SECURITY VULNERABILITY] Aegis IAM`.
+1. **Email:** Send details to [aegisiamsecurity@gmail.com](mailto:aegisiamsecurity@gmail.com) with the subject `AEGIS Cyber Security` 
 2. **Details to Include:**
    - A clear description of the vulnerability.
    - Steps to reproduce or a Proof of Concept (PoC).
