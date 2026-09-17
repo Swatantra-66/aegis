@@ -9,7 +9,7 @@ const Login = () => {
   const { login, isAuthenticated, isLoading, error, clearError, mfaRequired, mfaSetupRequired } = useAuthStore();
 
   const [infoNotice, setInfoNotice] = useState(location.state?.message || '');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(location.state?.email || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -31,6 +31,16 @@ const Login = () => {
   useEffect(() => {
     if (mfaSetupRequired) navigate('/mfa/setup', { replace: true });
   }, [mfaSetupRequired, navigate]);
+
+  // Auto-dismiss info notice badge after 15 seconds
+  useEffect(() => {
+    if (infoNotice) {
+      const timer = setTimeout(() => {
+        setInfoNotice('');
+      }, 15000);
+      return () => clearTimeout(timer);
+    }
+  }, [infoNotice]);
 
   // Auto-dismiss error badge after 15 seconds
   useEffect(() => {
@@ -98,7 +108,7 @@ const Login = () => {
                   value={email}
                   onChange={handleInputChange(setEmail)}
                   required
-                  autoFocus
+                  autoFocus={!location.state?.email}
                 />
               </div>
             </div>
@@ -117,6 +127,7 @@ const Login = () => {
                   value={password}
                   onChange={handleInputChange(setPassword)}
                   required
+                  autoFocus={Boolean(location.state?.email)}
                 />
                 <button
                   type="button"

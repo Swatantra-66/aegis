@@ -9,7 +9,7 @@ const Register = () => {
   const [searchParams] = useSearchParams();
   const tokenFromUrl = searchParams.get('token') || '';
 
-  const { isAuthenticated, setSession } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
 
   // Multi-step signup flow: 1: Enter email -> 2: Check email -> 3: Complete details
   const [step, setStep] = useState(1);
@@ -157,7 +157,7 @@ const Register = () => {
 
     setIsLoading(true);
     try {
-      const { data } = await api.post('/auth/signup/complete', {
+      await api.post('/auth/signup/complete', {
         email,
         registrationTicket,
         registration_ticket: registrationTicket,
@@ -165,17 +165,14 @@ const Register = () => {
         password,
       });
 
-      const { user, accessToken, refreshToken } = data.data;
-
-      // Automatically store session in Zustand and localStorage
-      setSession({
-        user,
-        access_token: accessToken,
-        refresh_token: refreshToken,
+      // Step 4: Account created -> redirect to /login with success notice
+      navigate('/login', {
+        replace: true,
+        state: {
+          message: 'Account created successfully! Please sign in with your credentials.',
+          email,
+        },
       });
-
-      // Step 4: Account created -> redirect to dashboard
-      navigate('/dashboard', { replace: true });
     } catch (err) {
       setErrorMsg(getErrorMessage(err));
       setIsLoading(false);
