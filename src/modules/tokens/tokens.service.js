@@ -5,6 +5,8 @@ const db = require('../../config/database');
 const { hashToken } = require('../../utils/crypto');
 const logger = require('../../utils/logger');
 
+const { MFA_ENROLLMENT_TOKEN_EXPIRY_MINUTES } = require('../../config/constants');
+
 /**
  * Token Service — JWT issuance, refresh token rotation, and validation.
  */
@@ -40,7 +42,7 @@ const generateAccessToken = (user, roles = [], permissions = []) => {
  * @param {string|null} familyId - Existing family ID (for rotation) or null (new family)
  * @returns {Promise<{ token: string, familyId: string }>}
  */
-const generateRefreshToken = async (userId, familyId = null, expiryDays = 7) => {
+const generateRefreshToken = async (userId, familyId = null, expiryDays = 7, client = null) => {
   const token = uuidv4();
   const tokenHash = hashToken(token);
   const newFamilyId = familyId || uuidv4();
@@ -49,7 +51,8 @@ const generateRefreshToken = async (userId, familyId = null, expiryDays = 7) => 
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + (expiryDays || 7));
 
-  await db.query(
+  const runner = client || db;
+  await runner.query(
     `INSERT INTO refresh_tokens (user_id, token_hash, family_id, expires_at)
      VALUES ($1, $2, $3, $4)`,
     [userId, tokenHash, newFamilyId, expiresAt]
@@ -127,9 +130,11 @@ const rotateRefreshToken = async (token) => {
 /**
  * Revoke all refresh tokens for a user (logout from all devices).
  * @param {string} userId
+ * @param {Object} [client] - Optional transactional database client
  */
-const revokeAllUserTokens = async (userId) => {
-  await db.query(
+const revokeAllUserTokens = async (userId, client = null) => {
+  const runner = client || db;
+  await runner.query(
     'UPDATE refresh_tokens SET revoked = true WHERE user_id = $1 AND revoked = false',
     [userId]
   );
@@ -154,6 +159,44 @@ const cleanupExpiredTokens = async () => {
   logger.info(`Cleaned up ${result.rowCount} expired/revoked refresh tokens`);
 };
 
+/**
+ * Generate a short-lived MFA enrollment token.
+ * Scope is restricted to 'mfa:enroll_only' for zero-trust post-promotion flow.
+ * @param {Object} user - User object with id, email
+ * @returns {{ token: string, jti: string }}
+ */
+const generateMfaEnrollmentToken = (user) => {
+  const jti = uuidv4();
+  const expiryMinutes = MFA_ENROLLMENT_TOKEN_EXPIRY_MINUTES || 10;
+  const token = jwt.sign(
+    {
+      sub: user.id,
+      email: user.email,
+      scope: 'mfa:enroll_only',
+      jti,
+    },
+    config.jwt.secret,
+    { expiresIn: `${expiryMinutes}m` }
+  );
+
+  return { token, jti };
+};
+
+/**
+ * Verify an MFA enrollment token and ensure scope is 'mfa:enroll_only'.
+ * @param {string} token
+ * @returns {Object} Decoded payload
+ */
+const verifyMfaEnrollmentToken = (token) => {
+  const decoded = jwt.verify(token, config.jwt.secret);
+  if (decoded.scope !== 'mfa:enroll_only') {
+    const error = new Error('Invalid token scope');
+    error.name = 'JsonWebTokenError';
+    throw error;
+  }
+  return decoded;
+};
+
 module.exports = {
   generateAccessToken,
   generateRefreshToken,
@@ -162,4 +205,6 @@ module.exports = {
   revokeAllUserTokens,
   revokeRefreshToken,
   cleanupExpiredTokens,
+  generateMfaEnrollmentToken,
+  verifyMfaEnrollmentToken,
 };

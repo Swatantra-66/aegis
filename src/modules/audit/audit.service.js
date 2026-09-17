@@ -26,13 +26,20 @@ const AUDIT_CHAIN_LOCK_ID = 987654321;
  * @param {Object} [event.oldData] - Previous state
  * @param {Object} [event.newData] - New state
  * @param {string} [event.ip] - Client IP
- * @param {string} [event.userAgent] - Client user agent
+ * @param {Object} [externalClient] - Optional transactional database client
  */
-const log = async (event) => {
-  let client;
+const log = async (event, externalClient = null) => {
+  if (!event || !event.action) {
+    throw new Error('Audit log action is required');
+  }
+
+  const isExternalClient = !!externalClient;
+  let client = externalClient;
   try {
-    client = await db.getClient();
-    await client.query('BEGIN');
+    if (!client) {
+      client = await db.getClient();
+      await client.query('BEGIN');
+    }
 
     // Acquire transaction-level advisory lock to serialize audit chaining across concurrent threads
     await client.query('SELECT pg_advisory_xact_lock($1)', [AUDIT_CHAIN_LOCK_ID]);
@@ -74,22 +81,27 @@ const log = async (event) => {
       ]
     );
 
-    await client.query('COMMIT');
+    if (!isExternalClient) {
+      await client.query('COMMIT');
+    }
   } catch (err) {
-    if (client) {
+    if (!isExternalClient && client) {
       try {
         await client.query('ROLLBACK');
-      } catch (rbErr) {
+      } catch {
         // ignore rollback error
       }
     }
-    // Audit logging should NEVER crash the app
+    // Audit logging should NEVER crash the app unless part of an atomic transaction
     logger.error('Failed to write audit log:', {
       error: err.message,
       action: event.action,
     });
+    if (isExternalClient) {
+      throw err;
+    }
   } finally {
-    if (client) {
+    if (!isExternalClient && client) {
       client.release();
     }
   }

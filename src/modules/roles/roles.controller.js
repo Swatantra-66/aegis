@@ -62,13 +62,16 @@ const removePermissions = async (req, res) => {
 };
 
 const assignRoleToUser = async (req, res) => {
-  await rolesService.assignRoleToUser(req.params.userId, req.body.role_id, {
+  const result = await rolesService.assignRoleToUser(req.params.userId, req.body.role_id, {
     actorId: req.user.id,
     actorEmail: req.user.email,
     ip: req.ip,
     userAgent: req.get('user-agent'),
   });
-  return apiResponse.success(res, { message: 'Role assigned to user' });
+  return apiResponse.success(res, {
+    message: result.assigned ? 'Role assigned to user' : 'Role already assigned to user',
+    data: result,
+  });
 };
 
 const removeRoleFromUser = async (req, res) => {
