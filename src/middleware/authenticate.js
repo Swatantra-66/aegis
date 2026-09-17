@@ -29,6 +29,14 @@ const authenticate = async (req, res, next) => {
       throw AppError.unauthorized('Invalid access token', 'AUTH_TOKEN_INVALID');
     }
 
+    // Reject scoped enrollment tokens from normal authenticated endpoints
+    if (decoded.scope === 'mfa:enroll_only') {
+      throw AppError.forbidden(
+        'MFA enrollment token cannot access standard endpoints',
+        'AUTH_TOKEN_SCOPE_RESTRICTED'
+      );
+    }
+
     // 3. Check if token is blacklisted
     const blacklisted = await tokenBlacklist.isBlacklisted(decoded.jti);
     if (blacklisted) {

@@ -1,5 +1,3 @@
-const path = require('path');
-const fs = require('fs');
 const nodemailer = require('nodemailer');
 const config = require('../config/index');
 const logger = require('../utils/logger');
@@ -916,6 +914,169 @@ If you did not request a password reset, you can safely ignore this message. You
       }
       throw transportErr;
     }
+  }
+
+  /**
+   * Send 2FA reset request notification to AEGIS Security.
+   * Dispatches to aegisiamsecurity@gmail.com with telemetry and instructions.
+   * @param {Object} options
+   * @param {string} options.userEmail
+   * @param {string} [options.ip]
+   * @param {string} [options.userAgent]
+   * @returns {Promise<Object>}
+   */
+  async sendMfaResetRequestAlert({ userEmail, ip = 'Unknown', userAgent = 'Unknown' }) {
+    const safeUserEmail = this.escapeHtml(userEmail);
+    const safeIp = this.escapeHtml(ip);
+    const safeUserAgent = this.escapeHtml(userAgent);
+    const timestamp = new Date().toUTCString();
+    const adminUrl = `${(config.frontendUrl || 'http://localhost:5173').replace(/\/+$/, '')}/users`;
+
+    const subject = `[AEGIS Security] 2FA Factor Reset Request — ${userEmail}`;
+    const attachments = [];
+    const logoUrl = this._getControlledLogoUrl();
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2FA Reset Request — AEGIS Security</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #000000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #ffffff;">
+  <!-- Hidden Preheader -->
+  <div style="display: none; font-size: 1px; color: #000000; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden; mso-hide: all;">
+    A directory identity has requested a 2FA factor reset on AEGIS Security.
+  </div>
+  <div style="display: none; max-height: 0px; overflow: hidden;">
+    &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy; &#847; &zwnj; &nbsp; &#8199; &shy;
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #000000; padding: 48px 16px;">
+    <tr>
+      <td align="center">
+        <!-- Main Card -->
+        <table role="presentation" width="100%" style="max-width: 500px; background-color: #0d0d0d; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; padding: 40px 36px; text-align: left;">
+          <!-- Brand Header -->
+          <tr>
+            <td style="padding-bottom: 28px;">
+              <table role="presentation" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td valign="middle" style="padding-right: 12px;">
+                    <img src="${logoUrl}" alt="AEGIS" width="28" height="28" style="display: block; width: 28px; height: 28px; border: 0;" />
+                  </td>
+                  <td valign="middle">
+                    <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 20px; font-weight: 800; letter-spacing: 0.14em; color: #ffffff; line-height: 1; text-transform: uppercase; display: inline-block;">AEGIS Security</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Heading -->
+          <tr>
+            <td style="padding-bottom: 10px;">
+              <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em; line-height: 1.3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                2FA Reset Request
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Subheading -->
+          <tr>
+            <td style="padding-bottom: 24px;">
+              <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #a1a1aa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                A directory identity has reported lost authentication factors and requested an administrative reset to restore access.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Telemetry & Identity Card -->
+          <tr>
+            <td style="padding-bottom: 28px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #141416; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 20px;">
+                <tr>
+                  <td style="font-size: 11px; color: #71717a; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; padding-bottom: 6px;">
+                    TARGET IDENTITY
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size: 15px; color: #ffffff !important; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; padding-bottom: 16px; text-decoration: none !important;">
+                    <span style="color: #ffffff !important; text-decoration: none !important;">${safeUserEmail}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size: 11px; color: #71717a; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; padding-bottom: 6px; border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 14px;">
+                    TELEMETRY &amp; ORIGIN
+                  </td>
+                </tr>
+                <tr>
+                  <td style="font-size: 12px; color: #a1a1aa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; line-height: 1.6;">
+                    IP Address: <span style="color: #ffffff;">${safeIp}</span><br />
+                    Timestamp: <span style="color: #ffffff;">${timestamp}</span><br />
+                    Client: <span style="color: #ffffff;">${safeUserAgent}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Admin Instructions & CTA -->
+          <tr>
+            <td style="padding-bottom: 32px;">
+              <p style="margin: 0 0 16px 0; font-size: 13px; line-height: 1.6; color: #a1a1aa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                To reset this user's factor credentials, open Directory Identities and select <strong>RESET 2FA FACTOR</strong> on the identity's profile.
+              </p>
+              <table role="presentation" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <a href="${adminUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; padding: 12px 28px; background-color: #ffffff; color: #000000; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 6px; letter-spacing: 0.01em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                      Open Directory Identities
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 20px;">
+              <p style="margin: 0; font-size: 11px; color: #52525b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; line-height: 1.5;">
+                &copy; 2026 AEGIS Security Inc. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim();
+
+    const text = `
+AEGIS Security — 2FA Factor Reset Request
+
+Target Identity: ${userEmail}
+Timestamp: ${timestamp}
+Client IP: ${ip}
+User-Agent: ${userAgent}
+
+A directory identity has reported lost authentication factors and requested an administrative reset to restore access.
+Please verify the identity of the user and use the Aegis Directory Identities console to perform an administrative reset:
+${adminUrl}
+    `.trim();
+
+    return this._dispatchMail({
+      toEmail: 'aegisiamsecurity@gmail.com',
+      subject,
+      text,
+      html,
+      attachments,
+      logLabel: 'Emergency-2FA-Reset-Alert',
+    });
   }
 
   /**

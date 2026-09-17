@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const mfaController = require('./mfa.controller');
 const authenticate = require('../../middleware/authenticate');
+const authenticateMfaEnrollment = require('../../middleware/authenticateMfaEnrollment');
 const catchAsync = require('../../middleware/asyncWrapper');
 const { mfaRateLimiter } = require('../../middleware/rateLimiter');
 
@@ -17,7 +18,20 @@ const router = Router();
  *       200: { description: TOTP secret and QR code URI returned }
  *       400: { description: MFA already enabled }
  */
-router.post('/setup', authenticate, catchAsync(mfaController.setup));
+/**
+ * @openapi
+ * /api/v1/mfa/status:
+ *   get:
+ *     tags: [MFA]
+ *     summary: Check MFA configuration and enrollment status (non-mutating)
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Current MFA status }
+ *       401: { description: Token revoked or setup not required }
+ */
+router.get('/status', authenticateMfaEnrollment, catchAsync(mfaController.getStatus));
+
+router.post('/setup', authenticateMfaEnrollment, catchAsync(mfaController.setup));
 
 /**
  * @openapi
@@ -39,7 +53,7 @@ router.post('/setup', authenticate, catchAsync(mfaController.setup));
  *       200: { description: MFA activated }
  *       400: { description: Invalid code }
  */
-router.post('/verify', authenticate, mfaRateLimiter, catchAsync(mfaController.verify));
+router.post('/verify', authenticateMfaEnrollment, mfaRateLimiter, catchAsync(mfaController.verify));
 
 /**
  * @openapi
@@ -83,5 +97,26 @@ router.post('/validate', mfaRateLimiter, catchAsync(mfaController.validate));
  *       200: { description: MFA disabled }
  */
 router.delete('/disable', authenticate, mfaRateLimiter, catchAsync(mfaController.disable));
+
+/**
+ * @openapi
+ * /api/v1/mfa/request-reset:
+ *   post:
+ *     tags: [MFA]
+ *     summary: Request an emergency 2FA factor reset from AEGIS Security (aegisiamsecurity@gmail.com)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string, format: email }
+ *     responses:
+ *       200: { description: Reset request dispatched }
+ *       429: { description: Rate limited }
+ */
+router.post('/request-reset', mfaRateLimiter, catchAsync(mfaController.requestMfaReset));
 
 module.exports = router;
