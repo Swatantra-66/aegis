@@ -20,9 +20,23 @@ const api = axios.create({
  */
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // When performing MFA setup or verification in enrollment flow, explicitly bind enrollment token
+    const enrollmentToken = sessionStorage.getItem('mfa_enrollment_token');
+    const isMfaEnrollmentEndpoint =
+      config.url?.includes('/mfa/setup') ||
+      config.url?.includes('/mfa/verify') ||
+      config.url?.includes('/mfa/status');
+
+    if (isMfaEnrollmentEndpoint && enrollmentToken) {
+      config.headers.Authorization = `Bearer ${enrollmentToken}`;
+      return config;
+    }
+
+    if (!config.headers.Authorization) {
+      const token = localStorage.getItem('access_token') || enrollmentToken;
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
@@ -75,6 +89,7 @@ api.interceptors.response.use(
         // No refresh token — force logout
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
+        sessionStorage.removeItem('mfa_enrollment_token');
         window.location.href = '/login';
         return Promise.reject(error);
       }
@@ -99,6 +114,7 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
+        sessionStorage.removeItem('mfa_enrollment_token');
         window.location.href = '/login';
         return Promise.reject(refreshError);
       } finally {

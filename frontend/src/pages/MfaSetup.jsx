@@ -7,7 +7,7 @@ import AegisAuthBanner from '../components/AegisAuthBanner';
 
 const MfaSetup = () => {
   const navigate = useNavigate();
-  const { fetchUser } = useAuthStore();
+  const { isAuthenticated, fetchUser, mfaSetupRequired, cancelMfa } = useAuthStore();
 
   const [setupData, setSetupData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,6 +19,16 @@ const MfaSetup = () => {
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const inputRefs = useRef([]);
 
+  const hasEnrollmentToken = Boolean(sessionStorage.getItem('mfa_enrollment_token'));
+  const isMandatoryEnrollment = Boolean(mfaSetupRequired || hasEnrollmentToken);
+
+  // Guard: if user is neither authenticated nor in an active MFA enrollment flow, redirect to /login
+  useEffect(() => {
+    if (!isAuthenticated && !isMandatoryEnrollment) {
+      navigate('/login', { replace: true });
+    }
+  }, [isAuthenticated, isMandatoryEnrollment, navigate]);
+
   useEffect(() => {
     const initSetup = async () => {
       setIsLoading(true);
@@ -27,6 +37,18 @@ const MfaSetup = () => {
         const { data } = await api.post('/mfa/setup');
         setSetupData(data.data);
       } catch (err) {
+        const errCode = err.response?.data?.code;
+        if (
+          errCode === 'AUTH_MFA_SETUP_NOT_REQUIRED' ||
+          (err.response?.status === 401 && hasEnrollmentToken)
+        ) {
+          cancelMfa();
+          navigate('/login', {
+            replace: true,
+            state: { message: 'Your account role no longer requires MFA setup. Please sign in.' },
+          });
+          return;
+        }
         setError(getErrorMessage(err));
       } finally {
         setIsLoading(false);
@@ -34,7 +56,40 @@ const MfaSetup = () => {
     };
 
     initSetup();
-  }, []);
+  }, [hasEnrollmentToken, cancelMfa, navigate]);
+
+  // Live Zero-Trust Eviction: If the user was demoted while sitting on this tab,
+  // ping setup when the tab gains focus or visibility to immediately evict stale enrollment
+  useEffect(() => {
+    if (!hasEnrollmentToken) return;
+
+    const checkEnrollmentStatus = async () => {
+      if (document.visibilityState === 'visible') {
+        try {
+          await api.get('/mfa/status');
+        } catch (err) {
+          const errCode = err.response?.data?.code;
+          if (
+            errCode === 'AUTH_MFA_SETUP_NOT_REQUIRED' ||
+            err.response?.status === 401
+          ) {
+            cancelMfa();
+            navigate('/login', {
+              replace: true,
+              state: { message: 'Your account role no longer requires MFA setup. Please sign in.' },
+            });
+          }
+        }
+      }
+    };
+
+    window.addEventListener('focus', checkEnrollmentStatus);
+    document.addEventListener('visibilitychange', checkEnrollmentStatus);
+    return () => {
+      window.removeEventListener('focus', checkEnrollmentStatus);
+      document.removeEventListener('visibilitychange', checkEnrollmentStatus);
+    };
+  }, [hasEnrollmentToken, cancelMfa, navigate]);
 
   useEffect(() => {
     if (error) {
@@ -93,10 +148,32 @@ const MfaSetup = () => {
     setError('');
 
     try {
-      await api.post('/mfa/verify', { code });
-      await fetchUser();
-      navigate('/profile', { replace: true });
+      const { data } = await api.post('/mfa/verify', { code });
+      if (data?.data?.access_token) {
+        // Zero-Trust promotion flow: administrative session established
+        useAuthStore.getState().setSession({
+          user: data.data.user,
+          access_token: data.data.access_token,
+          refresh_token: data.data.refresh_token,
+        });
+        navigate('/dashboard', { replace: true });
+      } else {
+        await fetchUser();
+        navigate('/profile', { replace: true });
+      }
     } catch (err) {
+      const errCode = err.response?.data?.code;
+      if (
+        errCode === 'AUTH_MFA_SETUP_NOT_REQUIRED' ||
+        (err.response?.status === 401 && hasEnrollmentToken)
+      ) {
+        cancelMfa();
+        navigate('/login', {
+          replace: true,
+          state: { message: 'Your account role no longer requires MFA setup. Please sign in.' },
+        });
+        return;
+      }
       setError(getErrorMessage(err));
       setDigits(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
@@ -112,9 +189,13 @@ const MfaSetup = () => {
         <div className="aegis-auth-form-card" style={{ maxWidth: '440px' }}>
           {/* Header */}
           <div className="aegis-form-header" style={{ marginBottom: '1.25rem' }}>
-            <h1 className="aegis-auth-heading">Two-Factor Authentication</h1>
+            <h1 className="aegis-auth-heading">
+              {isMandatoryEnrollment ? 'Two-Factor Required' : 'Two-Factor Authentication'}
+            </h1>
             <p className="aegis-auth-subheading">
-              Scan the QR code with your authenticator app to enable 2FA protection
+              {isMandatoryEnrollment
+                ? 'Administrative access requires two-factor authentication. Set up your authenticator app to continue.'
+                : 'Scan the QR code with your authenticator app to enable 2FA.'}
             </p>
           </div>
 
@@ -265,8 +346,16 @@ const MfaSetup = () => {
 
           {/* Footer Back Link */}
           <div className="aegis-auth-bottom-row" style={{ marginTop: '1.75rem' }}>
-            <Link to="/profile" className="aegis-auth-switch-link">
-              Return to Security Profile
+            <Link
+              to={isMandatoryEnrollment ? '/login' : '/profile'}
+              onClick={() => {
+                if (isMandatoryEnrollment) {
+                  cancelMfa();
+                }
+              }}
+              className="aegis-auth-switch-link"
+            >
+              {isMandatoryEnrollment ? 'Return to Sign In' : 'Return to Security Profile'}
             </Link>
           </div>
         </div>

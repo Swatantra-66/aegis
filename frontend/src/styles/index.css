@@ -4023,6 +4023,23 @@ p {
   text-align: left;
 }
 
+.aegis-auth-alert-info {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.95rem;
+  border-radius: 3px;
+  background: #f0fdf4;
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  color: #15803d;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+  margin-bottom: 1.25rem;
+  text-align: left;
+}
+
 /* Modern Form */
 .aegis-modern-form {
   display: flex;

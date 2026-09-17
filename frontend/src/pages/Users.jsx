@@ -70,13 +70,14 @@ const Users = () => {
   const [selectedRoleToAssign, setSelectedRoleToAssign] = useState('');
   const [revokeTarget, setRevokeTarget] = useState(null); // { user, role }
   const [deactivateTarget, setDeactivateTarget] = useState(null); // user object
+  const [activateTarget, setActivateTarget] = useState(null); // user object
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
-  const [editIsActive, setEditIsActive] = useState(true);
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
   const [editModalError, setEditModalError] = useState('');
   const [roleModalError, setRoleModalError] = useState('');
+  const [revokeModalError, setRevokeModalError] = useState('');
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -159,63 +160,83 @@ const Users = () => {
     },
   });
 
-// Role hierarchy filter: super_admin > admin > user
-const filterDisplayRoles = (roles) => {
-  if (!roles || !Array.isArray(roles) || roles.length === 0) return [];
-  const names = roles.map((r) => (typeof r === 'string' ? r.toLowerCase() : (r?.name || '').toLowerCase()));
-  const hasSuperAdmin = names.some((n) => n.includes('super_admin') || n.includes('superadmin'));
-  const hasAdmin = names.some((n) => n === 'admin');
-
-  return roles.filter((r) => {
-    const name = (typeof r === 'string' ? r.toLowerCase() : (r?.name || '').toLowerCase());
-    if (hasSuperAdmin) {
-      if (name === 'user' || name === 'admin') return false;
-    } else if (hasAdmin) {
-      if (name === 'user') return false;
-    }
-    return true;
-  });
-};
-
-  const assignRoleMutation = useMutation({
-    mutationFn: async ({ userId, roleId, targetUser }) => {
-      await api.post(`/roles/users/${userId}/roles`, { role_id: roleId });
-
-      // Clean up lower tier system roles upon promotion
-      const selectedRole = allRoles?.find((r) => r.id === roleId);
-      const selectedRoleName = (selectedRole?.name || '').toLowerCase();
-
-      if (targetUser?.roles && targetUser.roles.length > 0) {
-        for (const existingRole of targetUser.roles) {
-          const existingName = (typeof existingRole === 'string' ? existingRole : existingRole?.name || '').toLowerCase();
-          const existingId = typeof existingRole === 'string'
-            ? allRoles?.find((ar) => (ar.name || '').toLowerCase() === existingName)?.id
-            : existingRole?.id;
-
-          if (!existingId || existingId === roleId) continue;
-
-          let shouldRemove = false;
-          if (selectedRoleName === 'super_admin' && (existingName === 'admin' || existingName === 'user')) {
-            shouldRemove = true;
-          } else if (selectedRoleName === 'admin' && existingName === 'user') {
-            shouldRemove = true;
-          }
-
-          if (shouldRemove) {
-            try {
-              await api.delete(`/roles/users/${userId}/roles/${existingId}`);
-            } catch {
-              // Non-blocking cleanup
-            }
-          }
-        }
-      }
+  const activateUserMutation = useMutation({
+    mutationFn: async (id) => {
+      const { data } = await api.patch(`/users/${id}`, { is_active: true });
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      setIsRoleModalOpen(false);
-      setActionSuccess('Role assigned successfully');
+      queryClient.refetchQueries({ queryKey: ['users'] });
+      setActionSuccess('Identity activated successfully');
       setTimeout(() => setActionSuccess(''), 3000);
+    },
+    onError: (err) => {
+      setActionError(getErrorMessage(err));
+    },
+  });
+
+  const resetMfaMutation = useMutation({
+    mutationFn: async (id) => {
+      const { data } = await api.post(`/users/${id}/reset-mfa`);
+      return data;
+    },
+    onSuccess: (res, resetUserId) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setActionSuccess(res?.message || 'Two-Factor Authentication reset successfully');
+      setTimeout(() => setActionSuccess(''), 4000);
+      setSelectedUser((prev) =>
+        prev?.id === resetUserId ? { ...prev, mfa_enabled: false } : prev
+      );
+    },
+    onError: (err) => {
+      setActionError(getErrorMessage(err));
+    },
+  });
+
+  // Role hierarchy filter: super_admin > admin > user
+  const filterDisplayRoles = (roles) => {
+    if (!roles || !Array.isArray(roles) || roles.length === 0) return [];
+    const names = roles.map((r) => (typeof r === 'string' ? r.toLowerCase() : (r?.name || '').toLowerCase()));
+    const hasSuperAdmin = names.some((n) => n.includes('super_admin') || n.includes('superadmin'));
+    const hasAdmin = names.some((n) => n === 'admin');
+
+    return roles.filter((r) => {
+      const name = (typeof r === 'string' ? r.toLowerCase() : (r?.name || '').toLowerCase());
+      if (hasSuperAdmin) {
+        if (name === 'user' || name === 'admin') return false;
+      } else if (hasAdmin) {
+        if (name === 'user') return false;
+      }
+      return true;
+    });
+  };
+
+  const assignRoleMutation = useMutation({
+    mutationFn: async ({ userId, roleId }) => {
+      const { data } = await api.post(`/roles/users/${userId}/roles`, { role_id: roleId });
+      return data.data;
+    },
+    onSuccess: (result, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setIsRoleModalOpen(false);
+
+      const selectedRole = allRoles?.find((r) => r.id === variables.roleId);
+      const roleName = result?.roleName || selectedRole?.name || 'User';
+
+      if (!result?.assigned) {
+        setActionSuccess(`Role [${roleName.toUpperCase()}] is already assigned to this user.`);
+        setTimeout(() => setActionSuccess(''), 3000);
+        return;
+      }
+
+      if (result?.sessionsRevoked) {
+        setActionSuccess(`User updated to ${roleName}. Active sessions revoked — user must re-authenticate.`);
+        setTimeout(() => setActionSuccess(''), 6000);
+      } else {
+        setActionSuccess(`Role updated to ${roleName} successfully.`);
+        setTimeout(() => setActionSuccess(''), 3000);
+      }
     },
     onError: (err) => {
       const msg = getErrorMessage(err);
@@ -242,7 +263,6 @@ const filterDisplayRoles = (roles) => {
     setSelectedUser(user);
     setEditFirstName(user.first_name || '');
     setEditLastName(user.last_name || '');
-    setEditIsActive(user.is_active);
     setActionError('');
     setEditModalError('');
     setIsEditModalOpen(true);
@@ -658,7 +678,10 @@ const filterDisplayRoles = (roles) => {
                                   {hasPermission('role:update') && (
                                     <button
                                       type="button"
-                                      onClick={() => setRevokeTarget({ user: u, role: r })}
+                                      onClick={() => {
+                                        setRevokeModalError('');
+                                        setRevokeTarget({ user: u, role: r });
+                                      }}
                                       style={{
                                         background: 'none',
                                         border: 'none',
@@ -737,6 +760,21 @@ const filterDisplayRoles = (roles) => {
                               style={{ fontSize: '0.68rem', padding: '0.35rem 0.65rem', color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.25)' }}
                             >
                               DEACTIVATE
+                            </button>
+                          )}
+                          {hasPermission('user:update') && !u.is_active && (
+                            <button
+                              onClick={() => setActivateTarget(u)}
+                              className="sirnik-action-box-btn"
+                              style={{
+                                fontSize: '0.68rem',
+                                padding: '0.35rem 0.65rem',
+                                color: '#10b981',
+                                borderColor: 'rgba(16, 185, 129, 0.35)',
+                                background: 'rgba(16, 185, 129, 0.05)',
+                              }}
+                            >
+                              ACTIVATE
                             </button>
                           )}
                           {!hasPermission('role:update') && !hasPermission('user:update') && !hasPermission('user:delete') && (
@@ -834,7 +872,6 @@ const filterDisplayRoles = (roles) => {
                 const updateData = {
                   first_name: trimmedFirst,
                   last_name: trimmedLast ? trimmedLast : null,
-                  is_active: editIsActive,
                 };
 
                 updateUserMutation.mutate({
@@ -885,6 +922,95 @@ const filterDisplayRoles = (roles) => {
                 />
               </div>
 
+              {/* Security Controls / 2FA Status Section */}
+              <div
+                style={{
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  background: '#0c0c0c',
+                  borderRadius: '2px',
+                  padding: selectedUser?.mfa_enabled ? '0.85rem 1rem' : '0.65rem 0.85rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                <div style={{ marginBottom: '0.2rem' }}>
+                  <label
+                    className="sirnik-label"
+                    style={{
+                      fontSize: '0.68rem',
+                      letterSpacing: '0.08em',
+                      margin: 0,
+                      color: 'var(--text-white, #ffffff)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    TWO-FACTOR AUTHENTICATION
+                  </label>
+                </div>
+
+                <p
+                  style={{
+                    fontSize: '0.73rem',
+                    color: 'var(--text-muted)',
+                    margin: selectedUser?.mfa_enabled ? '0.35rem 0 0.75rem' : '0.25rem 0 0',
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {selectedUser?.mfa_enabled
+                    ? '2FA is active on this account. Resetting clears the factor and ends active sessions.'
+                    : '2FA is not configured on this account.'}
+                </p>
+
+                {selectedUser?.mfa_enabled && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingTop: '0.65rem',
+                      borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                    }}
+                  >
+                    <span
+                      className="font-mono"
+                      style={{
+                        fontSize: '0.64rem',
+                        color: 'var(--text-muted)',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      TERMINATES SESSIONS ON RESET
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `Reset 2FA for ${selectedUser?.email}? All active sessions will be terminated and the user will authenticate with password only.`
+                          )
+                        ) {
+                          resetMfaMutation.mutate(selectedUser.id);
+                        }
+                      }}
+                      disabled={resetMfaMutation.isPending}
+                      className="sirnik-action-box-btn"
+                      style={{
+                        fontSize: '0.66rem',
+                        letterSpacing: '0.04em',
+                        padding: '0.35rem 0.75rem',
+                        color: '#f59e0b',
+                        borderColor: 'rgba(245, 158, 11, 0.35)',
+                        background: 'rgba(245, 158, 11, 0.05)',
+                        fontWeight: 600,
+                        borderRadius: '2px',
+                        cursor: resetMfaMutation.isPending ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {resetMfaMutation.isPending ? 'RESETTING...' : 'RESET 2FA FACTOR'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Inline Modal Validation & Error Warning Box */}
               {editModalError && (
                 <div
@@ -903,7 +1029,7 @@ const filterDisplayRoles = (roles) => {
                 </div>
               )}
 
-              <div className="modal-actions mt-xl flex justify-end gap-md">
+              <div className="modal-actions flex justify-end gap-md" style={{ marginTop: '1.25rem' }}>
                 <button
                   type="button"
                   className="sirnik-action-box-btn"
@@ -979,7 +1105,6 @@ const filterDisplayRoles = (roles) => {
                   assignRoleMutation.mutate({
                     userId: selectedUser.id,
                     roleId: selectedRoleToAssign,
-                    targetUser: selectedUser,
                   });
                 }
               }}
@@ -1101,7 +1226,10 @@ const filterDisplayRoles = (roles) => {
         <div
           className="modal-overlay"
           style={{ backdropFilter: 'blur(24px)', background: 'rgba(0, 0, 0, 0.88)', zIndex: 1000 }}
-          onClick={() => setRevokeTarget(null)}
+          onClick={() => {
+            setRevokeModalError('');
+            setRevokeTarget(null);
+          }}
         >
           <div
             className="modal"
@@ -1144,7 +1272,9 @@ const filterDisplayRoles = (roles) => {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>REVOKING ROLE:</span>
-                <span style={{ color: '#ffffff', fontWeight: 700 }}>[{revokeTarget.role?.name?.toUpperCase()}]</span>
+                <span style={{ color: '#ffffff', fontWeight: 700 }}>
+                  [{((typeof revokeTarget.role === 'string' ? revokeTarget.role : revokeTarget.role?.name) || '').toUpperCase()}]
+                </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.4rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>POLICY IMPACT:</span>
@@ -1156,11 +1286,33 @@ const filterDisplayRoles = (roles) => {
               This will remove the user's role inheritance and revoke matching permissions in the next access token cycle.
             </p>
 
+            {/* Inline Role Revocation Error Box */}
+            {revokeModalError && (
+              <div
+                className="font-mono text-xs mb-md"
+                style={{
+                  padding: '0.65rem 0.85rem',
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  color: '#ef4444',
+                  fontSize: '0.72rem',
+                  borderRadius: '2px',
+                  lineHeight: 1.4,
+                }}
+              >
+                <span style={{ fontWeight: 700, marginRight: '0.4rem' }}>[REVOCATION ERROR]</span>
+                {revokeModalError}
+              </div>
+            )}
+
             <div className="modal-actions flex justify-end gap-md">
               <button
                 type="button"
                 className="sirnik-action-box-btn"
-                onClick={() => setRevokeTarget(null)}
+                onClick={() => {
+                  setRevokeModalError('');
+                  setRevokeTarget(null);
+                }}
               >
                 CANCEL
               </button>
@@ -1174,12 +1326,32 @@ const filterDisplayRoles = (roles) => {
                   fontWeight: 700,
                 }}
                 disabled={removeRoleMutation.isPending}
-                onClick={() => {
-                  removeRoleMutation.mutate({
-                    userId: revokeTarget.user.id,
-                    roleId: revokeTarget.role.id,
-                  });
-                  setRevokeTarget(null);
+                onClick={async () => {
+                  setRevokeModalError('');
+                  const roleName = (typeof revokeTarget.role === 'string' ? revokeTarget.role : revokeTarget.role?.name || '').toLowerCase();
+                  const roleId = revokeTarget.role?.id || allRoles?.find(
+                    (ar) => (ar.name || '').toLowerCase() === roleName
+                  )?.id;
+
+                  if (!roleId) {
+                    const errMsg = `Unable to resolve role identifier for "${roleName || 'unknown'}". Please refresh the page and verify roles are loaded.`;
+                    setRevokeModalError(errMsg);
+                    setActionError(errMsg);
+                    return; // Keep dialog open
+                  }
+
+                  try {
+                    await removeRoleMutation.mutateAsync({
+                      userId: revokeTarget.user.id,
+                      roleId,
+                    });
+                    setRevokeModalError('');
+                    setRevokeTarget(null);
+                  } catch (err) {
+                    const msg = getErrorMessage(err);
+                    setRevokeModalError(msg);
+                    // Keep dialog open on error
+                  }
                 }}
               >
                 {removeRoleMutation.isPending ? 'REVOKING...' : 'CONFIRM REVOCATION'}
@@ -1277,6 +1449,100 @@ const filterDisplayRoles = (roles) => {
                 }}
               >
                 {deactivateUserMutation.isPending ? 'DEACTIVATING...' : 'CONFIRM DEACTIVATION'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirm Activate Identity Modal ── */}
+      {activateTarget && (
+        <div
+          className="modal-overlay"
+          style={{ backdropFilter: 'blur(24px)', background: 'rgba(0, 0, 0, 0.88)', zIndex: 1000 }}
+          onClick={() => setActivateTarget(null)}
+        >
+          <div
+            className="modal"
+            style={{
+              background: '#090909',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '2px',
+              padding: '2.2rem 2.4rem',
+              maxWidth: '480px',
+              width: '90%',
+              boxShadow: '0 24px 48px rgba(0, 0, 0, 0.8)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-md" style={{ borderBottom: '1px solid var(--line)', paddingBottom: '0.75rem' }}>
+              <span className="sirnik-page-number" style={{ margin: 0, fontSize: '0.66rem', letterSpacing: '0.12em', color: '#10b981' }}>
+                IDENTITY LIFECYCLE GOVERNANCE
+              </span>
+              <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>[ACTIVATION]</span>
+            </div>
+
+            <h3 style={{ margin: '0 0 0.5rem', fontWeight: 800, fontSize: '1.3rem', letterSpacing: '-0.02em', color: '#ffffff' }}>
+              Activate Identity
+            </h3>
+
+            {/* Context Box */}
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid var(--line-strong)',
+                padding: '0.85rem 1rem',
+                margin: '1.25rem 0',
+                borderRadius: '2px',
+              }}
+              className="font-mono text-xs"
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>TARGET IDENTITY:</span>
+                <span style={{ color: '#ffffff', fontWeight: 600 }}>{activateTarget.email}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>ACCOUNT NAME:</span>
+                <span style={{ color: '#ffffff', fontWeight: 600 }}>
+                  {activateTarget.first_name || activateTarget.last_name
+                    ? `${activateTarget.first_name || ''} ${activateTarget.last_name || ''}`.trim()
+                    : 'UNNAMED'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.4rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>SECURITY IMPACT:</span>
+                <span style={{ color: '#10b981' }}>ACCESS RESTORATION</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted font-mono mb-xl" style={{ margin: '0 0 1.5rem', lineHeight: 1.5 }}>
+              This will restore the user account to ACTIVE status, allowing them to authenticate and access their assigned roles.
+            </p>
+
+            <div className="modal-actions flex justify-end gap-md">
+              <button
+                type="button"
+                className="sirnik-action-box-btn"
+                onClick={() => setActivateTarget(null)}
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                className="sirnik-action-box-btn"
+                style={{
+                  color: '#10b981',
+                  borderColor: 'rgba(16, 185, 129, 0.4)',
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  fontWeight: 700,
+                }}
+                disabled={activateUserMutation.isPending}
+                onClick={() => {
+                  activateUserMutation.mutate(activateTarget.id);
+                  setActivateTarget(null);
+                }}
+              >
+                {activateUserMutation.isPending ? 'ACTIVATING...' : 'CONFIRM ACTIVATION'}
               </button>
             </div>
           </div>

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import AegisAuthBanner from '../components/AegisAuthBanner';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, isAuthenticated, isLoading, error, clearError, mfaRequired } = useAuthStore();
+  const location = useLocation();
+  const { login, isAuthenticated, isLoading, error, clearError, mfaRequired, mfaSetupRequired } = useAuthStore();
 
+  const [infoNotice, setInfoNotice] = useState(location.state?.message || '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -25,6 +27,10 @@ const Login = () => {
   useEffect(() => {
     if (mfaRequired) navigate('/mfa', { replace: true });
   }, [mfaRequired, navigate]);
+
+  useEffect(() => {
+    if (mfaSetupRequired) navigate('/mfa/setup', { replace: true });
+  }, [mfaSetupRequired, navigate]);
 
   // Auto-dismiss error badge after 15 seconds
   useEffect(() => {
@@ -68,6 +74,12 @@ const Login = () => {
           {error && (
             <div className="aegis-auth-alert-error" role="alert">
               {error}
+            </div>
+          )}
+
+          {infoNotice && !error && (
+            <div className="aegis-auth-alert-info" role="status">
+              {infoNotice}
             </div>
           )}
 

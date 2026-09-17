@@ -101,8 +101,11 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/mfa" element={<MfaVerify />} />
-          <Route path="/mfa-setup" element={<ProtectedRoute><MfaSetup /></ProtectedRoute>} />
+          <Route path="/mfa/setup" element={<MfaSetup />} />
+          <Route path="/mfa-setup" element={<MfaSetup />} />
+          <Route path="/mfa/verify" element={<Navigate to="/mfa" replace />} />
           <Route path="/mfa-disable" element={<ProtectedRoute><MfaDisable /></ProtectedRoute>} />
+          <Route path="/mfa/disable" element={<ProtectedRoute><MfaDisable /></ProtectedRoute>} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/verify-email" element={<VerifyEmail />} />

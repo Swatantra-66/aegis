@@ -43,6 +43,8 @@ const useAuthStore = create((set, get) => ({
 
   // MFA state (for login flow)
   mfaRequired: false,
+  mfaSetupRequired: false,
+  mfaEnrollmentToken: sessionStorage.getItem('mfa_enrollment_token') || null,
   mfaPendingCredentials: null,
 
   /**
@@ -58,6 +60,8 @@ const useAuthStore = create((set, get) => ({
 
     localStorage.setItem('access_token', finalAccessToken);
     localStorage.setItem('refresh_token', finalRefreshToken);
+    sessionStorage.removeItem('mfa_enrollment_token');
+    api.defaults.headers.common.Authorization = `Bearer ${finalAccessToken}`;
 
     const claims = parseJwt(finalAccessToken);
 
@@ -71,6 +75,8 @@ const useAuthStore = create((set, get) => ({
       isLoading: false,
       error: null,
       mfaRequired: false,
+      mfaSetupRequired: false,
+      mfaEnrollmentToken: null,
       mfaPendingCredentials: null,
     });
   },
@@ -102,24 +108,76 @@ const useAuthStore = create((set, get) => ({
 
   /**
    * Login — authenticate with email/password.
-   * May return mfa_required: true if user has MFA enabled.
+   * May return mfa_required: true if user has MFA enabled, or mfa_setup_required: true for admin policy.
    */
   login: async (email, password, remember_me = false) => {
-    set({ isLoading: true, error: null, mfaRequired: false });
+    // 1. Purge any previous session completely before entering authentication or enrollment flows
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('mfa_enrollment_token');
+    delete api.defaults.headers.common['Authorization'];
+    delete api.defaults.headers.common.Authorization;
+
+    set({
+      user: null,
+      roles: [],
+      permissions: [],
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
+      isLoading: true,
+      error: null,
+      mfaRequired: false,
+      mfaSetupRequired: false,
+      mfaEnrollmentToken: null,
+      mfaPendingCredentials: null,
+    });
+
     try {
       const { data } = await api.post('/auth/login', { email, password, remember_me });
 
       if (data.data.mfa_setup_required) {
         const msg = data.message || 'Administrative policy requires Multi-Factor Authentication (TOTP) setup before access is granted.';
+        const enrollmentToken = data.data.mfa_enrollment_token;
+
+        // Ensure clean state: purge any residual tokens and Axios headers
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        delete api.defaults.headers.common['Authorization'];
+        delete api.defaults.headers.common.Authorization;
+
+        if (enrollmentToken) {
+          sessionStorage.setItem('mfa_enrollment_token', enrollmentToken);
+        }
+
         set({
+          user: null,
+          roles: [],
+          permissions: [],
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
           isLoading: false,
+          mfaSetupRequired: true,
+          mfaEnrollmentToken: enrollmentToken,
           error: msg,
         });
-        return { mfaSetupRequired: true, message: msg };
+        return { mfaSetupRequired: true, message: msg, enrollmentToken };
       }
 
       if (data.data.mfa_required) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        delete api.defaults.headers.common['Authorization'];
+        delete api.defaults.headers.common.Authorization;
+
         set({
+          user: null,
+          roles: [],
+          permissions: [],
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
           mfaRequired: true,
           mfaPendingCredentials: { email, password, remember_me },
           isLoading: false,
@@ -131,6 +189,8 @@ const useAuthStore = create((set, get) => ({
 
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
+      sessionStorage.removeItem('mfa_enrollment_token');
+      api.defaults.headers.common.Authorization = `Bearer ${access_token}`;
 
       // Decode JWT to extract roles and permissions baked into the token
       const claims = parseJwt(access_token);
@@ -144,6 +204,8 @@ const useAuthStore = create((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
         mfaRequired: false,
+        mfaSetupRequired: false,
+        mfaEnrollmentToken: null,
         mfaPendingCredentials: null,
       });
 
@@ -194,6 +256,7 @@ const useAuthStore = create((set, get) => ({
 
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
+      sessionStorage.removeItem('mfa_enrollment_token');
 
       // Decode JWT to extract roles and permissions baked into the token
       const claims = parseJwt(access_token);
@@ -207,6 +270,8 @@ const useAuthStore = create((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
         mfaRequired: false,
+        mfaSetupRequired: false,
+        mfaEnrollmentToken: null,
         mfaPendingCredentials: null,
       });
     } catch (error) {
@@ -233,6 +298,9 @@ const useAuthStore = create((set, get) => ({
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('aegis_remember_email');
     localStorage.removeItem('aegis_remember_expiry');
+    sessionStorage.removeItem('mfa_enrollment_token');
+    delete api.defaults.headers.common['Authorization'];
+    delete api.defaults.headers.common.Authorization;
 
     set({
       user: null,
@@ -242,9 +310,13 @@ const useAuthStore = create((set, get) => ({
       refreshToken: null,
       isAuthenticated: false,
       mfaRequired: false,
+      mfaSetupRequired: false,
+      mfaEnrollmentToken: null,
       mfaPendingCredentials: null,
     });
   },
+
+
 
   /**
    * Fetch current user profile — called on app init, focus, and periodic sync.
@@ -294,6 +366,9 @@ const useAuthStore = create((set, get) => ({
           });
         } catch (refreshErr) {
           console.warn('Silent token refresh on role change failed:', refreshErr);
+          // Session was revoked on role change or blocked by security policy (e.g. MFA required)
+          await get().logout();
+          return;
         }
       }
 
@@ -308,6 +383,7 @@ const useAuthStore = create((set, get) => ({
       // Token invalid or revoked — clear auth
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
+      sessionStorage.removeItem('mfa_enrollment_token');
       set({
         user: null,
         roles: [],
@@ -315,6 +391,10 @@ const useAuthStore = create((set, get) => ({
         accessToken: null,
         refreshToken: null,
         isAuthenticated: false,
+        mfaRequired: false,
+        mfaSetupRequired: false,
+        mfaEnrollmentToken: null,
+        mfaPendingCredentials: null,
       });
     } finally {
       isFetchingUser = false;
@@ -346,11 +426,27 @@ const useAuthStore = create((set, get) => ({
   /**
    * Cancel MFA flow — go back to login.
    */
-  cancelMfa: () => set({
-    mfaRequired: false,
-    mfaPendingCredentials: null,
-    error: null,
-  }),
+  cancelMfa: () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('mfa_enrollment_token');
+    delete api.defaults.headers.common['Authorization'];
+    delete api.defaults.headers.common.Authorization;
+
+    set({
+      user: null,
+      roles: [],
+      permissions: [],
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
+      mfaRequired: false,
+      mfaSetupRequired: false,
+      mfaEnrollmentToken: null,
+      mfaPendingCredentials: null,
+      error: null,
+    });
+  },
 }));
 
 export default useAuthStore;
