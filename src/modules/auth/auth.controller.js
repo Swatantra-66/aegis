@@ -36,7 +36,10 @@ const login = async (req, res) => {
     return apiResponse.success(res, {
       statusCode: 200,
       message: result.message || 'MFA setup required before accessing this role',
-      data: { mfa_setup_required: true },
+      data: {
+        mfa_setup_required: true,
+        mfa_enrollment_token: result.mfaEnrollmentToken,
+      },
     });
   }
 

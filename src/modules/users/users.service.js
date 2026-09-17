@@ -1,5 +1,6 @@
 const db = require('../../config/database');
 const auditService = require('../audit/audit.service');
+const tokenService = require('../tokens/tokens.service');
 const AppError = require('../../utils/AppError');
 const { AUDIT_ACTIONS, PAGINATION } = require('../../config/constants');
 
@@ -214,9 +215,80 @@ const deleteUser = async (userId, reqMeta = {}) => {
   return result.rows[0];
 };
 
+/**
+ * Reset a user's MFA state (administrative override).
+ * Clears mfa_enabled, mfa_secret, mfa_backup_codes, revokes active sessions, and logs audit.
+ * @param {string} userId
+ * @param {Object} reqMeta
+ */
+const resetUserMfa = async (userId, reqMeta = {}) => {
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+
+    const userResult = await client.query(
+      'SELECT id, email, mfa_enabled FROM users WHERE id = $1 FOR UPDATE',
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      throw AppError.notFound('User not found', 'USER_NOT_FOUND');
+    }
+
+    const user = userResult.rows[0];
+
+    // Revoke active sessions within the same transaction client
+    await tokenService.revokeAllUserTokens(userId, client);
+
+    // Clear MFA credentials in database
+    await client.query(
+      'UPDATE users SET mfa_enabled = false, mfa_secret = NULL, mfa_backup_codes = NULL WHERE id = $1',
+      [userId]
+    );
+
+    // Write audit log within the same transaction
+    await auditService.log(
+      {
+        actorId: reqMeta.actorId,
+        actorEmail: reqMeta.actorEmail,
+        action: AUDIT_ACTIONS.MFA_DISABLED,
+        resourceType: 'user',
+        resourceId: userId,
+        oldData: { mfa_enabled: user.mfa_enabled },
+        newData: { mfa_enabled: false, reason: 'Administrative MFA reset' },
+        ip: reqMeta.ip,
+        userAgent: reqMeta.userAgent,
+      },
+      client
+    );
+
+    await client.query('COMMIT');
+
+    return {
+      success: true,
+      message: `Two-Factor Authentication has been reset for ${user.email}`,
+      userId,
+    };
+  } catch (err) {
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // ignore rollback error
+      }
+    }
+    throw err;
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
+};
+
 module.exports = {
   listUsers,
   getUserById,
   updateUser,
   deleteUser,
+  resetUserMfa,
 };

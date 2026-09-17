@@ -77,10 +77,25 @@ const deleteUser = async (req, res) => {
   });
 };
 
+const resetUserMfa = async (req, res) => {
+  const result = await usersService.resetUserMfa(req.params.id, {
+    actorId: req.user.id,
+    actorEmail: req.user.email,
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  return apiResponse.success(res, {
+    message: result.message || 'MFA successfully reset for user',
+    data: result,
+  });
+};
+
 module.exports = {
   listUsers,
   getUserById,
   getMe,
   updateUser,
   deleteUser,
+  resetUserMfa,
 };

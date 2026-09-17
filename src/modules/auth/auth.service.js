@@ -188,11 +188,24 @@ const login = async (credentials, reqMeta = {}) => {
 
   if (!policyResult.allowed) {
     if (policyResult.requirement === 'MFA_SETUP_REQUIRED') {
+      const enrollmentTokenData = tokenService.generateMfaEnrollmentToken(user);
+
+      await auditService.log({
+        actorId: user.id,
+        actorEmail: user.email,
+        action: AUDIT_ACTIONS.MFA_ENROLLMENT_TOKEN_ISSUED,
+        resourceType: 'user',
+        resourceId: user.id,
+        ip: reqMeta.ip,
+        userAgent: reqMeta.userAgent,
+      });
+
       return {
         user: null,
         accessToken: null,
         refreshToken: null,
         mfaSetupRequired: true,
+        mfaEnrollmentToken: enrollmentTokenData.token,
         message: policyResult.message,
       };
     }
@@ -270,9 +283,10 @@ const refresh = async (refreshToken) => {
   const { userId, familyId } = rotationResult;
 
   // Get user data
-  const userResult = await db.query('SELECT id, email, is_active FROM users WHERE id = $1', [
-    userId,
-  ]);
+  const userResult = await db.query(
+    'SELECT id, email, is_active, mfa_enabled FROM users WHERE id = $1',
+    [userId]
+  );
 
   if (userResult.rows.length === 0 || !userResult.rows[0].is_active) {
     throw AppError.unauthorized('User not found or deactivated', 'AUTH_USER_NOT_FOUND');
@@ -282,6 +296,18 @@ const refresh = async (refreshToken) => {
 
   // Get roles and permissions
   const { roles, permissions } = await getUserRolesAndPermissions(userId);
+
+  // Evaluate Zero-Trust Security Policy during refresh
+  // Prevents newly-promoted admins from refreshing into an elevated session without meeting MFA requirement
+  const policyResult = securityPolicy.evaluateLoginPolicy({ user, roles });
+  if (!policyResult.allowed) {
+    // Revoke the refresh token family to terminate unauthorized session upgrade
+    await db.query('UPDATE refresh_tokens SET revoked = true WHERE family_id = $1', [familyId]);
+    throw AppError.unauthorized(
+      policyResult.message || 'Security policy requires re-authentication',
+      'AUTH_POLICY_VIOLATION'
+    );
+  }
 
   // Issue new tokens
   const newAccessToken = tokenService.generateAccessToken(user, roles, permissions);
@@ -1179,10 +1205,12 @@ const completeSignup = async (payload, reqMeta = {}) => {
 /**
  * Get user's roles and flattened permissions.
  * @param {string} userId
+ * @param {Object} [client] - Optional transactional database client
  * @returns {Promise<{ roles: string[], permissions: string[] }>}
  */
-const getUserRolesAndPermissions = async (userId) => {
-  const rolesResult = await db.query(
+const getUserRolesAndPermissions = async (userId, client = null) => {
+  const runner = client || db;
+  const rolesResult = await runner.query(
     `SELECT r.name FROM roles r
      INNER JOIN user_roles ur ON ur.role_id = r.id
      WHERE ur.user_id = $1`,
@@ -1191,7 +1219,7 @@ const getUserRolesAndPermissions = async (userId) => {
 
   const roles = rolesResult.rows.map((r) => r.name);
 
-  const permsResult = await db.query(
+  const permsResult = await runner.query(
     `SELECT DISTINCT p.name FROM permissions p
      INNER JOIN role_permissions rp ON rp.permission_id = p.id
      INNER JOIN user_roles ur ON ur.role_id = rp.role_id

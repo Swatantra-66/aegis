@@ -135,4 +135,28 @@ router.delete(
   catchAsync(usersController.deleteUser)
 );
 
+/**
+ * @openapi
+ * /api/v1/users/{id}/reset-mfa:
+ *   post:
+ *     tags: [Users]
+ *     summary: Reset user MFA (admin override)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: User MFA reset }
+ *       403: { description: Insufficient permissions }
+ *       404: { description: User not found }
+ */
+router.post(
+  '/:id/reset-mfa',
+  authorize('user:update'),
+  usersValidator.validateParams(usersValidator.userId),
+  catchAsync(usersController.resetUserMfa)
+);
+
 module.exports = router;
