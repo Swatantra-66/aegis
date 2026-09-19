@@ -254,13 +254,13 @@ The frontend is built with React 18, Vite, Lucide Icons, GSAP micro-animations, 
 ### 4.2 Module 2: Authentication & Token Lifecycle
 - **`FR-02` [High Priority] User Authentication (Login):**
   - *Description:* The system shall authenticate users against stored Argon2id password hashes.
-  - *Inputs:* `email`, `password`.
-  - *Processing:* Verify credentials. If account is locked due to $\ge 5$ failed attempts, return 423 Locked. If MFA is enabled, return 200 with `mfa_required: true` and temporary `mfa_token`. If MFA is disabled/satisfied, issue 15-minute JWT Access Token and 7-day Refresh Token.
-  - *Outputs:* HTTP 200 OK with `access_token`, `refresh_token`, and user role payload.
+  - *Inputs:* `email`, `password`, optional `remember_me`.
+  - *Processing:* Verify credentials. If account is locked due to $\ge 5$ failed attempts, return 423 Locked. If MFA is already enabled, return 200 with `mfa_required: true`. If user was promoted to an administrative tier without prior MFA enrollment, enforce Zero-Trust policy: return 200 with `mfa_setup_required: true` and issue a short-lived (10-min) scoped MFA Enrollment Token (`scope: 'mfa:enroll_only'`) barred from standard API routes. If MFA is disabled/satisfied, issue 15-minute JWT Access Token and 7-day Refresh Token.
+  - *Outputs:* HTTP 200 OK with `access_token`, `refresh_token`, and user role payload, or `mfa_required: true`, or `mfa_setup_required: true` with `mfa_enrollment_token`.
 - **`FR-03` & `FR-17` [High Priority] Automatic Refresh Token Rotation (RTR):**
   - *Description:* The system shall exchange a valid refresh token for a new pair of access and refresh tokens while invalidating the old refresh token.
   - *Inputs:* `refresh_token`.
-  - *Processing:* Look up token by SHA-256 hash in `refresh_tokens`. If token was already revoked (*Reuse Attack Detection*), instantly revoke all tokens belonging to the same `family_id`, blacklist active sessions in Redis, and return 401 Unauthorized. If valid, mark current token revoked, generate new `refresh_token` in same family, and issue new `access_token`.
+  - *Processing:* Look up token by SHA-256 hash in `refresh_tokens`. If token was already revoked (*Reuse Attack Detection*), instantly revoke all tokens belonging to the same `family_id`, blacklist active sessions in Redis, and return 401 Unauthorized. Re-evaluate Zero-Trust security policy: if user was promoted and requires mandatory MFA before session elevation, immediately revoke the token family and return 401 Unauthorized (`AUTH_POLICY_VIOLATION`). If valid, mark current token revoked, generate new `refresh_token` in same family, and issue new `access_token`.
   - *Outputs:* HTTP 200 OK with new `access_token` and new `refresh_token`.
 - **`FR-04` & `FR-18` [High Priority] Logout & Instant Token Revocation:**
   - *Description:* The system shall support secure logout by revoking the refresh token in PostgreSQL and storing the active access token in Redis blacklist until its natural TTL expires.
@@ -270,25 +270,35 @@ The frontend is built with React 18, Vite, Lucide Icons, GSAP micro-animations, 
 
 ### 4.3 Module 3: Multi-Factor Authentication (MFA / TOTP)
 - **`FR-06` [High Priority] TOTP MFA Setup & Enrollment:**
-  - *Description:* The system shall allow authenticated users to initiate MFA enrollment by generating an RFC 6238 TOTP secret, encrypting the secret at rest with AES-256-GCM, generating a QR code data URI, and returning 10 emergency one-time backup codes.
-  - *Inputs:* Authenticated user session.
-  - *Processing:* Generate base32 secret; encrypt with AES-256-GCM; produce `otpauth://totp/Aegis:...` URI; generate backup codes.
+  - *Description:* The system shall allow authenticated users (via access token) or promoted administrators (via scoped `mfa:enroll_only` token) to initiate MFA enrollment by generating an RFC 6238 TOTP secret, encrypting the secret at rest with AES-256-GCM, generating a QR code data URI, and returning 10 emergency one-time backup codes.
+  - *Inputs:* Authenticated user session or valid `mfa:enroll_only` enrollment token.
+  - *Processing:* Validate token via `authenticateMfaEnrollment` middleware; generate base32 secret; encrypt with AES-256-GCM; produce `otpauth://totp/Aegis:...` URI; generate backup codes.
   - *Outputs:* HTTP 200 OK with QR code URI, plaintext secret for manual entry, and backup codes.
 - **`FR-07` [High Priority] MFA Verification & Challenge Intercept:**
   - *Description:* The system shall verify a 6-digit TOTP code during initial enrollment confirmation and subsequent login challenges.
-  - *Inputs:* `mfa_token` (or session token) and 6-digit `code` or single-use `backup_code`.
-  - *Processing:* Decrypt stored secret; verify TOTP code within $\pm 1$ time step window (30 seconds); activate MFA for user if in setup phase; issue full access tokens if in login phase.
+  - *Inputs:* `mfa_token`, standard session token, or scoped enrollment token and 6-digit `code` or single-use `backup_code`.
+  - *Processing:* For enrollment tokens: verify under row-level lock `FOR UPDATE` that user still requires MFA (rejecting if demoted); atomically consume token in Redis via `SET NX` (`mfa:enrollment:<jti>`) to prevent replay. Decrypt stored secret; verify TOTP code within $\pm 1$ time step window (30 seconds); activate MFA (`mfa_enabled = true`); if completed via enrollment token, issue initial full administrative access and refresh tokens.
   - *Outputs:* HTTP 200 OK with token pair upon success, or HTTP 400 Bad Request on invalid code.
 
 ### 4.4 Module 4: Role-Based Access Control (RBAC)
 - **`FR-08` [High Priority] Role Definition & Hierarchy:**
-  - *Description:* The system shall enforce role-based access for system-defined roles (`super_admin`, `admin`, `auditor`, `user`) and custom roles.
+  - *Description:* The system shall enforce role-based access for system-defined roles (`super_admin` [Tier 3], `admin` [Tier 2], `user` [Tier 1]) and custom roles.
 - **`FR-09` [High Priority] Atomic Permission Evaluation:**
   - *Description:* The system shall evaluate route-level permissions (`users:read`, `users:create`, `users:update`, `users:delete`, `roles:manage`, `audit:read`, `audit:verify`) via an Express middleware guard (`authorize(['permission_name'])`).
 - **`FR-11` [Medium Priority] Role Lifecycle Management:**
   - *Description:* Super Admins shall be able to create new custom roles, update role descriptions, delete non-system roles, and associate/disassociate specific permissions.
-- **`FR-12` [High Priority] User Role Assignment:**
-  - *Description:* Administrators shall be able to assign or revoke roles for any user account with immediate authorization enforcement.
+- **`FR-12` [High Priority] User Role Assignment & Zero-Trust Promotion/Demotion Lifecycle:**
+  - *Description:* Administrators shall be able to assign or revoke roles for any user account with strict transactional integrity, pessimistic concurrency serialization, and immediate session revocation.
+  - *Inputs:* `userId`, `role_id`.
+  - *Processing:*
+    1. Lock the target user row in PostgreSQL using `SELECT id, email FROM users WHERE id = $1 FOR UPDATE` within a database transaction client.
+    2. Atomically delete conflicting system-tier roles (`super_admin`, `admin`, `user`) and insert the new role in the same transaction.
+    3. Evaluate privilege direction: **Promotion** (Tier 1 $\to$ 2/3, Tier 2 $\to$ 3) or **Demotion** (Tier 3 $\to$ 2/1, Tier 2 $\to$ 1).
+    4. If promotion or demotion detected, execute `tokenService.revokeAllUserTokens(userId, client)` in the SAME transaction. If token revocation fails, trigger `ROLLBACK` to preserve existing state without privilege mutation.
+    5. If demoting to standard `user`, purge unconfirmed MFA secrets (`UPDATE users SET mfa_secret = NULL, mfa_backup_codes = NULL WHERE id = $1 AND mfa_enabled = false`).
+    6. Record directional transactional audit logs: `ROLE_ASSIGNED`, and `ROLE_PROMOTION_SESSION_REVOKED` (for promotion) or `TOKEN_REVOKED` (for demotion).
+    7. Commit transaction (`COMMIT`).
+  - *Outputs:* HTTP 200 OK with `{ assigned: boolean, sessionsRevoked: boolean, roleId: string, roleName: string }` or idempotent message if role already assigned.
 
 ### 4.5 Module 5: User Administration & Directory
 - **`FR-10` [High Priority] User CRUD & Search Directory:**
@@ -322,6 +332,8 @@ The frontend is built with React 18, Vite, Lucide Icons, GSAP micro-animations, 
 | MFA Secrets at Rest  │ AES-256-GCM authenticated encryption with unique IV  |
 | Token Signatures     │ JWT with HMAC-SHA256 / RSA-256 & 15-minute lifespan  |
 | Token Revocation     │ Instant Redis Blacklist Check (Sub-millisecond)      |
+| Role Invalidation    │ Transaction-Bound Token Revocation & Row Locks       |
+| Scoped Enrollment    │ JWT ('mfa:enroll_only') + Atomic Redis Claim (SET NX)|
 | Audit Integrity      │ Sequential SHA-256 Cryptographic Hash Chaining       |
 | API Protection       │ Tiered Redis Rate Limiter + Helmet.js CSP Headers    |
 +─────────────────────────────────────────────────────────────────────────────+
@@ -335,6 +347,7 @@ The frontend is built with React 18, Vite, Lucide Icons, GSAP micro-animations, 
   - Rate limiting counters must be stored in Redis to support distributed cluster scaling.
 - **`NFR-04` [Security - HTTP Protection & CORS]:** The API server shall employ Helmet.js to enforce secure HTTP headers (Strict-Transport-Security, X-Content-Type-Options, X-Frame-Options, Content-Security-Policy) and restrict CORS origins to authorized frontend URLs.
 - **`NFR-05` [Security - Account Lockout]:** Accounts must be automatically locked for 15 minutes upon 5 consecutive failed login attempts to prevent online dictionary attacks.
+- **`NFR-09` [Security - Privilege Escalation Invalidation]:** All role promotions and demotions must execute under pessimistic row locks (`SELECT ... FOR UPDATE`), atomically replacing conflicting system-tier roles and invalidating all active refresh tokens in the same database transaction with automatic rollback compensation on revocation failure.
 
 ### 5.2 Performance & SLA Requirements
 - **`NFR-06` [Performance - Database Connection Pooling]:** PostgreSQL connections shall be managed through an optimized connection pool (10-20 active connections) with query execution latency $< 50\text{ms}$ for 99th percentile operations.
@@ -348,7 +361,7 @@ The frontend is built with React 18, Vite, Lucide Icons, GSAP micro-animations, 
 
 ### 5.4 Maintainability, Portability & Testability
 - **Code Modularity:** Follow Domain-Driven Design (DDD) organizing code into distinct feature and service modules (`auth`, `users`, `roles`, `mfa`, `tokens`, `audit`, `services`).
-- **Automated Test Coverage:** Maintain a comprehensive suite of $\ge 125$ automated unit, integration, and resiliency tests across 13 suites using Jest and Supertest with high code coverage.
+- **Automated Test Coverage:** Maintain a comprehensive suite of $\ge 150$ automated unit, integration, and resiliency tests across 14 suites using Jest and Supertest with high code coverage.
 - **Container Portability:** Provide a standard `docker-compose.yml` defining reproducible environments for the API server, PostgreSQL database, and Redis cache.
 
 ---
@@ -456,7 +469,7 @@ The frontend is built with React 18, Vite, Lucide Icons, GSAP micro-animations, 
 | `id` | `BIGSERIAL` | `PRIMARY KEY` | Sequential monotonic log index. |
 | `actor_id` | `UUID` | `NULL`, Indexed | User ID triggering the event (null for system/anon). |
 | `actor_email` | `VARCHAR(255)` | `NULL` | Snapshot email of actor at event time. |
-| `action` | `VARCHAR(100)` | `NOT NULL`, Indexed | Event type (e.g. `AUTH_LOGIN`, `USER_UPDATE`). |
+| `action` | `VARCHAR(100)` | `NOT NULL`, Indexed | Event type (e.g. `AUTH_LOGIN`, `USER_UPDATE`, `ROLE_PROMOTION_SESSION_REVOKED`). |
 | `resource_type` | `VARCHAR(100)` | `NULL` | Affected domain entity. |
 | `resource_id` | `VARCHAR(255)` | `NULL` | Identifier of affected entity. |
 | `old_data` | `JSONB` | `NULL` | Pre-mutation entity state snapshot. |
@@ -489,37 +502,40 @@ If an adversary mutates any field in Record 1, all subsequent checksums ($\text{
 
 | Req ID | Requirement Summary | Target Module | Automated Test File | Status |
 | :--- | :--- | :--- | :--- | :---: |
-| **`FR-01`** | User Registration & Argon2id Hashing | `src/modules/auth` | `tests/auth.test.js` | **PASS (100%)** |
-| **`FR-02`** | User Login & Dual Token Issuance | `src/modules/auth` | `tests/auth.test.js` | **PASS (100%)** |
-| **`FR-03`** | Auto Token Refresh Interceptor | `frontend/src/lib` | `tests/tokens.test.js` | **PASS (100%)** |
-| **`FR-04`** | Logout & Token Invalidation | `src/modules/auth` | `tests/auth.test.js` | **PASS (100%)** |
-| **`FR-05`** | Password Reset with Token | `src/modules/auth` | `tests/auth.test.js` | **PASS (100%)** |
-| **`FR-06`** | TOTP MFA Setup & AES-256 Secrets | `src/modules/mfa` | `tests/mfa.test.js` | **PASS (100%)** |
-| **`FR-07`** | MFA Login Challenge Intercept | `src/modules/mfa` | `tests/mfa.test.js` | **PASS (100%)** |
-| **`FR-08`** | Role Hierarchy (`super_admin`, `admin`, `user`) | `src/modules/roles` | `tests/roles.test.js` | **PASS (100%)** |
-| **`FR-09`** | Granular Permission Guard Middleware | `src/middleware` | `tests/rbac.test.js` | **PASS (100%)** |
-| **`FR-10`** | User Management CRUD & Pagination | `src/modules/users` | `tests/users.test.js` | **PASS (100%)** |
-| **`FR-11`** | Role Creation & Permission Assignment | `src/modules/roles` | `tests/roles.test.js` | **PASS (100%)** |
-| **`FR-12`** | User Role Attachment / Detachment | `src/modules/roles` | `tests/roles.test.js` | **PASS (100%)** |
-| **`FR-13`** | Tamper-Evident SHA-256 Audit Logging | `src/modules/audit` | `tests/audit.test.js` | **PASS (100%)** |
-| **`FR-14`** | Filterable Audit Queries | `src/modules/audit` | `tests/audit.test.js` | **PASS (100%)** |
-| **`FR-15`** | Audit Hash-Chain Integrity Verification | `src/modules/audit` | `tests/audit.test.js` | **PASS (100%)** |
-| **`FR-16`** | Self-Service User Profile Update | `src/modules/users` | `tests/users.test.js` | **PASS (100%)** |
-| **`FR-17`** | Refresh Token Rotation & Family Lineage | `src/modules/tokens` | `tests/tokens.test.js` | **PASS (100%)** |
-| **`FR-18`** | Redis Token Revocation Blocklist | `src/modules/tokens` | `tests/tokens.test.js` | **PASS (100%)** |
-| **`NFR-01`** | Argon2id Parameter Configuration | `src/utils/crypto` | `tests/crypto.test.js` | **PASS (100%)** |
-| **`NFR-02`** | AES-256-GCM Encrypted MFA Storage | `src/utils/crypto` | `tests/crypto.test.js` | **PASS (100%)** |
-| **`NFR-03`** | Tiered Redis Rate Limiting | `src/middleware` | `tests/rateLimiter.test.js` | **PASS (100%)** |
-| **`NFR-04`** | Helmet Headers & CORS Policy | `src/app.js` | `tests/security.test.js` | **PASS (100%)** |
-| **`NFR-06`** | Connection Pool Health Checks | `src/config/db` | `tests/health.test.js` | **PASS (100%)** |
-| **`NFR-07`** | Redis Latency SLA ($< 2\text{ms}$) | `src/config/redis` | `tests/health.test.js` | **PASS (100%)** |
+| **`FR-01`** | User Registration & Argon2id Hashing | `src/modules/auth` | `src/modules/auth/__tests__/signupFlow.test.js` | **PASS (100%)** |
+| **`FR-02`** | User Login, Scoped Tokens & Dual Token Issuance | `src/modules/auth` | `src/modules/auth/__tests__/auth.validator.test.js` | **PASS (100%)** |
+| **`FR-03`** | Auto Token Refresh Interceptor | `frontend/src/lib` | `src/modules/tokens/__tests__/tokens.test.js` | **PASS (100%)** |
+| **`FR-04`** | Logout & Token Invalidation | `src/modules/auth` | `src/modules/tokens/__tests__/tokens.test.js` | **PASS (100%)** |
+| **`FR-05`** | Password Reset with Token | `src/modules/auth` | `src/modules/auth/__tests__/passwordReset.test.js` | **PASS (100%)** |
+| **`FR-06`** | TOTP MFA Setup & AES-256 Secrets | `src/modules/mfa` | `src/modules/mfa/__tests__/mfa.test.js` | **PASS (100%)** |
+| **`FR-07`** | MFA Challenge Intercept & Atomic Consumption | `src/modules/mfa` | `src/modules/mfa/__tests__/mfa.test.js` | **PASS (100%)** |
+| **`FR-08`** | Role Hierarchy (`super_admin`, `admin`, `user`) | `src/modules/roles` | `src/modules/roles/__tests__/roles.test.js` | **PASS (100%)** |
+| **`FR-09`** | Granular Permission Guard Middleware | `src/middleware` | `src/modules/roles/__tests__/roles.test.js` | **PASS (100%)** |
+| **`FR-10`** | User Management CRUD & Activation | `src/modules/users` | `src/modules/users/__tests__/users.test.js` | **PASS (100%)** |
+| **`FR-11`** | Role Creation & Permission Assignment | `src/modules/roles` | `src/modules/roles/__tests__/roles.test.js` | **PASS (100%)** |
+| **`FR-12`** | Zero-Trust Role Promotion & Session Revocation | `src/modules/roles` | `src/modules/roles/__tests__/rolePromotion.test.js` | **PASS (100%)** |
+| **`FR-13`** | Tamper-Evident SHA-256 Audit Logging | `src/modules/audit` | `src/modules/audit/__tests__/audit.test.js` | **PASS (100%)** |
+| **`FR-14`** | Filterable Audit Queries | `src/modules/audit` | `src/modules/audit/__tests__/audit.test.js` | **PASS (100%)** |
+| **`FR-15`** | Audit Hash-Chain Integrity Verification | `src/modules/audit` | `src/modules/audit/__tests__/audit.test.js` | **PASS (100%)** |
+| **`FR-16`** | Self-Service User Profile Update | `src/modules/users` | `src/modules/users/__tests__/users.test.js` | **PASS (100%)** |
+| **`FR-17`** | Refresh Token Rotation & Family Lineage | `src/modules/tokens` | `src/modules/tokens/__tests__/tokens.test.js` | **PASS (100%)** |
+| **`FR-18`** | Redis Token Revocation Blocklist | `src/modules/tokens` | `src/modules/tokens/__tests__/tokens.test.js` | **PASS (100%)** |
+| **`NFR-01`** | Argon2id Parameter Configuration | `src/utils/crypto` | `src/modules/tokens/__tests__/tokens.test.js` | **PASS (100%)** |
+| **`NFR-02`** | AES-256-GCM Encrypted MFA Storage | `src/utils/crypto` | `src/modules/tokens/__tests__/tokens.test.js` | **PASS (100%)** |
+| **`NFR-03`** | Tiered Redis Rate Limiting | `src/middleware` | `src/modules/auth/__tests__/emailVerification.test.js` | **PASS (100%)** |
+| **`NFR-04`** | Helmet Headers & CORS Policy | `src/app.js` | `src/modules/users/__tests__/users.test.js` | **PASS (100%)** |
+| **`NFR-06`** | Connection Pool Health Checks | `src/config/database` | `src/modules/tokens/__tests__/tokens.test.js` | **PASS (100%)** |
+| **`NFR-07`** | Redis Latency SLA ($< 2\text{ms}$) | `src/config/redis` | `src/services/__tests__/queue.service.test.js` | **PASS (100%)** |
+| **`NFR-09`** | Privilege Escalation Session Invalidation | `src/modules/roles` | `src/modules/roles/__tests__/rolePromotion.test.js` | **PASS (100%)** |
 
 ### 7.2 Acceptance & Validation Criteria
-1. **100% Passing Test Gate:** All 129 test cases across 13 test suites (including durable queue resiliency, worker claimToken fencing, and mailer idempotency) must pass without regressions.
+1. **100% Passing Test Gate:** All 159 test cases across 14 test suites (including Zero-Trust role promotion lifecycle, row-level locking, scoped enrollment tokens, durable queue resiliency, worker claimToken fencing, and mailer idempotency) must pass without regressions.
 2. **Zero Plaintext Credentials:** No unhashed passwords or unencrypted MFA secrets shall exist in database records or server logs.
 3. **Tamper Detection Demonstration:** Modifying any historical row in `audit_logs` must immediately flag `/api/v1/audit/verify` as compromised (`is_valid: false`).
 4. **Token Family Breach Invalidation:** Presenting a revoked refresh token must immediately revoke all sibling tokens in its family and terminate active Redis sessions.
+5. **Zero Silent Privilege Escalation:** Upgrading a user's role must atomically terminate all active user refresh token families inside the PostgreSQL transaction, requiring clean re-authentication and mandatory MFA setup.
 
 ---
 
 | **Project Lead & Author** : Swatantra Yadav
+

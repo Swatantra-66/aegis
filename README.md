@@ -8,7 +8,7 @@
   <p><em>Production-grade, zero-trust IAM portal featuring JWT Bearer Authentication, granular RBAC, RFC 6238 TOTP MFA, distributed Redis rate limiting, and tamper-evident PostgreSQL audit logging.</em></p>
 
   <p>
-    <a href="https://github.com/Swatantra-66/aegis"><img src="https://img.shields.io/badge/tests-129%20passed%2C%200%20failed-brightgreen.svg?style=for-the-badge&logo=jest&logoColor=white" alt="Tests" /></a>
+    <a href="https://github.com/Swatantra-66/aegis"><img src="https://img.shields.io/badge/tests-159%20passed%2C%200%20failed-brightgreen.svg?style=for-the-badge&logo=jest&logoColor=white" alt="Tests" /></a>
     <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License" /></a>
     <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-18%2B-339933.svg?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js" /></a>
     <a href="https://github.com/Swatantra-66/aegis"><img src="https://img.shields.io/badge/Security-Argon2id%20%2B%20AES--256-7952CC.svg?style=for-the-badge" alt="Security" /></a>
@@ -79,8 +79,10 @@ graph TD
 
 ### Core (Phase 1)
 - **JWT Bearer Authentication** — Register, login, token refresh with rotation, logout
-- **Multi-Factor Authentication (MFA)** — TOTP-based (Google Authenticator compatible) with backup codes
-- **Role-Based Access Control (RBAC)** — Roles, permissions, junction tables, middleware guards
+- **Zero-Trust Role Promotion Lifecycle** — Strict tiered role hierarchy (`super_admin` > `admin` > `user`), single-transaction conflicting role replacement, pessimistic row locks (`SELECT ... FOR UPDATE`), transaction-bound session revocation, and demotion unconfirmed secret purge
+- **Scoped MFA Enrollment Tokens** — Restricted `mfa:enroll_only` JWT tokens with 10-minute TTL barring access to standard routes and requiring atomic Redis `SET NX` consumption
+- **Multi-Factor Authentication (MFA)** — TOTP-based (Google Authenticator compatible) with encrypted secrets (AES-256-GCM), emergency backup codes, and administrative reset workflows
+- **Role-Based Access Control (RBAC)** — Roles, permissions, junction tables, middleware guards, directional audit logging (`ROLE_PROMOTION_SESSION_REVOKED`)
 - **Token Lifecycle Management** — Short-lived access tokens (15min), refresh token rotation with reuse detection, Redis-backed blacklist
 - **Tamper-Evident Audit Logging** — SHA-256 checksum chaining, filterable queries, integrity verification
 - **API Rate Limiting** — Tiered limits per endpoint type (auth, API, admin)
@@ -187,8 +189,8 @@ npm start
 | Method | Endpoint | Description | Auth |
 |:---|:---|:---|:---|
 | POST | `/api/v1/auth/register` | Register new user | ✗ |
-| POST | `/api/v1/auth/login` | Login (returns JWT) | ✗ |
-| POST | `/api/v1/auth/refresh` | Refresh access token | ✗ |
+| POST | `/api/v1/auth/login` | Login (returns JWT or MFA challenge/enrollment token) | ✗ |
+| POST | `/api/v1/auth/refresh` | Refresh access token (re-checks zero-trust policy) | ✗ |
 | POST | `/api/v1/auth/logout` | Revoke tokens | ✓ |
 | POST | `/api/v1/auth/forgot-password` | Request password reset | ✗ |
 | POST | `/api/v1/auth/reset-password` | Complete password reset | ✗ |
@@ -202,6 +204,8 @@ npm start
 | GET | `/api/v1/users/:id` | Get user by ID | `user:read` |
 | PATCH | `/api/v1/users/:id` | Update user | `user:update` |
 | DELETE | `/api/v1/users/:id` | Deactivate user | `user:delete` |
+| POST | `/api/v1/users/:id/activate` | Restore deactivated account | `user:update` |
+| POST | `/api/v1/users/:id/reset-mfa` | Reset user MFA & revoke sessions | `user:update` |
 
 ### RBAC (Roles & Permissions)
 
@@ -215,17 +219,18 @@ npm start
 | POST | `/api/v1/roles/:id/permissions` | Assign permissions | `role:update` |
 | DELETE | `/api/v1/roles/:id/permissions` | Remove permissions | `role:update` |
 | GET | `/api/v1/roles/permissions` | List all permissions | `role:read` |
-| POST | `/api/v1/roles/users/:userId/roles` | Assign role to user | `role:update` |
+| POST | `/api/v1/roles/users/:userId/roles` | Assign role (atomic replacement & session revocation) | `role:update` |
 | DELETE | `/api/v1/roles/users/:userId/roles/:roleId` | Remove role | `role:update` |
 
 ### MFA
 
 | Method | Endpoint | Description | Auth |
 |:---|:---|:---|:---|
-| POST | `/api/v1/mfa/setup` | Generate TOTP secret | ✓ |
-| POST | `/api/v1/mfa/verify` | Activate MFA | ✓ |
+| POST | `/api/v1/mfa/setup` | Generate TOTP secret | ✓ / Scoped Token |
+| POST | `/api/v1/mfa/verify` | Activate MFA (issues full tokens for enrollment) | ✓ / Scoped Token |
 | POST | `/api/v1/mfa/validate` | Validate TOTP code | ✗ |
 | DELETE | `/api/v1/mfa/disable` | Disable MFA | ✓ |
+| POST | `/api/v1/mfa/request-reset` | Request administrative MFA reset | ✗ |
 
 ### Audit
 
@@ -266,15 +271,22 @@ npm start
                  Access token blacklisted, refresh token revoked
 ```
 
-## RBAC Model
+## RBAC Model & Zero-Trust Privilege Lifecycle
 
-### Default Roles
+### Default Roles & Tiers
 
-| Role | Permissions |
-|:---|:---|
-| **super_admin** | All permissions (system role, cannot be deleted) |
-| **admin** | `user:*`, `role:read`, `audit:read`, `mfa:manage` |
-| **user** | `user:read`, `mfa:manage` |
+| Tier | Role | Permissions | Zero-Trust Enforcement |
+|:---|:---|:---|:---|
+| **Tier 3** | **super_admin** | All permissions (system role, cannot be deleted) | Immediate session revocation on promotion/demotion |
+| **Tier 2** | **admin** | `user:*`, `role:read`, `audit:read`, `mfa:manage` | Mandatory TOTP MFA required before session elevation |
+| **Tier 1** | **user** | `user:read`, `mfa:manage` | Standard identity, optional MFA |
+
+### Zero-Trust Privilege Lifecycle
+1. **Pessimistic Row-Level Locking:** Target user rows are locked with `SELECT ... FOR UPDATE` to serialize concurrent administrative role assignments.
+2. **Atomic Conflicting Tier Replacement:** Mutually exclusive system roles (`super_admin`, `admin`, `user`) are atomically swapped in a single transaction.
+3. **Transaction-Bound Session Invalidation:** All active refresh tokens are revoked inside the same transaction upon promotion or demotion. If token revocation encounters an error, the transaction rolls back, leaving privileges unchanged.
+4. **Scoped MFA Enrollment:** Promoted administrators lacking MFA receive a scoped `mfa:enroll_only` token (10m TTL) barred from general APIs, requiring atomic Redis `SET NX` consumption upon verification.
+5. **Directional Audit Logging:** Dedicated audit events distinguish promotions (`ROLE_PROMOTION_SESSION_REVOKED`) and demotions (`TOKEN_REVOKED`).
 
 ### Permission Format
 Permissions follow the `resource:action` pattern:
@@ -293,14 +305,16 @@ npm test
 npm run test:coverage
 
 # Run specific module tests
-npx jest --testPathPattern=modules/auth
-npx jest --testPathPattern=modules/tokens
+npx jest --testPathPattern=modules/roles
+npx jest --testPathPattern=modules/mfa
 ```
 
-### Test Suite Breakdown (129 / 129 Passing across 13 Suites)
+### Test Suite Breakdown (159 / 159 Passing across 14 Suites)
 
 | Test Suite | Module / Scope | Tests Passed | Status |
 | :--- | :--- | :---: | :---: |
+| `rolePromotion.test.js` | Zero-Trust role promotion lifecycle, row locks, failure rollback, scoped tokens | **14** | ✅ PASS |
+| `mfa.test.js` | TOTP setup, verify, deactivation defenses, atomic token claim, rate limiting | **19** | ✅ PASS |
 | `tokens.test.js` | Argon2id hashing, SHA-256 tokens, AES-256-GCM encryption | **16** | ✅ PASS |
 | `passwordReset.test.js` | Password reset lifecycle, durable queues, claim leases & fencing | **10** | ✅ PASS |
 | `emailVerification.test.js` | Multi-step email verification, token TTL & consumption | **7** | ✅ PASS |
@@ -312,9 +326,8 @@ npx jest --testPathPattern=modules/tokens
 | `mailer.service.test.js` | Atomic mail reservations, idempotency deduplication & crash recovery | **11** | ✅ PASS |
 | `users.test.js` | Centralized error handler, DB unique constraints & JWT errors | **6** | ✅ PASS |
 | `roles.test.js` | RBAC authorization middleware (AND/OR hierarchy & role scoping) | **6** | ✅ PASS |
-| `mfa.test.js` | Async error handling middleware boundary | **3** | ✅ PASS |
 | `audit.test.js` | Tamper-evident SHA-256 hash chaining & anomaly detection | **6** | ✅ PASS |
-| **Total** | **13 Test Suites** | **129 / 129** | **100% PASS** |
+| **Total** | **14 Test Suites** | **159 / 159** | **100% PASS** |
 
 ## Production Deployment
 

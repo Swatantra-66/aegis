@@ -145,11 +145,17 @@ This interactive staging dashboard serves as the central showcase for the Softwa
   * Includes password visibility toggles (`👁`) and field validation hints.
   * **Auth Flow Interception**:
     1. Sends POST to `/api/v1/auth/login`.
-    2. If response payload returns `mfa_required: true` and temporary `mfa_token`, user is instantly routed to `/mfa-challenge`.
-    3. If authentication is complete, stores access token in memory/Zustand state, sets auto-refresh timer, and redirects to `/dashboard/overview`.
+    2. If response payload returns `mfa_required: true` and temporary `mfa_token`, user is routed to `/mfa-challenge`.
+    3. If response payload returns `mfa_setup_required: true` with an `mfa_enrollment_token` (for promoted administrators lacking MFA), the frontend purges residual access tokens, stores the scoped enrollment token in `sessionStorage`, and redirects to `/mfa-setup`.
+    4. If authentication is complete, stores access and refresh tokens in `localStorage`/Zustand state, initializes Authorization headers, and redirects to `/dashboard/overview`.
 * **`/mfa-challenge` Interface**:
   * 6-digit auto-advancing TOTP code input boxes with numerical keyboard focus.
   * Countdown timer for TOTP window validity and fallback code modal option.
+* **`/mfa-setup` Interface (Self-Service & Post-Promotion Elevation)**:
+  * Dual-mode authentication support: accepts standard access tokens or scoped `mfa:enroll_only` tokens.
+  * Displays SVG QR code and plaintext base32 TOTP secret for authenticator app pairing.
+  * Auto-eviction defense: if user privileges are demoted while on the setup screen, `/mfa/verify` returns `AUTH_MFA_SETUP_NOT_REQUIRED`, clearing enrollment state and redirecting to `/login` with an informative banner.
+  * Upon valid TOTP confirmation, receives elevated session tokens (`access_token`, `refresh_token`), establishes session, and redirects to `/dashboard`.
 
 ---
 
@@ -181,10 +187,19 @@ This interactive staging dashboard serves as the central showcase for the Softwa
 
 * **Data Table Specs**:
   * Paginated, sortable data table displaying: `email`, `first_name`, `last_name`, `is_active` (badge switch), `mfa_enabled` (shield icon), and assigned roles (`super_admin`, `admin`, `user`).
+  * **Role Hierarchy Filtering (`filterDisplayRoles`)**: Enforces single authoritative tier display, showing highest assigned tier (`super_admin` > `admin` > `user`) rather than duplicate lower-tier pills.
   * Filter controls by Role, Status (Active/Inactive), and Search by Name/Email.
-* **Action Drawer & Modals**:
-  * **User Role Assignment Drawer**: Side drawer to attach/detach system roles.
-  * **Deactivate/Reactivate Action**: Instant toggle action calling `/api/v1/users/:id/status` with confirmation modal and optimistic UI updates.
+* **Action Drawers & Governance Modals**:
+  * **Zero-Trust Role Assignment Modal**:
+    * Context box highlighting `TARGET IDENTITY`, `TARGET ROLE`, and `POLICY IMPACT` (`PRIVILEGE ESCALATION - SESSION REVOCATION ENFORCED` vs `ROLE REASSIGNMENT`).
+    * Inline error display (`roleModalError`) keeping dialog open on backend validation/revocation errors for operator remediation.
+    * Toast notification providing clear feedback: `"User updated to <Role>. Active sessions revoked — user must re-authenticate."` or `"Role [<ROLE>] is already assigned to this user."`
+  * **Role Revocation Confirmation Modal**:
+    * Explicit confirmation dialog detailing permission loss impact with inline error preservation (`revokeModalError`).
+  * **Identity Lifecycle Activation & Deactivation Modals**:
+    * Instant status toggle actions (`/api/v1/users/:id/status` and `/api/v1/users/:id/activate`) with confirmation dialogs and optimistic cache invalidation.
+  * **Administrative MFA Reset Action**:
+    * Secure dialog triggering transactional MFA credential wipe and session termination (`/api/v1/users/:id/reset-mfa`).
 
 ---
 

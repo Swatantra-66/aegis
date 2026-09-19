@@ -183,29 +183,31 @@ The formal UML project model is maintained at:
 | Attribute | Specification Details |
 | :--- | :--- |
 | **Use Case ID** | **UC-05** |
-| **Use Case Name** | Enroll / Manage MFA (TOTP Setup) |
-| **Primary Actor** | Standard User |
-| **Secondary Actor** | TOTP Authenticator App, PostgreSQL DB |
-| **Use Case Type** | Core Use Case |
-| **Description** | Generates an RFC 6238 compliant cryptographic secret, renders a QR code for authenticator app pairing, and stores the AES-256-GCM encrypted secret upon verification. |
-| **Pre-Conditions** | User is authenticated with an active session. |
-| **Post-Conditions** | Encrypted secret stored in PostgreSQL; `mfa_enabled` set to `true`. |
-| **Typical Course of Events** | **1.** User requests MFA enrollment.<br>**2.** System generates base32 secret and displays QR code.<br>**3.** User scans QR code using Authenticator App and submits first 6-digit code.<br>**4.** System verifies code; encrypts secret using AES-256-GCM and persists in PostgreSQL.<br>**5.** System provides one-time backup recovery codes. |
+| **Use Case Name** | Enroll / Manage MFA (TOTP Setup & Post-Promotion Elevation) |
+| **Primary Actor** | Standard User / Promoted Administrator |
+| **Secondary Actor** | TOTP Authenticator App, PostgreSQL DB, Redis Cache |
+| **Use Case Type** | Core Security Use Case |
+| **Description** | Generates an RFC 6238 compliant cryptographic secret, renders a QR code for authenticator app pairing, and stores the AES-256-GCM encrypted secret upon verification. Supports both standard self-service user enrollment and mandatory post-promotion elevation via scoped enrollment tokens (`mfa:enroll_only`). |
+| **Pre-Conditions** | 1. User holds an active session token OR a valid, unexpired scoped MFA Enrollment Token (`scope: 'mfa:enroll_only'`).<br>2. Account status is `ACTIVE`. |
+| **Post-Conditions** | 1. Encrypted secret stored in PostgreSQL; `mfa_enabled` set to `true`.<br>2. For enrollment token flows: token `jti` is atomically claimed in Redis (`SET NX`), user row is locked `FOR UPDATE`, and full elevated session tokens are issued upon confirmation. |
+| **Typical Course of Events (Standard Flow)** | **1.** User requests MFA enrollment.<br>**2.** System generates base32 secret and displays QR code.<br>**3.** User scans QR code using Authenticator App and submits first 6-digit code.<br>**4.** System verifies code; encrypts secret using AES-256-GCM and persists in PostgreSQL.<br>**5.** System provides one-time backup recovery codes. |
+| **Zero-Trust Post-Promotion Flow** | **Flow 5a (Mandatory Administrative Enrollment):**<br>**1.** Promoted user authenticates at `/login` and receives scoped `mfa:enroll_only` token.<br>**2.** System routes user to `/mfa-setup` and initiates enrollment via `authenticateMfaEnrollment` middleware.<br>**3.** Promoted user scans QR code and submits 6-digit TOTP code to `/api/v1/mfa/verify`.<br>**4.** System atomically claims token in Redis via `SET mfa:enrollment:<jti> claimToken EX <TTL> NX` to prevent replay.<br>**5.** Under user row lock `FOR UPDATE`, system verifies user role still mandates MFA (rejecting if demoted in the interim).<br>**6.** System commits `mfa_enabled = true`, issues fresh administrative Access & Refresh tokens, logs `MFA_ENABLED` audit event, and directs user to `/dashboard`. |
 
 ---
 
-### **USE CASE UC-06: Manage User Directory**
+### **USE CASE UC-06: Manage User Directory & Role Promotion Lifecycle**
 | Attribute | Specification Details |
 | :--- | :--- |
 | **Use Case ID** | **UC-06** |
-| **Use Case Name** | Manage User Directory |
-| **Primary Actor** | System Administrator |
-| **Secondary Actor** | PostgreSQL DB |
-| **Use Case Type** | Administrative Use Case |
-| **Description** | Allows administrators to list, inspect, lock/unlock accounts, and assign predefined roles. |
-| **Pre-Conditions** | Administrator possesses authenticated session with `user:read` / `user:write` permissions. |
-| **Post-Conditions** | Target user account state/roles updated in PostgreSQL DB. |
-| **Typical Course of Events** | **1.** Administrator navigates to Directory page.<br>**2.** System retrieves paginated user list from PostgreSQL.<br>**3.** Administrator selects a user and updates status or role.<br>**4.** System validates administrative RBAC scope and persists changes.<br>**5.** Audit log entry is generated for the administrative action. |
+| **Use Case Name** | Manage User Directory & Zero-Trust Role Promotion/Demotion |
+| **Primary Actor** | System Administrator / Super Admin |
+| **Secondary Actor** | PostgreSQL DB (Transaction Client), Redis Cache |
+| **Use Case Type** | Administrative Core Use Case |
+| **Description** | Allows administrators to search, inspect, activate/deactivate accounts, and govern the user role lifecycle with pessimistic row locking, atomic tier replacement, transaction-bound session revocation, and directional audit logging. |
+| **Pre-Conditions** | Administrator possesses authenticated session with `user:read` / `role:update` permissions. |
+| **Post-Conditions** | Target user account state/roles updated in PostgreSQL DB; all active sessions revoked on privilege transition. |
+| **Typical Course of Events (Normal Role Assignment)** | **1. Actor Action:** Administrator selects user and submits new role assignment.<br>**2. System Response:** System opens PostgreSQL transaction and acquires pessimistic lock: `SELECT id, email FROM users WHERE id = $1 FOR UPDATE`.<br>**3. System Response:** System atomically deletes conflicting system-tier roles (`super_admin`, `admin`, `user`) and inserts target role.<br>**4. System Response:** System determines privilege transition (Promotion or Demotion).<br>**5. System Response:** System executes `tokenService.revokeAllUserTokens(userId, client)` inside the same transaction boundary.<br>**6. System Response:** If demoting an elevated administrator to standard `user`, system purges pending unconfirmed MFA secrets.<br>**7. System Response:** System writes directional audit entries: `ROLE_ASSIGNED` and either `ROLE_PROMOTION_SESSION_REVOKED` (for promotion) or `TOKEN_REVOKED` (for demotion).<br>**8. System Response:** System commits transaction (`COMMIT`) and returns `{ assigned: true, sessionsRevoked: true, roleName }`. |
+| **Alternative / Exceptional Flows** | **Flow 6a (Idempotent No-Op):** If user already holds the target role and no conflicting system roles were removed, system commits immediately and returns `{ assigned: false, sessionsRevoked: false }` without invalidating sessions or generating audit records.<br>**Flow 6b (Revocation Failure & Transaction Rollback):** If session token revocation fails (e.g. database connectivity glitch during update), the system executes `ROLLBACK`, restoring previous user roles with zero state change and returning `HTTP 500 Internal Error`.<br>**Flow 6c (Account Activation / Deactivation):** Admin toggles user status via `/api/v1/users/:id/status` or `/activate`. On deactivation, active sessions are revoked immediately. |
 
 ---
 
