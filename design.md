@@ -145,9 +145,9 @@ This interactive staging dashboard serves as the central showcase for the Softwa
   * Includes password visibility toggles (`👁`) and field validation hints.
   * **Auth Flow Interception**:
     1. Sends POST to `/api/v1/auth/login`.
-    2. If response payload returns `mfa_required: true` and temporary `mfa_token`, user is routed to `/mfa-challenge`.
-    3. If response payload returns `mfa_setup_required: true` with an `mfa_enrollment_token` (for promoted administrators lacking MFA), the frontend purges residual access tokens, stores the scoped enrollment token in `sessionStorage`, and redirects to `/mfa-setup`.
-    4. If authentication is complete, stores access and refresh tokens in `localStorage`/Zustand state, initializes Authorization headers, and redirects to `/dashboard/overview`.
+    2. If response payload returns `mfa_required: true` and temporary scoped `mfa_token` (5m TTL), user is routed to `/mfa-challenge`. Standard session tokens are not issued.
+    3. If response payload returns `mfa_setup_required: true` with an `mfa_enrollment_token` (for promoted administrators lacking MFA), the frontend purges residual access tokens, stores the scoped enrollment token in ephemeral `sessionStorage` (10m TTL), and redirects to `/mfa-setup`. Standard session tokens are not issued.
+    4. If authentication is complete, stores access tokens in short-lived in-memory Zustand state, receives refresh tokens in `HttpOnly`, `Secure`, `SameSite=Strict` cookies (shielded from client JavaScript / XSS attack vectors, never persisted in script-accessible `localStorage`), initializes Authorization headers, and redirects to `/dashboard/overview`.
 * **`/mfa-challenge` Interface**:
   * 6-digit auto-advancing TOTP code input boxes with numerical keyboard focus.
   * Countdown timer for TOTP window validity and fallback code modal option.
@@ -155,7 +155,7 @@ This interactive staging dashboard serves as the central showcase for the Softwa
   * Dual-mode authentication support: accepts standard access tokens or scoped `mfa:enroll_only` tokens.
   * Displays SVG QR code and plaintext base32 TOTP secret for authenticator app pairing.
   * Auto-eviction defense: if user privileges are demoted while on the setup screen, `/mfa/verify` returns `AUTH_MFA_SETUP_NOT_REQUIRED`, clearing enrollment state and redirecting to `/login` with an informative banner.
-  * Upon valid TOTP confirmation, receives elevated session tokens (`access_token`, `refresh_token`), establishes session, and redirects to `/dashboard`.
+  * Upon valid TOTP confirmation, receives elevated session tokens (`access_token` in memory, `refresh_token` in `HttpOnly` cookie), establishes session, and redirects to `/dashboard`.
 
 ---
 

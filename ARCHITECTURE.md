@@ -147,8 +147,13 @@ When a promoted user attempts to authenticate:
 3. **API Endpoint Isolation (`authenticate` vs `authenticateMfaEnrollment`):**
    - Standard application endpoints protected by the `authenticate` middleware immediately reject tokens containing `mfa:enroll_only` with `HTTP 403 Forbidden` (`AUTH_TOKEN_SCOPE_RESTRICTED`).
    - Only setup endpoints protected by `authenticateMfaEnrollment` (`POST /api/v1/mfa/setup` and `POST /api/v1/mfa/verify`) accept this token.
-4. **Atomic Token Consumption & Elevated Session Issuance:**
-   During `/api/v1/mfa/verify`, under a locked user row (`FOR UPDATE`), the backend verifies that the user still holds a role mandating MFA (preventing race conditions if demoted mid-setup). It claims the token's `jti` in Redis using `SET key token EX ttl NX`. Upon successful TOTP code validation, it marks `mfa_enabled = true`, issues a full administrative session (Access Token + Refresh Token), and returns `200 OK`.
+4. **TOTP Verification, Atomic Claim & Elevated Session Issuance:**
+   During `/api/v1/mfa/verify`:
+   - The system **first validates the submitted 6-digit TOTP code** against the decrypted secret. If invalid, the system aborts immediately with `HTTP 400 Bad Request` without consuming the enrollment token, allowing the user to retry within the 10-minute window.
+   - Under a locked user row (`FOR UPDATE`), the backend verifies that the user still holds an administrative role mandating MFA (preventing race conditions if demoted mid-setup).
+   - Once validated, the system atomically claims the token's `jti` in Redis using `SET mfa:enrollment:<jti> <claimUUID> EX <ttl> NX`. If the key was already claimed, it returns `HTTP 401 Unauthorized` (preventing token replay).
+   - The database transaction sets `mfa_enabled = true`, issues a full administrative session (Access Token + Refresh Token), logs `MFA_ENABLED`, and commits.
+   - If the database transaction fails before commit, a compensating Redis Lua script releases the claim token using the unique claim UUID, preserving token durability.
 
 ```mermaid
 sequenceDiagram
@@ -174,14 +179,15 @@ sequenceDiagram
 
     User->>Front: Enter 6-digit TOTP code
     Front->>API: POST /api/v1/mfa/verify { code: "123456" } (Bearer <mfa_enrollment_token>)
-    API->>Redis: SET mfa:enrollment:<jti> token EX 600 NX (Atomic Claim)
+    API->>API: Verify TOTP Code (Window ±1) [Fails -> 400 without burning token]
     API->>DB: BEGIN Transaction & Lock User FOR UPDATE
     API->>DB: Validate Role Still Requires MFA
+    API->>Redis: SET mfa:enrollment:<jti> claimUUID EX 600 NX (Atomic Claim)
     API->>DB: UPDATE users SET mfa_enabled = true
     API->>DB: Issue Elevated Access Token & Rotated Refresh Token
-    API->>DB: COMMIT Transaction
+    API->>DB: COMMIT Transaction (Rollback triggers compensating Redis DEL Lua release)
     API-->>Front: 200 OK { user, access_token, refresh_token }
-    Front->>Front: Store credentials; redirect to /dashboard
+    Front->>Front: Store in-memory access token & HttpOnly cookie; redirect to /dashboard
 ```
 
 ---
