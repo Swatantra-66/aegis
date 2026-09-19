@@ -252,11 +252,15 @@ The frontend is built with React 18, Vite, Lucide Icons, GSAP micro-animations, 
   - *Description:* Authenticated users shall be able to view and update their profile details (`first_name`, `last_name`) and view account creation timestamps.
 
 ### 4.2 Module 2: Authentication & Token Lifecycle
-- **`FR-02` [High Priority] User Authentication (Login):**
-  - *Description:* The system shall authenticate users against stored Argon2id password hashes.
+- **`FR-02` [High Priority] User Authentication (Login) & Step-by-Step Flow:**
+  - *Description:* The system shall authenticate users against stored Argon2id password hashes and enforce Zero-Trust policy interception before minting tokens.
   - *Inputs:* `email`, `password`, optional `remember_me`.
-  - *Processing:* Verify credentials. If account is locked due to $\ge 5$ failed attempts, return 423 Locked. If MFA is already enabled, return 200 with `mfa_required: true`. If user was promoted to an administrative tier without prior MFA enrollment, enforce Zero-Trust policy: return 200 with `mfa_setup_required: true` and issue a short-lived (10-min) scoped MFA Enrollment Token (`scope: 'mfa:enroll_only'`) barred from standard API routes. If MFA is disabled/satisfied, issue 15-minute JWT Access Token and 7-day Refresh Token.
-  - *Outputs:* HTTP 200 OK with `access_token`, `refresh_token`, and user role payload, or `mfa_required: true`, or `mfa_setup_required: true` with `mfa_enrollment_token`.
+  - *Processing:*
+    1. Verify credentials against Argon2id hash. If account is locked due to $\ge 5$ failed attempts, return `HTTP 423 Locked`.
+    2. **MFA Challenge Branch:** If MFA is already enabled, return `HTTP 200 OK` with `mfa_required: true` and an ephemeral scoped challenge token `mfa_token` (5-min TTL, `scope: 'mfa:challenge'`). Standard tokens are **not** issued.
+    3. **Zero-Trust Administrative Elevation Branch:** If user was promoted to an administrative tier (`admin`, `super_admin`) without prior MFA enrollment, enforce Zero-Trust policy: return `HTTP 200 OK` with `mfa_setup_required: true` and issue a short-lived (10-min) scoped MFA Enrollment Token `mfa_enrollment_token` (`scope: 'mfa:enroll_only'`) barred from standard API routes. Standard access and refresh tokens are **not** issued until MFA setup is verified.
+    4. **Standard Direct Issuance:** If MFA is satisfied or not required by policy, issue a 15-minute JWT Access Token and a 7-day Refresh Token.
+  - *Outputs:* HTTP 200 OK with `access_token`, `refresh_token`, and user role payload; OR `mfa_required: true` with `mfa_token`; OR `mfa_setup_required: true` with `mfa_enrollment_token`. Standard tokens are strictly withheld during MFA challenge and enrollment branches.
 - **`FR-03` & `FR-17` [High Priority] Automatic Refresh Token Rotation (RTR):**
   - *Description:* The system shall exchange a valid refresh token for a new pair of access and refresh tokens while invalidating the old refresh token.
   - *Inputs:* `refresh_token`.
@@ -276,29 +280,35 @@ The frontend is built with React 18, Vite, Lucide Icons, GSAP micro-animations, 
   - *Outputs:* HTTP 200 OK with QR code URI, plaintext secret for manual entry, and backup codes.
 - **`FR-07` [High Priority] MFA Verification & Challenge Intercept:**
   - *Description:* The system shall verify a 6-digit TOTP code during initial enrollment confirmation and subsequent login challenges.
-  - *Inputs:* `mfa_token`, standard session token, or scoped enrollment token and 6-digit `code` or single-use `backup_code`.
-  - *Processing:* For enrollment tokens: verify under row-level lock `FOR UPDATE` that user still requires MFA (rejecting if demoted); atomically consume token in Redis via `SET NX` (`mfa:enrollment:<jti>`) to prevent replay. Decrypt stored secret; verify TOTP code within $\pm 1$ time step window (30 seconds); activate MFA (`mfa_enabled = true`); if completed via enrollment token, issue initial full administrative access and refresh tokens.
-  - *Outputs:* HTTP 200 OK with token pair upon success, or HTTP 400 Bad Request on invalid code.
+  - *Inputs:* `mfa_token` (challenge token), standard session token, or scoped enrollment token (`mfa_enrollment_token`), and 6-digit `code` or single-use `backup_code`.
+  - *Processing:*
+    1. **Code Verification:** Decrypt stored secret and verify TOTP code within $\pm 1$ time step window (30 seconds). If verification fails, return `HTTP 400 Bad Request` immediately without consuming the enrollment token (enabling documented user retry attempts within the token TTL).
+    2. **Zero-Trust Administrative Elevation Gate:** If verification is executed via scoped enrollment token (`scope: 'mfa:enroll_only'`), execute within a database transaction:
+       a. Lock the user row using `SELECT ... FOR UPDATE` and re-evaluate effective policy to ensure the account still requires mandatory MFA (rejecting if demoted in the interim).
+       b. Atomically claim the enrollment token `jti` in Redis via `SET mfa:enrollment:<jti> <claimUUID> EX <TTL> NX`. If claim fails, return `HTTP 401 Unauthorized: Token already consumed`.
+       c. Activate MFA (`UPDATE users SET mfa_enabled = true WHERE id = $1`) and generate elevated administrative `access_token` and `refresh_token`.
+       d. Commit database transaction. If transaction fails, execute a compensating Redis Lua script to release the claim token, preventing token burning on DB failure.
+  - *Outputs:* HTTP 200 OK with token pair (`access_token`, `refresh_token`) upon success, or HTTP 400 Bad Request on invalid code.
 
 ### 4.4 Module 4: Role-Based Access Control (RBAC)
 - **`FR-08` [High Priority] Role Definition & Hierarchy:**
   - *Description:* The system shall enforce role-based access for system-defined roles (`super_admin` [Tier 3], `admin` [Tier 2], `user` [Tier 1]) and custom roles.
 - **`FR-09` [High Priority] Atomic Permission Evaluation:**
-  - *Description:* The system shall evaluate route-level permissions (`users:read`, `users:create`, `users:update`, `users:delete`, `roles:manage`, `audit:read`, `audit:verify`) via an Express middleware guard (`authorize(['permission_name'])`).
+  - *Description:* The system shall evaluate route-level permissions (`user:read`, `user:create`, `user:update`, `user:delete`, `role:read`, `role:create`, `role:update`, `role:delete`, `audit:read`, `audit:verify`, `mfa:manage`) via an Express middleware guard (`authorize(['permission_name'])`).
 - **`FR-11` [Medium Priority] Role Lifecycle Management:**
   - *Description:* Super Admins shall be able to create new custom roles, update role descriptions, delete non-system roles, and associate/disassociate specific permissions.
 - **`FR-12` [High Priority] User Role Assignment & Zero-Trust Promotion/Demotion Lifecycle:**
-  - *Description:* Administrators shall be able to assign or revoke roles for any user account with strict transactional integrity, pessimistic concurrency serialization, and immediate session revocation.
+  - *Description:* Super Administrators (actors holding the canonical `role:update` permission, exclusive to `super_admin` in baseline RBAC) shall be able to assign or revoke roles for any user account with strict transactional integrity, pessimistic concurrency serialization, and immediate session revocation.
   - *Inputs:* `userId`, `role_id`.
   - *Processing:*
     1. Lock the target user row in PostgreSQL using `SELECT id, email FROM users WHERE id = $1 FOR UPDATE` within a database transaction client.
     2. Atomically delete conflicting system-tier roles (`super_admin`, `admin`, `user`) and insert the new role in the same transaction.
     3. Evaluate privilege direction: **Promotion** (Tier 1 $\to$ 2/3, Tier 2 $\to$ 3) or **Demotion** (Tier 3 $\to$ 2/1, Tier 2 $\to$ 1).
-    4. If promotion or demotion detected, execute `tokenService.revokeAllUserTokens(userId, client)` in the SAME transaction. If token revocation fails, trigger `ROLLBACK` to preserve existing state without privilege mutation.
+    4. If promotion or demotion detected, execute `tokenService.revokeAllUserTokens(userId, client)` in the SAME transaction. This authoritatively revokes all active refresh-token lineages in PostgreSQL, preventing token renewal via RTR and bounding access exposure to the 15-minute access token TTL. If token revocation fails, trigger `ROLLBACK` to preserve existing state without privilege mutation.
     5. If demoting to standard `user`, purge unconfirmed MFA secrets (`UPDATE users SET mfa_secret = NULL, mfa_backup_codes = NULL WHERE id = $1 AND mfa_enabled = false`).
     6. Record directional transactional audit logs: `ROLE_ASSIGNED`, and `ROLE_PROMOTION_SESSION_REVOKED` (for promotion) or `TOKEN_REVOKED` (for demotion).
     7. Commit transaction (`COMMIT`).
-  - *Outputs:* HTTP 200 OK with `{ assigned: boolean, sessionsRevoked: boolean, roleId: string, roleName: string }` or idempotent message if role already assigned.
+  - *Outputs:* HTTP 200 OK with `{ assigned: boolean, sessionsRevoked: boolean, roleId: string, roleName: string }` (where `sessionsRevoked: true` confirms all persistent refresh session lineages were terminated in the database transaction) or idempotent message if role already assigned.
 
 ### 4.5 Module 5: User Administration & Directory
 - **`FR-10` [High Priority] User CRUD & Search Directory:**
@@ -347,7 +357,7 @@ The frontend is built with React 18, Vite, Lucide Icons, GSAP micro-animations, 
   - Rate limiting counters must be stored in Redis to support distributed cluster scaling.
 - **`NFR-04` [Security - HTTP Protection & CORS]:** The API server shall employ Helmet.js to enforce secure HTTP headers (Strict-Transport-Security, X-Content-Type-Options, X-Frame-Options, Content-Security-Policy) and restrict CORS origins to authorized frontend URLs.
 - **`NFR-05` [Security - Account Lockout]:** Accounts must be automatically locked for 15 minutes upon 5 consecutive failed login attempts to prevent online dictionary attacks.
-- **`NFR-09` [Security - Privilege Escalation Invalidation]:** All role promotions and demotions must execute under pessimistic row locks (`SELECT ... FOR UPDATE`), atomically replacing conflicting system-tier roles and invalidating all active refresh tokens in the same database transaction with automatic rollback compensation on revocation failure.
+- **`NFR-09` [Security - Privilege Escalation Invalidation]:** All role promotions and demotions must execute under pessimistic row locks (`SELECT ... FOR UPDATE`), atomically replacing conflicting system-tier roles and invalidating all active refresh-token lineages in PostgreSQL in the same database transaction with automatic rollback compensation on revocation failure, bounding subsequent access token continuation strictly to the active 15-minute JWT TTL.
 
 ### 5.2 Performance & SLA Requirements
 - **`NFR-06` [Performance - Database Connection Pooling]:** PostgreSQL connections shall be managed through an optimized connection pool (10-20 active connections) with query execution latency $< 50\text{ms}$ for 99th percentile operations.
