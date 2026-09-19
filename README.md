@@ -250,26 +250,38 @@ npm start
 ## Authentication Flow
 
 ```
-1. Register  →  POST /api/v1/auth/register
-                 Returns: user object
+1. Register     →  POST /api/v1/auth/register
+                    Returns: user object
 
-2. Login     →  POST /api/v1/auth/login
-                 Returns: access_token + refresh_token
-                 (or mfa_required: true)
+2. Login        →  POST /api/v1/auth/login
+                    Branch A (Standard):
+                      Returns: access_token (15m) + refresh_token (7d)
+                    Branch B (MFA Challenge):
+                      Returns: mfa_required: true + mfa_token
+                      (Standard tokens NOT issued)
+                    Branch C (Promoted Admin Zero-Trust):
+                      Returns: mfa_setup_required: true + mfa_enrollment_token (10m TTL)
+                      (Standard tokens NOT issued)
 
-3. MFA       →  POST /api/v1/mfa/validate  (if MFA enabled)
-                 Validates TOTP code
+3. MFA Intercept:
+   - Challenge  →  POST /api/v1/mfa/validate  (with mfa_token + 6-digit TOTP)
+                    Returns: full session tokens (access_token + refresh_token)
+   - Setup/Elev →  POST /api/v1/mfa/setup    (Bearer mfa_enrollment_token)
+                    POST /api/v1/mfa/verify   (Bearer mfa_enrollment_token + 6-digit TOTP)
+                    Returns: elevated session tokens (access_token + refresh_token)
 
-4. Use API   →  Authorization: Bearer <access_token>
-                 Access token valid for 15 minutes
+4. Use API      →  Authorization: Bearer <access_token>
+                    Access token valid for 15 minutes
 
-5. Refresh   →  POST /api/v1/auth/refresh
-                 Exchange refresh_token for new token pair
-                 (old refresh token invalidated — rotation)
+5. Refresh      →  POST /api/v1/auth/refresh
+                    Exchange refresh_token for new token pair
+                    (old refresh token invalidated — rotation)
 
-6. Logout    →  POST /api/v1/auth/logout
-                 Access token blacklisted, refresh token revoked
+6. Logout       →  POST /api/v1/auth/logout
+                    Access token blacklisted in Redis, refresh token revoked in DB
 ```
+
+> **Zero-Trust Token Policy:** Standard access and refresh tokens are strictly **withheld** during MFA challenge and post-promotion setup branches until the TOTP code is verified.
 
 ## RBAC Model & Zero-Trust Privilege Lifecycle
 
@@ -277,15 +289,15 @@ npm start
 
 | Tier | Role | Permissions | Zero-Trust Enforcement |
 |:---|:---|:---|:---|
-| **Tier 3** | **super_admin** | All permissions (system role, cannot be deleted) | Immediate session revocation on promotion/demotion |
-| **Tier 2** | **admin** | `user:*`, `role:read`, `audit:read`, `mfa:manage` | Mandatory TOTP MFA required before session elevation |
+| **Tier 3** | **super_admin** | All permissions (system role, cannot be deleted). Exclusive holder of `role:update` | Exclusive authority to assign/promote roles; immediate session revocation on role changes |
+| **Tier 2** | **admin** | `user:*`, `role:read`, `audit:read`, `mfa:manage` (no `role:update`) | Mandatory TOTP MFA required before session elevation |
 | **Tier 1** | **user** | `user:read`, `mfa:manage` | Standard identity, optional MFA |
 
 ### Zero-Trust Privilege Lifecycle
 1. **Pessimistic Row-Level Locking:** Target user rows are locked with `SELECT ... FOR UPDATE` to serialize concurrent administrative role assignments.
 2. **Atomic Conflicting Tier Replacement:** Mutually exclusive system roles (`super_admin`, `admin`, `user`) are atomically swapped in a single transaction.
-3. **Transaction-Bound Session Invalidation:** All active refresh tokens are revoked inside the same transaction upon promotion or demotion. If token revocation encounters an error, the transaction rolls back, leaving privileges unchanged.
-4. **Scoped MFA Enrollment:** Promoted administrators lacking MFA receive a scoped `mfa:enroll_only` token (10m TTL) barred from general APIs, requiring atomic Redis `SET NX` consumption upon verification.
+3. **Transaction-Bound Session Invalidation:** All active refresh-token lineages are authoritatively revoked in PostgreSQL inside the same transaction upon promotion or demotion, terminating persistent session renewal (with remaining access token lifetime strictly bounded by 15-minute JWT expiry). If token revocation encounters an error, the transaction rolls back, leaving privileges unchanged.
+4. **Scoped MFA Enrollment:** Promoted administrators lacking MFA receive a scoped `mfa:enroll_only` token (10m TTL) barred from general APIs, requiring atomic Redis `SET NX` consumption upon TOTP verification (with compensating Lua release on DB failure).
 5. **Directional Audit Logging:** Dedicated audit events distinguish promotions (`ROLE_PROMOTION_SESSION_REVOKED`) and demotions (`TOKEN_REVOKED`).
 
 ### Permission Format
