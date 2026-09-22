@@ -381,6 +381,8 @@ This project uses **Husky + lint-staged** to prevent broken code from being comm
 - **CORS** whitelist
 - **Joi** input validation on all endpoints
 - **Tamper-evident** audit logs with SHA-256 checksum chaining
+- **Zero-trust role lifecycle** with atomic transaction-bound session revocation
+- **Scoped MFA enrollment tokens** (`mfa:enroll_only`) with Redis one-time consumption
 
 ## License
 
