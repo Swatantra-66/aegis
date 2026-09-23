@@ -299,7 +299,7 @@ const refresh = async (refreshToken) => {
 
   // Evaluate Zero-Trust Security Policy during refresh
   // Prevents newly-promoted admins from refreshing into an elevated session without meeting MFA requirement
-  const policyResult = securityPolicy.evaluateLoginPolicy({ user, roles });
+  const policyResult = securityPolicy.evaluateLoginPolicy({ user, roles, isRefresh: true });
   if (!policyResult.allowed) {
     // Revoke the refresh token family to terminate unauthorized session upgrade
     await db.query('UPDATE refresh_tokens SET revoked = true WHERE family_id = $1', [familyId]);

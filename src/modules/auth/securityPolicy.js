@@ -77,9 +77,10 @@ const canDisableMfa = (roles = []) => {
  * @param {Object} params.user - User database record
  * @param {string[]} params.roles - Assigned roles
  * @param {string} [params.mfaCode] - Supplied TOTP code (if any)
+ * @param {boolean} [params.isRefresh=false] - True when evaluating an existing authenticated session refresh
  * @returns {Object} { allowed: boolean, requirement?: string, message?: string }
  */
-const evaluateLoginPolicy = ({ user, roles = [], mfaCode }) => {
+const evaluateLoginPolicy = ({ user, roles = [], mfaCode, isRefresh = false }) => {
   const policy = getEffectivePolicy(roles);
 
   // 1. Check Mandatory MFA Policy (for Admin / Super Admin)
@@ -92,8 +93,9 @@ const evaluateLoginPolicy = ({ user, roles = [], mfaCode }) => {
     };
   }
 
-  // 3. Check Active MFA (enabled by policy or user preference)
-  if (user.mfa_enabled) {
+  // 2. Check Active MFA (enabled by policy or user preference)
+  // During token refresh, MFA has ALREADY been verified when the session was created at login.
+  if (user.mfa_enabled && !isRefresh) {
     if (!mfaCode) {
       return {
         allowed: false,
