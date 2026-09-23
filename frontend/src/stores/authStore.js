@@ -26,6 +26,13 @@ const parseJwt = (token) => {
 
 let isFetchingUser = false;
 
+const initialAccessToken = localStorage.getItem('access_token') || null;
+const initialClaims = initialAccessToken ? parseJwt(initialAccessToken) : {};
+
+if (initialAccessToken) {
+  api.defaults.headers.common.Authorization = `Bearer ${initialAccessToken}`;
+}
+
 /**
  * Zustand auth store — manages authentication state, user info, roles, and permissions.
  * Persists tokens to localStorage. User data fetched fresh on init.
@@ -33,11 +40,11 @@ let isFetchingUser = false;
 const useAuthStore = create((set, get) => ({
   // State
   user: null,
-  roles: [],
-  permissions: [],
-  accessToken: localStorage.getItem('access_token') || null,
+  roles: initialClaims.roles || [],
+  permissions: initialClaims.permissions || [],
+  accessToken: initialAccessToken,
   refreshToken: localStorage.getItem('refresh_token') || null,
-  isAuthenticated: !!localStorage.getItem('access_token'),
+  isAuthenticated: !!initialAccessToken,
   isLoading: false,
   error: null,
 
@@ -339,9 +346,9 @@ const useAuthStore = create((set, get) => ({
       // Step 2: Check if roles have changed compared to current store state
       const currentRoles = get().roles || [];
       const rolesChanged =
-        dbRoles.length !== currentRoles.length ||
-        !dbRoles.every((r) => currentRoles.includes(r)) ||
-        get().permissions.length === 0;
+        currentRoles.length > 0 &&
+        (dbRoles.length !== currentRoles.length ||
+          !dbRoles.every((r) => currentRoles.includes(r)));
 
       // Step 3: If roles changed, rotate the JWT access token so subsequent API calls carry the new claims
       const currentRefreshToken = localStorage.getItem('refresh_token');
@@ -379,23 +386,28 @@ const useAuthStore = create((set, get) => ({
         permissions: dbPermissions,
         isAuthenticated: true,
       });
-    } catch {
-      // Token invalid or revoked — clear auth
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      sessionStorage.removeItem('mfa_enrollment_token');
-      set({
-        user: null,
-        roles: [],
-        permissions: [],
-        accessToken: null,
-        refreshToken: null,
-        isAuthenticated: false,
-        mfaRequired: false,
-        mfaSetupRequired: false,
-        mfaEnrollmentToken: null,
-        mfaPendingCredentials: null,
-      });
+    } catch (err) {
+      // Clear auth only if token is definitively invalid/expired/revoked (401)
+      if (err.response?.status === 401) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        sessionStorage.removeItem('mfa_enrollment_token');
+        delete api.defaults.headers.common['Authorization'];
+        delete api.defaults.headers.common.Authorization;
+
+        set({
+          user: null,
+          roles: [],
+          permissions: [],
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
+          mfaRequired: false,
+          mfaSetupRequired: false,
+          mfaEnrollmentToken: null,
+          mfaPendingCredentials: null,
+        });
+      }
     } finally {
       isFetchingUser = false;
     }
