@@ -89,3 +89,15 @@ export const getActionBadgeType = (action) => {
   if (warningActions.includes(action)) return 'warning';
   return 'default';
 };
+
+/**
+ * Format audit action name into a compact badge label that fits table columns without overflowing.
+ */
+export const formatAction = (action) => {
+  if (!action) return '—';
+  if (action === 'PASSWORD_RESET_COMPLETED') return 'PWD_RESET_DONE';
+  if (action === 'PASSWORD_RESET_REQUESTED') return 'PWD_RESET_REQ';
+  if (action === 'EMAIL_VERIFICATION_REQUESTED') return 'EMAIL_VERIFY';
+  if (action === 'ROLE_PROMOTION_SESSION_REVOKED') return 'ROLE_SESS_REVOKED';
+  return action;
+};

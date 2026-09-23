@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { gsap } from 'gsap';
 import api, { getErrorMessage } from '../lib/api';
 import useAuthStore from '../stores/authStore';
-import { AUDIT_ACTIONS, getActionBadgeType } from '../hooks/useAudit';
+import { AUDIT_ACTIONS, formatAction } from '../hooks/useAudit';
 import adminLogo from '../assets/admin-logo.png';
 import Pagination from '../components/Pagination';
 
@@ -174,14 +174,6 @@ const AuditLogs = () => {
     const typeLabel = (resType || 'ITEM').toUpperCase();
     const shortId = resId ? (resId.length > 8 ? resId.substring(0, 8) : resId) : 'N/A';
     return `${typeLabel} · ${shortId}`;
-  };
-
-  // Format action name: strips trailing _REQUESTED for cleaner single-line display (e.g. EMAIL_VERIFICATION)
-  const formatAction = (action) => {
-    if (!action) return '—';
-    if (action === 'EMAIL_VERIFICATION_REQUESTED') return 'EMAIL_VERIFICATION';
-    if (action === 'PASSWORD_RESET_REQUESTED') return 'PASSWORD_RESET';
-    return action;
   };
 
   const renderActionBadge = (action) => {
