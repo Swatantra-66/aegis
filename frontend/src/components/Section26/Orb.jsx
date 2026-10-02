@@ -72,10 +72,10 @@ export const Orb = () => {
   const containerRef = useRef(null);
 
   useEffect(() => {
-    if (!document.querySelector('script[src="https://www.thrine.app/embed/v1.js"]')) {
+    if (!document.querySelector('script[src="https://thrine.app/embed/v1.js"]')) {
       const script = document.createElement("script");
       script.type = "module";
-      script.src = "https://www.thrine.app/embed/v1.js";
+      script.src = "https://thrine.app/embed/v1.js";
       document.head.appendChild(script);
     }
   }, []);
@@ -89,6 +89,7 @@ export const Orb = () => {
           display: "block",
           width: "100%",
           maxWidth: "850px",
+          minHeight: "380px",
           aspectRatio: "1366 / 679",
           pointerEvents: "none",
         }}
